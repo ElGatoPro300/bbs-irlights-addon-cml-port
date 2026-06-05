@@ -3,6 +3,7 @@ package org.wemppy.irlite.client.light.shadow;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.systems.VertexSorter;
 import mchorse.bbs_mod.blocks.entities.ModelBlockEntity;
+import mchorse.bbs_mod.client.renderer.MorphRenderer;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.renderers.FormRenderer;
@@ -11,13 +12,16 @@ import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.pose.Transform;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.EntityRenderDispatcher;
+import net.minecraft.client.render.entity.LivingEntityRenderer;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.util.math.MathHelper;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -171,10 +175,31 @@ public final class ShadowRenderer
         double cz = MathHelper.lerp(tickDelta, entity.lastRenderZ, entity.getZ());
         float yaw = entity.getYaw(tickDelta);
 
-        EntityRenderDispatcher dispatcher = MinecraftClient.getInstance().getEntityRenderDispatcher();
-        if (dispatcher != null)
+        // BBS morph first so morphed players/actors bake their visible
+        // silhouette; vanilla dispatcher is the fallback.
+        boolean rendered = false;
+        if (entity instanceof AbstractClientPlayerEntity player)
         {
-            dispatcher.render(entity, cx, cy, cz, yaw, tickDelta, matrices, immediate, FULL_LIGHT);
+            matrices.push();
+            matrices.translate(cx, cy, cz);
+            rendered = MorphRenderer.renderPlayer(player, yaw, tickDelta, matrices, immediate, FULL_LIGHT);
+            matrices.pop();
+        }
+        if (!rendered && entity instanceof LivingEntity living)
+        {
+            int overlay = LivingEntityRenderer.getOverlay(living, 0f);
+            matrices.push();
+            matrices.translate(cx, cy, cz);
+            rendered = MorphRenderer.renderLivingEntity(living, yaw, tickDelta, matrices, immediate, FULL_LIGHT, overlay);
+            matrices.pop();
+        }
+        if (!rendered)
+        {
+            EntityRenderDispatcher dispatcher = MinecraftClient.getInstance().getEntityRenderDispatcher();
+            if (dispatcher != null)
+            {
+                dispatcher.render(entity, cx, cy, cz, yaw, tickDelta, matrices, immediate, FULL_LIGHT);
+            }
         }
     }
 
