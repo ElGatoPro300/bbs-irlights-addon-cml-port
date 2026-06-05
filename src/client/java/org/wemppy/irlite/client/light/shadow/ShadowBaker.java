@@ -91,7 +91,7 @@ public final class ShadowBaker
         // depth maps. Tiles/slots are still assigned so the shader keeps
         // reading the same valid maps.
         double hash = sceneHash(n);
-        boolean dirty = Double.isNaN(lastHash) || hash != lastHash;
+        boolean dirty = !IrliteConfig.shadowCache() || Double.isNaN(lastHash) || hash != lastHash;
         lastHash = hash;
 
         // --- spotlights: one perspective atlas tile each ---

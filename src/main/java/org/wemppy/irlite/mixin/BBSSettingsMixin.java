@@ -24,5 +24,6 @@ public class BBSSettingsMixin
             IKey.constant("HIGH"),
             IKey.constant("ULTRA")
         );
+        IrliteConfig.shadowCache = builder.getBoolean("shadow_cache", true);
     }
 }
