@@ -1,12 +1,15 @@
 package org.wemppy.irlite.client.ui.patcher;
 
 import mchorse.bbs_mod.l10n.keys.IKey;
+import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UILabelList;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Colors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,9 +52,21 @@ public final class UIPatcherSection
 
         List<String> packs = Shaderpacks.list();
         List<Path> patches = PatchLibrary.list();
-        LOG.info("Patcher UI: {} shaderpack(s), {} patch(es) in {}", packs.size(), patches.size(), PatchLibrary.dir());
 
-        options.add(caption("Shader patcher"));
+        // --- shaderpack list (header row: label + refresh + open folder) ---
+        UIIcon refresh = new UIIcon(Icons.REFRESH, (b) ->
+        {
+            if (rebuild != null)
+            {
+                rebuild.run();
+            }
+        });
+        refresh.tooltip(IKey.constant("Refresh lists"));
+
+        UIIcon openPacks = new UIIcon(Icons.FOLDER, (b) -> Shaderpacks.openFolder());
+        openPacks.tooltip(IKey.constant("Open shaderpacks folder"));
+
+        options.add(headerRow("Shaderpacks", refresh, openPacks));
 
         UILabelList<String> packList = new UILabelList<>((selected) ->
         {
@@ -61,7 +76,7 @@ public final class UIPatcherSection
             }
         });
         packList.background();
-        packList.h(70);
+        packList.h(96);
         for (String pack : packs)
         {
             packList.add(IKey.constant(pack), pack);
@@ -70,14 +85,13 @@ public final class UIPatcherSection
         {
             packList.setCurrentValue(selectedPack);
         }
-        UIButton refresh = new UIButton(IKey.constant("Refresh"), (b) ->
-        {
-            if (rebuild != null)
-            {
-                rebuild.run();
-            }
-        });
-        options.add(label("Installed shaderpacks"), packList, refresh);
+        options.add(packList);
+
+        // --- patch list (header row: label + open folder) ---
+        UIIcon openPatches = new UIIcon(Icons.FOLDER, (b) -> PatchLibrary.openFolder());
+        openPatches.tooltip(IKey.constant("Open patches folder"));
+
+        options.add(headerRow("Patches", openPatches));
 
         UILabelList<Path> patchList = new UILabelList<>((selected) ->
         {
@@ -87,7 +101,7 @@ public final class UIPatcherSection
             }
         });
         patchList.background();
-        patchList.h(70);
+        patchList.h(96);
         for (Path patch : patches)
         {
             patchList.add(IKey.constant(patch.getFileName().toString()), patch);
@@ -96,16 +110,15 @@ public final class UIPatcherSection
         {
             patchList.setCurrentValue(selectedPatch);
         }
-        options.add(label("Patches"), patchList);
+        options.add(patchList);
 
-        UIButton openPatches = new UIButton(IKey.constant("Open patches folder"), (b) -> PatchLibrary.openFolder());
-        UIButton openPacks = new UIButton(IKey.constant("Open shaderpacks folder"), (b) -> Shaderpacks.openFolder());
-        UIButton patch = new UIButton(IKey.constant("Patch"), (b) -> runPatch());
-        options.add(openPatches, openPacks, patch);
-
+        // --- options + primary action ---
         UIToggle createNewToggle = new UIToggle(IKey.constant("Create new pack each time"), (t) -> createNew = t.getValue());
         createNewToggle.setValue(createNew);
         options.add(createNewToggle);
+
+        UIButton patch = new UIButton(IKey.constant("Patch"), (b) -> runPatch());
+        options.add(patch);
 
         statusLabel = new UILabel(IKey.constant(status), statusColor);
         statusLabel.h(28);
@@ -205,13 +218,29 @@ public final class UIPatcherSection
         }
     }
 
-    private static UILabel caption(String text)
+    /** A header row with the label flexing on the left and fixed icon buttons on the right (icons vertically centered with the text). */
+    private static UIElement headerRow(String text, UIIcon... icons)
     {
-        return new UILabel(IKey.constant(text)).color(Colors.WHITE, true);
-    }
+        int rowH = 18;
 
-    private static UILabel label(String text)
-    {
-        return UI.label(IKey.constant(text));
+        UIElement row = new UIElement();
+        row.row(4).preferred(0);
+        row.h(rowH);
+        row.marginTop(6);
+
+        // Vertically center the label text so it lines up with the centered icons.
+        // anchorY centers within (area.h - fontHeight), so the label must span the
+        // full row height — UILabel otherwise auto-sizes to the font height.
+        UILabel header = UI.label(IKey.constant(text));
+        header.labelAnchor(0F, 0.5F);
+        header.h(rowH);
+        row.add(header);
+        for (UIIcon icon : icons)
+        {
+            icon.w(20).h(rowH);
+            row.add(icon);
+        }
+
+        return row;
     }
 }

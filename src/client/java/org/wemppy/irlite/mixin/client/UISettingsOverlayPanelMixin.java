@@ -26,7 +26,7 @@ public abstract class UISettingsOverlayPanelMixin
         {
             return;
         }
-        if (!"irlite".equals(this.category.getId()))
+        if (!"irlite_patcher".equals(this.category.getId()))
         {
             return;
         }
