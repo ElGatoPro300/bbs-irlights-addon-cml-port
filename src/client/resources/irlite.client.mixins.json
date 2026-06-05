@@ -4,6 +4,10 @@
   "package": "org.wemppy.irlite.mixin.client",
   "compatibilityLevel": "JAVA_17",
   "client": [
+    "ExtraFormSectionMixin",
+    "FormUtilsClientMixin",
+    "L10nMixin",
+    "UIFormEditorMixin"
   ],
   "injectors": {
     "defaultRequire": 1
