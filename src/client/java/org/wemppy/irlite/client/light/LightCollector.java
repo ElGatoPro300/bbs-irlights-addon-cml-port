@@ -195,6 +195,7 @@ public final class LightCollector
         Vector4f origin = new Vector4f(0F, 0F, 0F, 1F);
         matrix.transform(origin);
 
+        // Local +Z = the direction the spotlight points (matches the editor gizmo).
         Vector4f forward = new Vector4f(0F, 0F, 1F, 0F);
         matrix.transform(forward);
         float len = (float) Math.sqrt(forward.x * forward.x + forward.y * forward.y + forward.z * forward.z);
