@@ -125,11 +125,6 @@ public final class LightBuffer
         scratch.clear();
     }
 
-    public static int getCount()
-    {
-        return count;
-    }
-
     public static void delete()
     {
         if (ssbo != 0)

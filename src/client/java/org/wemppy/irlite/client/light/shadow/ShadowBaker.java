@@ -37,9 +37,9 @@ import java.util.List;
  * map(s) and records the atlas tile / cube slot back into the registry
  * (-> SSBO vlParams.w). Runs at renderWorld HEAD, before Iris activates.
  *
- * Model blocks bake via the BBS FormRenderer (correct morph silhouette);
- * world entities bake via the vanilla render dispatcher. Bakes every frame
- * (no static/adaptive cache yet); film replays + entity morphs are TODO.
+ * Occluders: world entities (BBS morph silhouette, vanilla fallback), BBS model
+ * blocks, and film replays (all via the BBS FormRenderer / MorphRenderer). A
+ * scene-hash cache skips the GL depth render when nothing moved since last frame.
  */
 public final class ShadowBaker
 {

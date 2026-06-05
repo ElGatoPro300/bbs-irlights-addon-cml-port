@@ -20,24 +20,9 @@ public final class IRLightPositionResolver
 
     public static Vector3d resolve(FormRenderingContext context)
     {
-        Matrix4f matrix;
-        Vector3f offset;
-
-        if (IRLightRenderState.isRelativeRender())
-        {
-            matrix = new Matrix4f(context.stack.peek().getPositionMatrix());
-            offset = matrix.getTranslation(new Vector3f());
-
-            return new Vector3d(
-                IRLightRenderState.getOriginX() + offset.x,
-                IRLightRenderState.getOriginY() + offset.y,
-                IRLightRenderState.getOriginZ() + offset.z
-            );
-        }
-
-        matrix = new Matrix4f((Matrix3fc) RenderSystem.getInverseViewRotationMatrix());
+        Matrix4f matrix = new Matrix4f((Matrix3fc) RenderSystem.getInverseViewRotationMatrix());
         matrix.mul(context.stack.peek().getPositionMatrix());
-        offset = matrix.getTranslation(new Vector3f());
+        Vector3f offset = matrix.getTranslation(new Vector3f());
 
         net.minecraft.util.math.Vec3d cam = MinecraftClient.getInstance().gameRenderer.getCamera().getPos();
 
