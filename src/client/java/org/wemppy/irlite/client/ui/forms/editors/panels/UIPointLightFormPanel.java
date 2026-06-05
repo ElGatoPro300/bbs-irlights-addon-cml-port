@@ -18,7 +18,9 @@ public class UIPointLightFormPanel extends UIFormPanel<PointLightForm>
     public UITrackpad beamStrength;
     public UITrackpad anisotropy;
     public UITrackpad vlDensity;
+    public UITrackpad bulbSize;
     public UIToggle entitiesOnly;
+    public UIToggle noEntityShadows;
 
     public UIPointLightFormPanel(UIForm editor)
     {
@@ -30,7 +32,9 @@ public class UIPointLightFormPanel extends UIFormPanel<PointLightForm>
         this.beamStrength = new UITrackpad((v) -> this.form.beamStrength.set(v.floatValue())).limit(0, 5);
         this.anisotropy = new UITrackpad((v) -> this.form.anisotropy.set(v.floatValue())).limit(-0.95, 0.95);
         this.vlDensity = new UITrackpad((v) -> this.form.vlDensity.set(v.floatValue())).limit(0.005, 0.5);
+        this.bulbSize = new UITrackpad((v) -> this.form.bulbSize.set(v.floatValue())).limit(0, 2);
         this.entitiesOnly = new UIToggle(IKey.constant("Entities only"), (b) -> this.form.entitiesOnly.set(b.getValue()));
+        this.noEntityShadows = new UIToggle(IKey.constant("No entity shadows"), (b) -> this.form.noEntityShadows.set(b.getValue()));
 
         this.options.add(UI.label(IKey.constant("Color")), this.color);
         this.options.add(UI.label(IKey.constant("Intensity")), this.intensity);
@@ -38,7 +42,9 @@ public class UIPointLightFormPanel extends UIFormPanel<PointLightForm>
         this.options.add(UI.label(IKey.constant("Beam strength")), this.beamStrength);
         this.options.add(UI.label(IKey.constant("Anisotropy")), this.anisotropy);
         this.options.add(UI.label(IKey.constant("VL density")), this.vlDensity);
+        this.options.add(UI.label(IKey.constant("Bulb size (shadow softness)")), this.bulbSize);
         this.options.add(this.entitiesOnly);
+        this.options.add(this.noEntityShadows);
     }
 
     @Override
@@ -52,6 +58,8 @@ public class UIPointLightFormPanel extends UIFormPanel<PointLightForm>
         this.beamStrength.setValue(form.beamStrength.get());
         this.anisotropy.setValue(form.anisotropy.get());
         this.vlDensity.setValue(form.vlDensity.get());
+        this.bulbSize.setValue(form.bulbSize.get());
         this.entitiesOnly.setValue(form.entitiesOnly.get());
+        this.noEntityShadows.setValue(form.noEntityShadows.get());
     }
 }

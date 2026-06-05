@@ -19,7 +19,9 @@ public class SpotlightForm extends Form
     public final ValueFloat beamStrength = new ValueFloat("beam_strength", 1F, 0F, 5F);
     public final ValueFloat anisotropy = new ValueFloat("anisotropy", 0.4F, -0.95F, 0.95F);
     public final ValueFloat vlDensity = new ValueFloat("vl_density", 0.05F, 0.005F, 0.5F);
+    public final ValueFloat bulbSize = new ValueFloat("bulb_size", 0F, 0F, 2F);
     public final ValueBoolean entitiesOnly = new ValueBoolean("entities_only", false);
+    public final ValueBoolean noEntityShadows = new ValueBoolean("no_entity_shadows", false);
 
     public SpotlightForm()
     {
@@ -31,7 +33,9 @@ public class SpotlightForm extends Form
         this.add(this.beamStrength);
         this.add(this.anisotropy);
         this.add(this.vlDensity);
+        this.add(this.bulbSize);
         this.add(this.entitiesOnly);
+        this.add(this.noEntityShadows);
     }
 
     @Override

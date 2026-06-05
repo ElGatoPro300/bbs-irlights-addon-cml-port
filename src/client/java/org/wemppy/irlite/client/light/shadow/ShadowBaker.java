@@ -90,7 +90,8 @@ public final class ShadowBaker
             float ly = LightRegistry.getY(i);
             float lz = LightRegistry.getZ(i);
             float range = LightRegistry.getRange(i);
-            if (range < 1e-3f || countInRange(lx, ly, lz, range) == 0)
+            boolean noEnt = LightRegistry.getNoEntityShadows(i);
+            if (range < 1e-3f || countInRange(lx, ly, lz, range, noEnt) == 0)
             {
                 continue;
             }
@@ -101,7 +102,7 @@ public final class ShadowBaker
             float outerDeg = (float) Math.toDegrees(Math.acos(MathHelper.clamp(LightRegistry.getCosOuter(i), -1f, 1f)) * 2.0);
 
             ShadowRenderer.beginSpot(tile, lx, ly, lz, dx, dy, dz, range, outerDeg);
-            renderInRange(lx, ly, lz, range, tickDelta);
+            renderInRange(lx, ly, lz, range, noEnt, tickDelta);
             ShadowRenderer.endPass();
 
             LightRegistry.setShadowTile(i, tile);
@@ -121,7 +122,8 @@ public final class ShadowBaker
             float ly = LightRegistry.getY(i);
             float lz = LightRegistry.getZ(i);
             float radius = LightRegistry.getRange(i);
-            if (radius < 1e-3f || countInRange(lx, ly, lz, radius) == 0)
+            boolean noEnt = LightRegistry.getNoEntityShadows(i);
+            if (radius < 1e-3f || countInRange(lx, ly, lz, radius, noEnt) == 0)
             {
                 continue;
             }
@@ -129,7 +131,7 @@ public final class ShadowBaker
             for (int face = 0; face < 6; face++)
             {
                 ShadowRenderer.beginPointFace(layer, face, lx, ly, lz, radius);
-                renderInRange(lx, ly, lz, radius, tickDelta);
+                renderInRange(lx, ly, lz, radius, noEnt, tickDelta);
                 ShadowRenderer.endPass();
             }
 
@@ -138,11 +140,20 @@ public final class ShadowBaker
         }
     }
 
-    private static int countInRange(float lx, float ly, float lz, float reachBase)
+    private static boolean skip(int k, boolean skipEntities)
+    {
+        return skipEntities && (occType[k] == ShadowRenderer.CASTER_ENTITY || occType[k] == ShadowRenderer.CASTER_REPLAY);
+    }
+
+    private static int countInRange(float lx, float ly, float lz, float reachBase, boolean skipEntities)
     {
         int c = 0;
         for (int k = 0; k < occCount; k++)
         {
+            if (skip(k, skipEntities))
+            {
+                continue;
+            }
             float ddx = ox[k] - lx, ddy = oy[k] - ly, ddz = oz[k] - lz;
             float reach = reachBase + orad[k];
             if (ddx * ddx + ddy * ddy + ddz * ddz <= reach * reach)
@@ -153,10 +164,14 @@ public final class ShadowBaker
         return c;
     }
 
-    private static void renderInRange(float lx, float ly, float lz, float reachBase, float tickDelta)
+    private static void renderInRange(float lx, float ly, float lz, float reachBase, boolean skipEntities, float tickDelta)
     {
         for (int k = 0; k < occCount; k++)
         {
+            if (skip(k, skipEntities))
+            {
+                continue;
+            }
             float ddx = ox[k] - lx, ddy = oy[k] - ly, ddz = oz[k] - lz;
             float reach = reachBase + orad[k];
             if (ddx * ddx + ddy * ddy + ddz * ddz <= reach * reach)
