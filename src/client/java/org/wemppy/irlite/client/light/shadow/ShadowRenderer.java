@@ -73,6 +73,10 @@ public final class ShadowRenderer
     private static boolean savedMaskR, savedMaskG, savedMaskB, savedMaskA;
 
     private static final Matrix4f currentView = new Matrix4f();
+    /** The current light's projection, mirrored from what applyMatrices set on
+     *  RenderSystem. The block batch draws with this + currentView directly,
+     *  NOT RenderSystem's live matrices, which a caster can leave corrupted. */
+    private static final Matrix4f currentProj = new Matrix4f();
 
     private ShadowRenderer()
     {}
@@ -336,20 +340,14 @@ public final class ShadowRenderer
         }
 
         ShadowBakeState.setBaking(true);
-        boolean culled = false;
+        boolean disabledCull = false;
         try
         {
-            // Second-depth shadow mapping: cull FRONT faces so the depth map
-            // stores each block's FAR side. The lit near surface then sits ~a
-            // block in front of the stored depth and can't self-shadow, which
-            // kills the terrain self-shadow acne that view bobbing turned into
-            // flicker (without forcing up the global shadow bias, which would
-            // peter-pan entity shadows). QuadBoxConsumer winding is consistent
-            // CCW-outward, so GL_FRONT culls the light-facing faces; entity
-            // casters, baked earlier in the same pass, keep their tight bias.
-            RenderSystem.enableCull();
-            GL11.glCullFace(GL11.GL_FRONT);
-            culled = true;
+            // Culling OFF: both faces of every quad write depth and the depth test
+            // keeps the nearest (light-facing) surface — the true occluder — so
+            // blocks cast tight, correct shadows (matches the proven IRLEngine bake).
+            RenderSystem.disableCull();
+            disabledCull = true;
             RenderSystem.depthMask(true);
             RenderSystem.enableDepthTest();
             RenderSystem.disableBlend();
@@ -372,7 +370,14 @@ public final class ShadowRenderer
             if (vb != null)
             {
                 vb.bind();
-                vb.draw(RenderSystem.getModelViewMatrix(), RenderSystem.getProjectionMatrix(), RenderSystem.getShader());
+                // Draw with the LIGHT's own view/proj, NOT RenderSystem's live
+                // matrices. A caster baked earlier in this pass — notably a model
+                // block whose form is a vanilla mob, drawn through the vanilla
+                // EntityRenderer — can leave RenderSystem's modelview changed; the
+                // block batch would then transform wrong and land nothing in the
+                // depth map, so the light's block shadows silently vanished (no GL
+                // error). currentView/currentProj are set in applyMatrices.
+                vb.draw(currentView, currentProj, RenderSystem.getShader());
                 VertexBuffer.unbind();
             }
         }
@@ -389,9 +394,9 @@ public final class ShadowRenderer
         }
         finally
         {
-            if (culled)
+            if (disabledCull)
             {
-                GL11.glCullFace(GL11.GL_BACK);   // restore MC's default cull face
+                RenderSystem.enableCull();   // restore MC's default (back-face cull)
             }
             ShadowBakeState.setBaking(false);
         }
@@ -550,7 +555,26 @@ public final class ShadowRenderer
                 }
                 stack.pop();
             }
+            // immediate.draw() flushes through vanilla's cutout shader, which reads
+            // RenderSystem's CACHED modelview/projection — matrices we can't hand in
+            // directly the way the opaque VBO path does. A caster baked earlier in
+            // this pass (notably a model block whose form is a vanilla mob, drawn via
+            // the vanilla EntityRenderer) leaves that cached modelview corrupted, so
+            // the cutout batch would transform wrong and land nothing in the depth
+            // map — glass/leaf/grate ("transparent-pixel") block shadows silently
+            // vanish even though opaque blocks now bake (B1 fixed only the opaque
+            // path). Re-establish the LIGHT's own view/proj (the same currentView/
+            // currentProj the opaque draw uses) around the flush; the push/pop keeps
+            // the begin/endPass modelview-stack balance intact.
+            MatrixStack mv = RenderSystem.getModelViewStack();
+            mv.push();
+            mv.loadIdentity();
+            mv.multiplyPositionMatrix(currentView);
+            RenderSystem.applyModelViewMatrix();
+            RenderSystem.setProjectionMatrix(currentProj, VertexSorter.BY_DISTANCE);
             immediate.draw();
+            mv.pop();
+            RenderSystem.applyModelViewMatrix();
         }
         catch (Throwable t)
         {
@@ -685,6 +709,7 @@ public final class ShadowRenderer
         GL11.glColorMask(true, true, true, true);
 
         RenderSystem.setProjectionMatrix(proj, VertexSorter.BY_DISTANCE);
+        currentProj.set(proj);
 
         MatrixStack mvStack = RenderSystem.getModelViewStack();
         mvStack.push();
