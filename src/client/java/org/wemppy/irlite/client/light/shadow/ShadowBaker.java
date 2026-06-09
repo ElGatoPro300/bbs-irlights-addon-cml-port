@@ -1,7 +1,11 @@
 package org.wemppy.irlite.client.light.shadow;
 
 import io.netty.util.collection.IntObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.blocks.entities.ModelBlockEntity;
 import mchorse.bbs_mod.blocks.entities.ModelProperties;
@@ -42,7 +46,9 @@ import java.util.List;
  *
  * Occluders: world entities (BBS morph silhouette, vanilla fallback), BBS model
  * blocks, and film replays (all via the BBS FormRenderer / MorphRenderer). A
- * scene-hash cache skips the GL depth render when nothing moved since last frame.
+ * per-light signature cache (see {@link #bake}) skips the GL depth render for
+ * any light whose own geometry, in-range static occluders and world blocks are
+ * unchanged; a light with a live entity/replay in range always re-bakes.
  */
 public final class ShadowBaker
 {
@@ -57,20 +63,55 @@ public final class ShadowBaker
      *  the per-frame cost. */
     private static final float MAX_BLOCK_COLLECT_RADIUS = 24f;
 
+    private static final long FNV_OFFSET = 1469598103934665603L;
+    private static final long FNV_PRIME = 1099511628211L;
+
     private static final Object[] occ = new Object[MAX_OCCLUDERS];
     private static final int[] occType = new int[MAX_OCCLUDERS];
     private static final float[] ox = new float[MAX_OCCLUDERS];
     private static final float[] oy = new float[MAX_OCCLUDERS];
     private static final float[] oz = new float[MAX_OCCLUDERS];
     private static final float[] orad = new float[MAX_OCCLUDERS];
+    /** Per-occluder signature of everything that moves a STATIC (model-block)
+     *  caster's baked silhouette but isn't its center: transform translate/
+     *  scale/rotate. Folded into a light's signature for model blocks in range;
+     *  unused (0) for entity/replay casters, which are always treated dirty. */
+    private static final long[] ostatichash = new long[MAX_OCCLUDERS];
     private static int occCount;
 
-    /** Scene hash of the last bake — when unchanged we skip the GL render and
-     *  reuse the depth maps from the previous frame (tiles are still assigned). */
-    private static double lastHash = Double.NaN;
+    // --- Per-light dirty cache (replaces the old global scene hash) ----------
+    // Keyed by LightRegistry.getId (stable identity), like BlockShadowCache.
+    // lastSig:   light geometry + sum of in-range model-block hashes last baked.
+    // lastTile:  the atlas tile / cube slot the light last baked into. Also the
+    //            "have we ever baked this light?" marker (containsKey).
+    // lastBlocks:the world-block list instance last baked. BlockShadowCache
+    //            returns the SAME instance until a block in range changes, so a
+    //            reference compare detects terrain edits precisely.
+    private static final Long2LongOpenHashMap lastSig = new Long2LongOpenHashMap();
+    private static final Long2IntOpenHashMap lastTile = new Long2IntOpenHashMap();
+    private static final Long2ObjectOpenHashMap<List<BlockShadowEntry>> lastBlocks = new Long2ObjectOpenHashMap<>();
+    /** Ids whose last bake included a dynamic (entity/replay) occluder. Dynamic
+     *  casters aren't in lastSig (they force a re-bake every frame instead), so
+     *  when the subject leaves range the signature returns to its earlier value
+     *  and the cache would otherwise reuse the last map with the subject still
+     *  baked in. This forces ONE trailing re-bake to clear it. */
+    private static final LongOpenHashSet wasDynamic = new LongOpenHashSet();
 
-    /** Reusable scratch set of the current frame's light ids, used to evict the
-     *  block-list + VBO caches for lights that disappeared. */
+    /** Set true by {@link #scanInRange} when any in-range occluder is an entity
+     *  or film replay (a dynamic subject) -> the light re-bakes every frame. */
+    private static boolean dynamicInRangeScratch;
+    /** Set by {@link #scanInRange} to the order-independent sum of the in-range
+     *  model-block {@link #ostatichash} values. */
+    private static long staticOccSigScratch;
+
+    /** Ids that actually baked / were assigned a tile this frame. Drives
+     *  dirty-state eviction: a light that skipped (shadows off, or nothing in
+     *  range) drops its state, so when it next casts it is a first-bake and
+     *  re-renders into its (possibly reused) tile instead of sampling another
+     *  light's depth map. */
+    private static final LongOpenHashSet bakedIds = new LongOpenHashSet();
+    /** Reusable scratch set of all current light ids, used to evict the block-
+     *  list + VBO caches for lights that disappeared. */
     private static final LongOpenHashSet liveIds = new LongOpenHashSet();
 
     private ShadowBaker()
@@ -84,8 +125,11 @@ public final class ShadowBaker
         }
         if (LightRegistry.getCount() == 0)
         {
-            // No lights — drain block caches so their VBOs don't linger in VRAM
-            // after walking away from every lamp. Both retains no-op once empty.
+            // No lights — drain every cache so nothing lingers in VRAM/heap
+            // after walking away from all lamps. Empty sets make each retain
+            // a full drain.
+            bakedIds.clear();
+            retainDirtyState(bakedIds);
             liveIds.clear();
             BlockShadowCache.retainOnly(liveIds);
             ShadowRenderer.retainBlockVbos(liveIds);
@@ -101,16 +145,8 @@ public final class ShadowBaker
         // block silhouette baked. The per-light skip below also checks blocks.
 
         int n = LightRegistry.getCount();
-
-        // Scene cache: if neither lights nor occluders moved since the last
-        // bake, skip the (expensive) GL depth render and reuse the existing
-        // depth maps. Tiles/slots are still assigned so the shader keeps
-        // reading the same valid maps. Block edits don't move anything, so
-        // sceneHash can't see them — WorldBlockChangeMixin forces a rebake via
-        // markBlocksDirty() (lastHash = NaN) instead.
-        double hash = sceneHash(n);
-        boolean dirty = !IrliteConfig.shadowCache() || Double.isNaN(lastHash) || hash != lastHash;
-        lastHash = hash;
+        boolean cache = IrliteConfig.shadowCache();
+        bakedIds.clear();
 
         // --- spotlights: one perspective atlas tile each ---
         int tile = 0;
@@ -130,33 +166,43 @@ public final class ShadowBaker
                 continue;
             }
             boolean castsShadows = LightRegistry.getShadows(i);
-
             long id = LightRegistry.getId(i);
+
             // "Shadows" toggle (default on): when off this light casts no shadow
             // at all — neither entities nor world blocks. Forcing both inputs
             // empty drops it into the same "nothing in range" skip below, leaving
             // its shadow tile unassigned (-1 = none in the SSBO -> unshadowed).
-            int entInRange = castsShadows ? countInRange(lx, ly, lz, range) : 0;
+            int entInRange = castsShadows ? scanInRange(lx, ly, lz, range) : 0;
             // Collect blocks every frame (NOT gated on dirty): the skip/tile
             // decision must match the frame that actually baked, or the atlas
             // tile a light points to in the SSBO could drift off its baked
-            // depth map. On a real cache-hit nothing moved and no block changed
-            // (invalidateAt forces it), so the result is identical. Cached by
-            // id -> O(1) on a hit.
+            // depth map. Cached by id -> O(1) on a hit, and the returned list
+            // instance is stable until a block in range changes.
             List<BlockShadowEntry> blocks = castsShadows ? collectBlocks(id, world, lx, ly, lz, range) : Collections.emptyList();
             if (entInRange == 0 && blocks.isEmpty())
             {
                 continue;
             }
 
+            int myTile = tile;
             float dx = LightRegistry.getDirX(i);
             float dy = LightRegistry.getDirY(i);
             float dz = LightRegistry.getDirZ(i);
-            float outerDeg = (float) Math.toDegrees(Math.acos(MathHelper.clamp(LightRegistry.getCosOuter(i), -1f, 1f)) * 2.0);
+            float cosOuter = LightRegistry.getCosOuter(i);
+            long sig = lightGeomSig(lx, ly, lz, dx, dy, dz, range, cosOuter, castsShadows) + staticOccSigScratch;
+
+            boolean dirty = !cache
+                || !lastTile.containsKey(id)        // first bake
+                || dynamicInRangeScratch            // live entity/replay in range
+                || wasDynamic.contains(id)          // dynamic subject just left -> clear it
+                || lastSig.get(id) != sig           // geometry / static occluder moved
+                || lastBlocks.get(id) != blocks     // terrain in range changed
+                || lastTile.get(id) != myTile;       // assigned a different tile
 
             if (dirty)
             {
-                ShadowRenderer.beginSpot(tile, lx, ly, lz, dx, dy, dz, range, outerDeg);
+                float outerDeg = (float) Math.toDegrees(Math.acos(MathHelper.clamp(cosOuter, -1f, 1f)) * 2.0);
+                ShadowRenderer.beginSpot(myTile, lx, ly, lz, dx, dy, dz, range, outerDeg);
                 if (entInRange > 0)
                 {
                     renderInRange(lx, ly, lz, range, tickDelta);
@@ -168,7 +214,19 @@ public final class ShadowBaker
                 ShadowRenderer.endPass();
             }
 
-            LightRegistry.setShadowTile(i, tile);
+            LightRegistry.setShadowTile(i, myTile);
+            lastSig.put(id, sig);
+            lastTile.put(id, myTile);
+            lastBlocks.put(id, blocks);
+            bakedIds.add(id);
+            if (dynamicInRangeScratch)
+            {
+                wasDynamic.add(id);
+            }
+            else
+            {
+                wasDynamic.remove(id);
+            }
             tile++;
         }
 
@@ -190,10 +248,10 @@ public final class ShadowBaker
                 continue;
             }
             boolean castsShadows = LightRegistry.getShadows(i);
-
             long id = LightRegistry.getId(i);
+
             // See the spot loop: "Shadows" off -> no entities, no blocks.
-            int entInRange = castsShadows ? countInRange(lx, ly, lz, radius) : 0;
+            int entInRange = castsShadows ? scanInRange(lx, ly, lz, radius) : 0;
             // Collected once, reused across all 6 cube faces (see spot note).
             List<BlockShadowEntry> blocks = castsShadows ? collectBlocks(id, world, lx, ly, lz, radius) : Collections.emptyList();
             if (entInRange == 0 && blocks.isEmpty())
@@ -201,11 +259,22 @@ public final class ShadowBaker
                 continue;
             }
 
+            int myLayer = layer;
+            long sig = lightGeomSig(lx, ly, lz, 0f, 0f, 0f, radius, 1f, castsShadows) + staticOccSigScratch;
+
+            boolean dirty = !cache
+                || !lastTile.containsKey(id)
+                || dynamicInRangeScratch
+                || wasDynamic.contains(id)
+                || lastSig.get(id) != sig
+                || lastBlocks.get(id) != blocks
+                || lastTile.get(id) != myLayer;
+
             if (dirty)
             {
                 for (int face = 0; face < 6; face++)
                 {
-                    ShadowRenderer.beginPointFace(layer, face, lx, ly, lz, radius);
+                    ShadowRenderer.beginPointFace(myLayer, face, lx, ly, lz, radius);
                     if (entInRange > 0)
                     {
                         renderInRange(lx, ly, lz, radius, tickDelta);
@@ -218,12 +287,29 @@ public final class ShadowBaker
                 }
             }
 
-            LightRegistry.setShadowTile(i, layer);
+            LightRegistry.setShadowTile(i, myLayer);
+            lastSig.put(id, sig);
+            lastTile.put(id, myLayer);
+            lastBlocks.put(id, blocks);
+            bakedIds.add(id);
+            if (dynamicInRangeScratch)
+            {
+                wasDynamic.add(id);
+            }
+            else
+            {
+                wasDynamic.remove(id);
+            }
             layer++;
         }
 
-        // Evict block-list + VBO caches for lights no longer present. liveIds
-        // stays empty when the feature is off, so both caches drain then.
+        // Evict the per-light dirty state for lights that did NOT bake this
+        // frame (gone, shadows off, or nothing in range) — see bakedIds.
+        retainDirtyState(bakedIds);
+
+        // Block-list + VBO caches: keep ALL registered lights so a momentary
+        // out-of-range frame doesn't thrash the (expensive) block re-collect.
+        // Empty set when the feature is off -> both caches drain.
         liveIds.clear();
         if (IrliteConfig.shadowBlocks())
         {
@@ -236,16 +322,26 @@ public final class ShadowBaker
         ShadowRenderer.retainBlockVbos(liveIds);
     }
 
-    /** Force the next bake to be dirty (full rebake). Called from
-     *  {@link org.wemppy.irlite.mixin.client.WorldBlockChangeMixin} when a block
-     *  change actually hit a cached light. Needed because sceneHash is
-     *  position-only and can't see a block edit — without it the global cache
-     *  would reuse stale depth maps. BlockShadowCache.invalidateAt makes the CPU
-     *  re-collection precise; this still triggers a global GL re-render
-     *  (acceptable: block edits are infrequent). */
-    public static void markBlocksDirty()
+    /** Drop per-light dirty state for ids not in {@code keep}. An empty set
+     *  drains it. */
+    private static void retainDirtyState(LongSet keep)
     {
-        lastHash = Double.NaN;
+        if (!lastSig.isEmpty())
+        {
+            lastSig.keySet().retainAll(keep);
+        }
+        if (!lastTile.isEmpty())
+        {
+            lastTile.keySet().retainAll(keep);
+        }
+        if (!lastBlocks.isEmpty())
+        {
+            lastBlocks.keySet().retainAll(keep);
+        }
+        if (!wasDynamic.isEmpty())
+        {
+            wasDynamic.retainAll(keep);
+        }
     }
 
     /** Block occluders around a light, clamped to {@link #MAX_BLOCK_COLLECT_RADIUS}.
@@ -261,27 +357,33 @@ public final class ShadowBaker
         return BlockShadowCache.getOrCompute(id, world, lx, ly, lz, Math.min(range, MAX_BLOCK_COLLECT_RADIUS));
     }
 
-    /** Additive position hash over all lights + occluders. Any movement (even
-     *  sub-block) changes the exact double, so equality means "nothing moved". */
-    private static double sceneHash(int n)
+    /** FNV-1a fold of one float (raw bits) into a running hash. */
+    private static long mix(long h, float v)
     {
-        double h = n * 1000003.0 + occCount * 9973.0;
-        for (int i = 0; i < n; i++)
-        {
-            h += LightRegistry.getX(i) + LightRegistry.getY(i) * 7.0 + LightRegistry.getZ(i) * 13.0
-                + LightRegistry.getDirX(i) * 17.0 + LightRegistry.getDirY(i) * 19.0 + LightRegistry.getDirZ(i) * 23.0
-                + LightRegistry.getRange(i) * 29.0 + (LightRegistry.getShadows(i) ? 31.0 : 0.0) + i * 0.123;
-        }
-        for (int k = 0; k < occCount; k++)
-        {
-            h += ox[k] * 2.0 + oy[k] * 3.0 + oz[k] * 5.0 + k * 0.071;
-        }
+        return (h ^ (Float.floatToRawIntBits(v) & 0xffffffffL)) * FNV_PRIME;
+    }
+
+    /** Signature of a light's own bake-relevant geometry: position, direction,
+     *  range, spot cone (cosOuter), and the shadows flag. Any change re-bakes. */
+    private static long lightGeomSig(float lx, float ly, float lz, float dx, float dy, float dz, float range, float cosOuter, boolean shadows)
+    {
+        long h = FNV_OFFSET;
+        h = mix(h, lx); h = mix(h, ly); h = mix(h, lz);
+        h = mix(h, dx); h = mix(h, dy); h = mix(h, dz);
+        h = mix(h, range); h = mix(h, cosOuter);
+        h = (h ^ (shadows ? 1L : 0L)) * FNV_PRIME;
         return h;
     }
 
-    private static int countInRange(float lx, float ly, float lz, float reachBase)
+    /** Count in-range occluders and, as a side effect, set
+     *  {@link #dynamicInRangeScratch} (any entity/replay in range) and
+     *  {@link #staticOccSigScratch} (order-independent sum of in-range
+     *  model-block hashes). reach = reachBase + occluderRadius. */
+    private static int scanInRange(float lx, float ly, float lz, float reachBase)
     {
         int c = 0;
+        boolean dyn = false;
+        long sig = 0L;
         for (int k = 0; k < occCount; k++)
         {
             float ddx = ox[k] - lx, ddy = oy[k] - ly, ddz = oz[k] - lz;
@@ -289,8 +391,18 @@ public final class ShadowBaker
             if (ddx * ddx + ddy * ddy + ddz * ddz <= reach * reach)
             {
                 c++;
+                if (occType[k] == ShadowRenderer.CASTER_MODEL_BLOCK)
+                {
+                    sig += ostatichash[k];
+                }
+                else
+                {
+                    dyn = true; // entity or film replay -> dynamic subject
+                }
             }
         }
+        dynamicInRangeScratch = dyn;
+        staticOccSigScratch = sig;
         return c;
     }
 
@@ -342,6 +454,7 @@ public final class ShadowBaker
             oy[occCount] = (float) (ey + box.getYLength() * 0.5);
             oz[occCount] = (float) ez;
             orad[occCount] = rad;
+            ostatichash[occCount] = 0L; // dynamic caster -> not part of any static signature
             occCount++;
         }
 
@@ -434,6 +547,7 @@ public final class ShadowBaker
                 oy[occCount] = (float) (wy + ey);
                 oz[occCount] = (float) wz;
                 orad[occCount] = rad;
+                ostatichash[occCount] = 0L; // dynamic caster -> not part of any static signature
                 occCount++;
             }
         }
@@ -546,7 +660,27 @@ public final class ShadowBaker
             oy[occCount] = wy;
             oz[occCount] = wz;
             orad[occCount] = rad;
+            // Static signature: center (incl. translate) + scale + rotation. A
+            // model block that only animates its INTERNAL morph pose (transform
+            // unchanged) is treated static and its shadow is cached — same as
+            // the old position-only hash; documented limitation, not a regression.
+            ostatichash[occCount] = modelBlockHash(wx, wy, wz, t);
             occCount++;
         }
+    }
+
+    /** Static-occluder signature for a model block: its baked center plus the
+     *  scale + rotation that the center alone doesn't capture. */
+    private static long modelBlockHash(float wx, float wy, float wz, Transform t)
+    {
+        long h = FNV_OFFSET;
+        h = mix(h, wx); h = mix(h, wy); h = mix(h, wz);
+        if (t != null)
+        {
+            h = mix(h, t.scale.x); h = mix(h, t.scale.y); h = mix(h, t.scale.z);
+            h = mix(h, t.rotate.x); h = mix(h, t.rotate.y); h = mix(h, t.rotate.z);
+            h = mix(h, t.rotate2.x); h = mix(h, t.rotate2.y); h = mix(h, t.rotate2.z);
+        }
+        return h;
     }
 }

@@ -8,24 +8,21 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.wemppy.irlite.client.light.shadow.BlockShadowCache;
-import org.wemppy.irlite.client.light.shadow.ShadowBaker;
 
 /**
  * Keeps block shadows fresh when the world changes. Without this, placing or
- * breaking a slab next to a static lamp wouldn't update its shadow:
- * ShadowBaker.sceneHash() only sums light + occluder positions, so a block
- * edit that moves nothing leaves the hash unchanged (dirty=false) and the
- * depth maps get reused stale.
+ * breaking a slab next to a static lamp wouldn't update its shadow: a block
+ * edit moves nothing, so a lamp whose only in-range change is terrain would
+ * otherwise stay cached and reuse a stale depth map.
  *
- * Two coupled actions (Stage B):
- *   - BlockShadowCache.invalidateAt(pos) drops only the cached block lists of
- *     the lamps whose collection sphere covers the edit, so re-collection stays
- *     precise (a far-away edit invalidates nothing and returns false).
- *   - markBlocksDirty() is still needed when something WAS invalidated, because
- *     IRLite's depth-map reuse is gated on the global position-only sceneHash,
- *     which can't see a block edit. invalidateAt only fixes the CPU
- *     re-collection; this triggers the (global) GL re-render. Block edits are
- *     infrequent, so a global rebake on each is fine.
+ * BlockShadowCache.invalidateAt(pos) drops the cached block lists of the lamps
+ * whose collection sphere covers the edit (a far-away edit invalidates nothing).
+ * That is sufficient on its own now that the bake is per-light: the next
+ * getOrCompute for an invalidated lamp returns a NEW list instance, which
+ * ShadowBaker detects by reference and re-bakes precisely that lamp. (The old
+ * global position-only scene hash couldn't see a block edit, so it also needed
+ * ShadowBaker.markBlocksDirty() to force a whole-scene GL re-render — no longer
+ * the case.)
  *
  * Targets the base World method so the hook fires for every code path that
  * writes a block (vanilla placement, server-sync, BBS edits). Gated on
@@ -44,9 +41,11 @@ public class WorldBlockChangeMixin
         CallbackInfoReturnable<Boolean> cir)
     {
         World self = (World) (Object) this;
-        if (self.isClient && BlockShadowCache.invalidateAt(pos))
+        if (self.isClient)
         {
-            ShadowBaker.markBlocksDirty();
+            // Marks the affected lamps' block lists stale; ShadowBaker picks up
+            // the new list instance by reference next frame and re-bakes them.
+            BlockShadowCache.invalidateAt(pos);
         }
     }
 }
