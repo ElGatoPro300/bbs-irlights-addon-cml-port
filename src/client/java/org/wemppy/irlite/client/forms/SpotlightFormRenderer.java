@@ -70,7 +70,7 @@ public class SpotlightFormRenderer extends AbstractLightFormRenderer<SpotlightFo
             c.r, c.g, c.b,
             this.form.intensity.get(), this.form.range.get(),
             cosOuter, cosInner,
-            this.form.entitiesOnly.get(),
+            this.form.entitiesOnly.get(), this.form.blocksOnly.get(),
             this.form.anisotropy.get(), this.form.vlDensity.get(), this.form.beamStrength.get(),
             this.form.bulbSize.get(), this.form.shadows.get(),
             System.identityHashCode(this.form)

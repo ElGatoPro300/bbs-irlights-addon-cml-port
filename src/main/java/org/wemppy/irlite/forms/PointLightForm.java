@@ -19,6 +19,7 @@ public class PointLightForm extends Form
     public final ValueFloat vlDensity = new ValueFloat("vl_density", 0.05F, 0.005F, 0.5F);
     public final ValueFloat bulbSize = new ValueFloat("bulb_size", 0F, 0F, 2F);
     public final ValueBoolean entitiesOnly = new ValueBoolean("entities_only", false);
+    public final ValueBoolean blocksOnly = new ValueBoolean("blocks_only", false);
     public final ValueBoolean shadows = new ValueBoolean("shadows", true);
 
     public PointLightForm()
@@ -31,6 +32,7 @@ public class PointLightForm extends Form
         this.add(this.vlDensity);
         this.add(this.bulbSize);
         this.add(this.entitiesOnly);
+        this.add(this.blocksOnly);
         this.add(this.shadows);
     }
 

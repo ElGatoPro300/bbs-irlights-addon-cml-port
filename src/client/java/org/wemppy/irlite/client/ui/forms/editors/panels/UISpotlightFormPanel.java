@@ -22,6 +22,7 @@ public class UISpotlightFormPanel extends UIFormPanel<SpotlightForm>
     public UITrackpad vlDensity;
     public UITrackpad bulbSize;
     public UIToggle entitiesOnly;
+    public UIToggle blocksOnly;
     public UIToggle shadows;
 
     public UISpotlightFormPanel(UIForm editor)
@@ -37,7 +38,23 @@ public class UISpotlightFormPanel extends UIFormPanel<SpotlightForm>
         this.anisotropy = new UITrackpad((v) -> this.form.anisotropy.set(v.floatValue())).limit(-0.95, 0.95);
         this.vlDensity = new UITrackpad((v) -> this.form.vlDensity.set(v.floatValue())).limit(0.005, 0.5);
         this.bulbSize = new UITrackpad((v) -> this.form.bulbSize.set(v.floatValue())).limit(0, 2);
-        this.entitiesOnly = new UIToggle(IKey.constant("Entities only"), (b) -> this.form.entitiesOnly.set(b.getValue()));
+        // "Entities only" and "Blocks only" are mutually exclusive (both on = light lights nothing).
+        this.entitiesOnly = new UIToggle(IKey.constant("Entities only"), (b) -> {
+            this.form.entitiesOnly.set(b.getValue());
+            if (b.getValue())
+            {
+                this.form.blocksOnly.set(false);
+                this.blocksOnly.setValue(false);
+            }
+        });
+        this.blocksOnly = new UIToggle(IKey.constant("Blocks only"), (b) -> {
+            this.form.blocksOnly.set(b.getValue());
+            if (b.getValue())
+            {
+                this.form.entitiesOnly.set(false);
+                this.entitiesOnly.setValue(false);
+            }
+        });
         this.shadows = new UIToggle(IKey.constant("Shadows"), (b) -> this.form.shadows.set(b.getValue()));
 
         this.options.add(UI.label(IKey.constant("Color")), this.color);
@@ -50,6 +67,7 @@ public class UISpotlightFormPanel extends UIFormPanel<SpotlightForm>
         this.options.add(UI.label(IKey.constant("VL density")), this.vlDensity);
         this.options.add(UI.label(IKey.constant("Bulb size (shadow softness)")), this.bulbSize);
         this.options.add(this.entitiesOnly);
+        this.options.add(this.blocksOnly);
         this.options.add(this.shadows);
     }
 
@@ -68,6 +86,7 @@ public class UISpotlightFormPanel extends UIFormPanel<SpotlightForm>
         this.vlDensity.setValue(form.vlDensity.get());
         this.bulbSize.setValue(form.bulbSize.get());
         this.entitiesOnly.setValue(form.entitiesOnly.get());
+        this.blocksOnly.setValue(form.blocksOnly.get());
         this.shadows.setValue(form.shadows.get());
     }
 }

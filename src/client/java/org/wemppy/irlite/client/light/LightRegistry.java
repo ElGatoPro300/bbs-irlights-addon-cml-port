@@ -30,6 +30,7 @@ public final class LightRegistry
     private static final float[] cosOuter = new float[MAX];
     private static final float[] cosInner = new float[MAX];
     private static final boolean[] entitiesOnly = new boolean[MAX];
+    private static final boolean[] blocksOnly = new boolean[MAX];
     private static final float[] anisotropy = new float[MAX];
     private static final float[] density = new float[MAX];
     private static final float[] beam = new float[MAX];
@@ -43,7 +44,7 @@ public final class LightRegistry
     private LightRegistry()
     {}
 
-    public static void registerPoint(float x, float y, float z, float r, float g, float b, float in, float rad, boolean eOnly, float aniso, float dens, float bm, float bulb, boolean castsShadows, long identity)
+    public static void registerPoint(float x, float y, float z, float r, float g, float b, float in, float rad, boolean eOnly, boolean bOnly, float aniso, float dens, float bm, float bulb, boolean castsShadows, long identity)
     {
         int i = slot(identity);
         if (i < 0)
@@ -57,12 +58,12 @@ public final class LightRegistry
         intensity[i] = in; radius[i] = rad;
         dx[i] = 0F; dy[i] = 0F; dz[i] = 0F;
         cosOuter[i] = 1F; cosInner[i] = 1F;
-        entitiesOnly[i] = eOnly;
+        entitiesOnly[i] = eOnly; blocksOnly[i] = bOnly;
         anisotropy[i] = aniso; density[i] = dens; beam[i] = bm;
         bulbSize[i] = bulb; shadows[i] = castsShadows;
     }
 
-    public static void registerSpot(float x, float y, float z, float ndx, float ndy, float ndz, float r, float g, float b, float in, float range, float cosO, float cosI, boolean eOnly, float aniso, float dens, float bm, float bulb, boolean castsShadows, long identity)
+    public static void registerSpot(float x, float y, float z, float ndx, float ndy, float ndz, float r, float g, float b, float in, float range, float cosO, float cosI, boolean eOnly, boolean bOnly, float aniso, float dens, float bm, float bulb, boolean castsShadows, long identity)
     {
         int i = slot(identity);
         if (i < 0)
@@ -76,7 +77,7 @@ public final class LightRegistry
         intensity[i] = in; radius[i] = range;
         dx[i] = ndx; dy[i] = ndy; dz[i] = ndz;
         cosOuter[i] = cosO; cosInner[i] = cosI;
-        entitiesOnly[i] = eOnly;
+        entitiesOnly[i] = eOnly; blocksOnly[i] = bOnly;
         anisotropy[i] = aniso; density[i] = dens; beam[i] = bm;
         bulbSize[i] = bulb; shadows[i] = castsShadows;
     }
@@ -144,13 +145,17 @@ public final class LightRegistry
 
         for (int i = 0; i < count; i++)
         {
+            // cone.z light mask: 0 = all, 1 = entities only, 2 = blocks only.
+            // entities-only wins the (UI-prevented) both-set case.
+            float lightMask = entitiesOnly[i] ? 1F : (blocksOnly[i] ? 2F : 0F);
+
             if (type[i] == 0)
             {
-                LightBuffer.addPoint(px[i], py[i], pz[i], cr[i], cg[i], cb[i], intensity[i], radius[i], entitiesOnly[i], anisotropy[i], density[i], beam[i], (float) shadowTile[i], bulbSize[i]);
+                LightBuffer.addPoint(px[i], py[i], pz[i], cr[i], cg[i], cb[i], intensity[i], radius[i], lightMask, anisotropy[i], density[i], beam[i], (float) shadowTile[i], bulbSize[i]);
             }
             else
             {
-                LightBuffer.addSpot(px[i], py[i], pz[i], dx[i], dy[i], dz[i], cr[i], cg[i], cb[i], intensity[i], radius[i], cosOuter[i], cosInner[i], entitiesOnly[i], anisotropy[i], density[i], beam[i], (float) shadowTile[i], bulbSize[i]);
+                LightBuffer.addSpot(px[i], py[i], pz[i], dx[i], dy[i], dz[i], cr[i], cg[i], cb[i], intensity[i], radius[i], cosOuter[i], cosInner[i], lightMask, anisotropy[i], density[i], beam[i], (float) shadowTile[i], bulbSize[i]);
             }
         }
 
