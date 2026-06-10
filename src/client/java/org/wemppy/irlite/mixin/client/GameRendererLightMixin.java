@@ -30,7 +30,7 @@ public class GameRendererLightMixin
         // Render-path registrations (live actors / replays) accumulated during the
         // PREVIOUS frame's world render are still in the registry; the scanner adds
         // this frame's ModelBlocks, then we flush all of them to the GPU.
-        LightCollector.collect(world, cameraPos);
+        LightCollector.collect(world, cameraPos, tickDelta);
 
         // Bake spotlight shadow depth maps BEFORE the SSBO upload (sets each
         // spot's shadow tile index) and before Iris activates (vanilla entity
