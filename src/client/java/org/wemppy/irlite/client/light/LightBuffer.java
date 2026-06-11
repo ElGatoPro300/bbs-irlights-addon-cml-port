@@ -125,6 +125,20 @@ public final class LightBuffer
         scratch.clear();
     }
 
+    /** Zero the GPU-side light count so a pipeline (re)enabled later can't
+     *  read a stale light set out of the SSBO. No-op if the buffer was never
+     *  created — this path must not allocate anything. */
+    public static void uploadEmpty()
+    {
+        if (!initialized)
+        {
+            return;
+        }
+
+        begin();
+        upload();
+    }
+
     public static void delete()
     {
         if (ssbo != 0)

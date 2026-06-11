@@ -735,6 +735,20 @@ public final class ShadowBaker
         wasDynamic.clear();
     }
 
+    /** Shaders just went off: nothing samples the shadow maps anymore. Forget
+     *  all tile ownership + dirty state and free the depth textures and the
+     *  block/VBO caches (same drain as the no-lights path, plus the textures).
+     *  Everything re-allocates lazily and first-bakes when shaders return. */
+    public static void onShadersDisabled()
+    {
+        resetTileState();
+        liveIds.clear();
+        BlockShadowCache.retainOnly(liveIds);
+        ShadowRenderer.retainBlockVbos(liveIds);
+        SpotlightDepthAtlas.delete();
+        PointShadowArray.delete();
+    }
+
     /** Record that the LIVE tile now holds this light's pure static content
      *  (a static bake or a static->live copy), or — with {@code dyn} — that it
      *  contains dynamic casters and must run the overlay path until they go. */

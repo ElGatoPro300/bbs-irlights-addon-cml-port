@@ -138,6 +138,16 @@ public final class LightRegistry
         }
     }
 
+    /** Drop everything accumulated for this frame without touching the GPU.
+     *  Used while shaders are off: the form render-path keeps registering
+     *  lights (it runs regardless of Iris), but there is no consumer, and
+     *  without a per-frame reset stale entries would linger until the next
+     *  flush re-uploaded them. */
+    public static void clear()
+    {
+        count = 0;
+    }
+
     /** Pack the accumulated set into the GPU buffer and reset for the next frame. */
     public static void flush()
     {
