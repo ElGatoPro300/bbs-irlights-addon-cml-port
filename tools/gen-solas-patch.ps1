@@ -2,7 +2,7 @@
 # of Shadres/Modification/Solas (so the patch reproduces the working tree
 # byte-for-byte). Anchors are unique literals captured from the PRISTINE pack.
 # Solas is a CRLF pack -> SINGLE-LINE anchors only (see memory patcher.md).
-# Validate after generating: javac the 4 pure patcher classes + PatchHarness,
+# Validate after generating: javac the 5 pure patcher classes + PatchHarness,
 # apply to the pristine pack, then
 #   git -c core.autocrlf=false diff --no-index --ignore-cr-at-eol <out> <Mod>
 # must be empty. See memory solas-port-plan Phase 5.
@@ -137,6 +137,7 @@ Emit '# #extension lines; iris.features gets SSBO appended (the flag list is'
 Emit '# parsed from the RAW properties — one line is enough for every branch).'
 Emit '@name    Solas lights'
 Emit '@target  Solas'
+Emit '@irlite  1'
 Emit '@marker  IRLITE'
 Emit ''
 Emit '# --- light SSBO, options and shading functions (surface + outline + volumetric) ---'

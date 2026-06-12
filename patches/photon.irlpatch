@@ -9,6 +9,7 @@
 # gets the GL_ARB_shader_storage_buffer_object #extension (Photon is #version 400).
 @name    Photon lights
 @target  Photon
+@irlite  1
 @marker  IRLITE
 
 # --- light SSBO, options and shading functions (surface + volumetric halves) ---

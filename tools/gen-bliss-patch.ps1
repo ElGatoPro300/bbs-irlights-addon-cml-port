@@ -4,7 +4,7 @@
 # Bliss is a MIXED-EOL pack (mostly CRLF) -> SINGLE-LINE anchors only (see
 # memory patcher.md). One Bliss anchor ends with a literal backslash and
 # several carry tabs -> anchors are emitted through EscAnchor (\\, \t, \").
-# Validate after generating: javac the 4 pure patcher classes + PatchHarness,
+# Validate after generating: javac the 5 pure patcher classes + PatchHarness,
 # apply to the pristine pack, then
 #   git -c core.autocrlf=false diff --no-index --ignore-cr-at-eol <out> <Mod>
 # must be empty. See memory bliss-port-plan Phase 5.
@@ -178,6 +178,8 @@ Emit '# carries its own in-file #extension lines; iris.features gets SSBO append
 Emit '# (the flag list is parsed from the RAW properties - one line suffices).'
 Emit '@name    Bliss lights'
 Emit '@target  Bliss'
+Emit '@packversion V2.1.2'
+Emit '@irlite  1'
 Emit '@marker  IRLITE'
 Emit ''
 Emit '# --- light SSBO, options and shading functions (surface + outline + volumetric) ---'

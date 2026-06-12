@@ -19,6 +19,8 @@
 # (the flag list is parsed from the RAW properties - one line suffices).
 @name    Bliss lights
 @target  Bliss
+@packversion V2.1.2
+@irlite  1
 @marker  IRLITE
 
 # --- light SSBO, options and shading functions (surface + outline + volumetric) ---

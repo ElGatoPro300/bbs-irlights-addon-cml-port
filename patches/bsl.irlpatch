@@ -16,6 +16,8 @@
 # matte. Requires Iris (SSBO) вЂ” the patched pack will not load on OptiFine.
 @name    BSL lights
 @target  BSL
+@packversion v10
+@irlite  1
 @marker  IRLITE
 
 # --- light SSBO, options and shading functions (surface + outline + volumetric) ---

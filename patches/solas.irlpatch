@@ -16,6 +16,7 @@
 # parsed from the RAW properties вЂ” one line is enough for every branch).
 @name    Solas lights
 @target  Solas
+@irlite  1
 @marker  IRLITE
 
 # --- light SSBO, options and shading functions (surface + outline + volumetric) ---

@@ -23,6 +23,7 @@ import org.wemppy.irlite.client.patcher.Shaderpacks;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 /** The IRLite shader patcher, rendered as controls inside the IRLite settings section. */
@@ -32,6 +33,8 @@ public final class UIPatcherSection
 
     private static final int OK_COLOR = 0x55FF55;
     private static final int ERR_COLOR = 0xFF5555;
+    private static final int META_COLOR = 0xAAAAAA;
+    private static final int WARN_COLOR = 0xFFAA33;
 
     // Selection persists across settings refreshes.
     private static String selectedPack;
@@ -40,6 +43,7 @@ public final class UIPatcherSection
     private static String status = "Select a shaderpack and a patch.";
     private static int statusColor = Colors.WHITE;
 
+    private static UILabel metaLabel;
     private static UILabel statusLabel;
     private static Runnable rebuild;
 
@@ -73,6 +77,7 @@ public final class UIPatcherSection
             if (!selected.isEmpty())
             {
                 selectedPack = selected.get(0).value;
+                updateMeta(null);
             }
         });
         packList.background();
@@ -98,6 +103,7 @@ public final class UIPatcherSection
             if (!selected.isEmpty())
             {
                 selectedPatch = selected.get(0).value;
+                updateMeta(packList);
             }
         });
         patchList.background();
@@ -112,56 +118,156 @@ public final class UIPatcherSection
         }
         options.add(patchList);
 
-        // --- options + primary action ---
+        // --- selected patch metadata (name -> target, op count, pack mismatch warning) ---
+        metaLabel = new UILabel(IKey.constant(""), META_COLOR);
+        metaLabel.h(28);
+        options.add(metaLabel);
+        updateMeta(packList);
+
+        // --- options + primary actions ---
         UIToggle createNewToggle = new UIToggle(IKey.constant("Create new pack each time"), (t) -> createNew = t.getValue());
         createNewToggle.setValue(createNew);
         options.add(createNewToggle);
 
+        UIButton validate = new UIButton(IKey.constant("Validate"), (b) -> runValidate());
+        validate.tooltip(IKey.constant("Dry-run: check every op against the selected pack, write nothing"));
         UIButton patch = new UIButton(IKey.constant("Patch"), (b) -> runPatch());
-        options.add(patch);
+        options.add(UI.row(validate, patch));
 
         statusLabel = new UILabel(IKey.constant(status), statusColor);
         statusLabel.h(28);
         options.add(statusLabel);
     }
 
-    private static void runPatch()
+    /** Parses the selected patch for the metadata line; auto-selects a matching pack when none is chosen. */
+    private static void updateMeta(UILabelList<String> packList)
     {
-        if (selectedPack == null)
+        if (metaLabel == null)
         {
-            setStatus(false, "Select a shaderpack first.");
             return;
         }
         if (selectedPatch == null)
         {
-            setStatus(false, "Select a patch first.");
+            setMeta("", META_COLOR);
             return;
         }
 
         IrlPatch parsed;
         try
         {
-            String text = Files.readString(selectedPatch, StandardCharsets.UTF_8);
-            parsed = IrlPatchParser.parse(text);
+            parsed = IrlPatchParser.parse(Files.readString(selectedPatch, StandardCharsets.UTF_8));
+        }
+        catch (Exception e)
+        {
+            setMeta("Broken patch: " + e.getMessage(), ERR_COLOR);
+            return;
+        }
+
+        if (packList != null && selectedPack == null && !parsed.target.isEmpty())
+        {
+            List<String> matching = new ArrayList<>();
+            for (String pack : Shaderpacks.list())
+            {
+                if (packMatchesTarget(pack, parsed.target))
+                {
+                    matching.add(pack);
+                }
+            }
+            if (matching.size() == 1)
+            {
+                selectedPack = matching.get(0);
+                packList.setCurrentValue(selectedPack);
+            }
+        }
+
+        String text = (parsed.name.isEmpty() ? selectedPatch.getFileName().toString() : parsed.name)
+            + " -> " + (parsed.target.isEmpty() ? "?" : parsed.target)
+            + (parsed.packVersion.isEmpty() ? "" : " " + parsed.packVersion)
+            + " (" + parsed.ops.size() + " ops)";
+
+        if (selectedPack != null && !parsed.target.isEmpty() && !packMatchesTarget(selectedPack, parsed.target))
+        {
+            setMeta(text + " - does not match the selected pack!", WARN_COLOR);
+        }
+        else
+        {
+            setMeta(text, META_COLOR);
+        }
+    }
+
+    /** "Photon_v1.2.zip" matches target "Photon": lowercase, alphanumerics only, substring. */
+    private static boolean packMatchesTarget(String pack, String target)
+    {
+        String p = norm(pack);
+        String t = norm(target);
+        return t.isEmpty() || p.contains(t);
+    }
+
+    private static String norm(String s)
+    {
+        String lower = s.toLowerCase();
+        if (lower.endsWith(".zip"))
+        {
+            lower = lower.substring(0, lower.length() - 4);
+        }
+        return lower.replaceAll("[^a-z0-9]", "");
+    }
+
+    /** Shared head of Validate/Patch: both need a pack, a patch and a successful parse. */
+    private static IrlPatch parseSelected()
+    {
+        if (selectedPack == null)
+        {
+            setStatus(false, "Select a shaderpack first.");
+            return null;
+        }
+        if (selectedPatch == null)
+        {
+            setStatus(false, "Select a patch first.");
+            return null;
+        }
+
+        try
+        {
+            return IrlPatchParser.parse(Files.readString(selectedPatch, StandardCharsets.UTF_8));
         }
         catch (IrlPatchParser.ParseException e)
         {
             setStatus(false, "Parse error: " + e.getMessage());
-            return;
+            return null;
         }
         catch (Exception e)
         {
             setStatus(false, "Cannot read patch: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private static void runValidate()
+    {
+        IrlPatch parsed = parseSelected();
+        if (parsed == null)
+        {
+            return;
+        }
+
+        PatchResult result = IrlPatchApplier.validate(Shaderpacks.packPath(selectedPack), parsed);
+        for (String line : result.log)
+        {
+            LOG.info("[validate] {}", line);
+        }
+        setStatus(result.ok, result.summary);
+    }
+
+    private static void runPatch()
+    {
+        IrlPatch parsed = parseSelected();
+        if (parsed == null)
+        {
             return;
         }
 
         Path source = Shaderpacks.packPath(selectedPack);
-        if (!Files.isDirectory(source))
-        {
-            setStatus(false, "Pack is not a folder (ZIP not supported yet): " + selectedPack);
-            return;
-        }
-
         Path output = Shaderpacks.dir().resolve(outputName(selectedPack));
         PatchResult result = IrlPatchApplier.apply(source, output, parsed);
 
@@ -205,6 +311,15 @@ public final class UIPatcherSection
             }
         }
         return base;
+    }
+
+    private static void setMeta(String message, int color)
+    {
+        if (metaLabel != null)
+        {
+            metaLabel.label = IKey.constant(message);
+            metaLabel.color(color, true);
+        }
     }
 
     private static void setStatus(boolean ok, String message)

@@ -9,6 +9,14 @@ import java.util.List;
  */
 public final class IrlPatch
 {
+    /**
+     * Version of the GLSL contract this build of IRLite provides (SSBO layout,
+     * sampler names). A patch may pin the contract it was written against via
+     * {@code @irlite N}; the applier refuses a mismatch instead of producing a
+     * pack that compiles against the wrong layout.
+     */
+    public static final int CONTRACT_VERSION = 1;
+
     public enum Kind
     {
         ADD_FILE,   // create a new file (body = whole content)
@@ -21,20 +29,24 @@ public final class IrlPatch
     {
         public final Kind kind;
         public final String file;
-        public final String anchor;  // null for ADD_FILE
+        public final List<String> anchors;  // alternatives, tried in order; empty for ADD_FILE
         public final String body;
+        public final boolean optional;      // skip (instead of fail) when no anchor matches
 
-        public Op(Kind kind, String file, String anchor, String body)
+        public Op(Kind kind, String file, List<String> anchors, String body, boolean optional)
         {
             this.kind = kind;
             this.file = file;
-            this.anchor = anchor;
+            this.anchors = anchors;
             this.body = body;
+            this.optional = optional;
         }
     }
 
     public String name = "";
     public String target = "";
+    public String packVersion = "";     // informational: pack version the patch was authored against
     public String marker = "IRLITE";
+    public int irliteVersion = 0;       // 0 = patch does not pin a contract version
     public final List<Op> ops = new ArrayList<>();
 }
