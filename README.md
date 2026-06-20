@@ -2,13 +2,13 @@
 
 # ✦ IRLights
 
-**Dynamic point & spotlight lighting for Minecraft 1.20.1 & 1.20.4**
+**Dynamic point & spotlight lighting for Minecraft 1.20.1 · 1.20.4 · 1.21.1**
 
 *A [BBS](https://github.com/mchorse/bbs) addon that brings real-time shadows, volumetric light shafts, and per-light specular to Iris shaderpacks — no shaderpack edits required.*
 
-[![Minecraft](https://img.shields.io/badge/Minecraft-1.20.1%20%7C%201.20.4-62b47a?style=flat-square&logo=minecraft&logoColor=white)](https://minecraft.net)
-[![Fabric](https://img.shields.io/badge/Fabric-0.19.3-dbb967?style=flat-square)](https://fabricmc.net)
-[![License](https://img.shields.io/badge/License-CC%20BY--ND%204.0-lightgrey?style=flat-square)](LICENSE.txt)
+[![Minecraft](https://img.shields.io/badge/Minecraft-1.20.1%20%7C%201.20.4%20%7C%201.21.1-62b47a?style=flat-square&logo=minecraft&logoColor=white)](https://minecraft.net)
+[![Fabric](https://img.shields.io/badge/Fabric-Loom-dbb967?style=flat-square)](https://fabricmc.net)
+[![License](https://img.shields.io/badge/License-MIT-3da639?style=flat-square)](LICENSE)
 
 </div>
 
@@ -113,7 +113,7 @@ IRLights has three layers that work together:
 
 ```bash
 ./gradlew build
-# output: build/libs/irlite-0.0.1.jar  (universal — built against 1.20.1, runs on both)
+# output: build/libs/irlite-1.0-obt.jar  (universal — built against 1.20.1, runs on both)
 
 # dev-test against a specific Minecraft version:
 ./gradlew runClient -Pmc=1.20.1   # default
@@ -123,14 +123,16 @@ IRLights has three layers that work together:
 The same compiled jar runs on both versions: every Minecraft member the mod touches is
 intermediary-stable across 1.20.1–1.20.4, so one build covers the whole range.
 
+> **Minecraft 1.21.1** lives on the [`port/1.21.1`](https://github.com/quaIett/bbs-irlights-addon/tree/port/1.21.1)
+> branch (the final addon line — BBS does not exist past 1.21.1). The shared engine
+> is pulled from [irl-core](https://github.com/quaIett/irl-core) via a Gradle composite build.
+
 ---
 
 ## License
 
-IRLights © 2026 by wemppy, qualet — licensed under  
-[Creative Commons Attribution-NoDerivatives 4.0 International (CC BY-ND 4.0)](https://creativecommons.org/licenses/by-nd/4.0/).
+Released under the [MIT License](LICENSE) — © 2026 qualet.
 
-You may share verbatim copies **with attribution**.  
-You may **not** distribute modified versions or derivative works.
-
-Third-party shaderpacks referenced in `patches/` remain under the licenses of their respective authors.
+The shared lighting & patcher engine lives in [irl-core](https://github.com/quaIett/irl-core)
+(also MIT). Third-party shaderpacks referenced in `patches/` remain under the licenses of
+their respective authors.
