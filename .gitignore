@@ -129,3 +129,7 @@ Shadres/
 !gradle-wrapper.jar
 # Scratch backup dir from shader-port work (irlbak_*); name uses a PUA glyph rendered as ":"
 TEMP/
+
+# IterationRP integration — private/paid shader, hidden from repo pending author permission (kept local only)
+patches/iterationrp.irlights
+tools/gen-iterationrp-patch.ps1
