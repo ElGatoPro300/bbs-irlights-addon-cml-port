@@ -15,7 +15,7 @@ import qualet.irlite.client.light.IrisShadersState;
 import org.qualet.irl.light.LightBuffer;
 import qualet.irlite.client.light.LightCollector;
 import org.qualet.irl.light.LightRegistry;
-import qualet.irlite.client.light.shadow.ShadowBaker;
+import org.qualet.irl.light.shadow.ShadowBaker;
 
 @Mixin(GameRenderer.class)
 public class GameRendererLightMixin

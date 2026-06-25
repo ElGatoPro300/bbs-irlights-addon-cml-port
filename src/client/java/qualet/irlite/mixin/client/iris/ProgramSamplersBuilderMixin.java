@@ -6,8 +6,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import qualet.irlite.client.light.cookie.CookieArray;
-import qualet.irlite.client.light.shadow.PointShadowArray;
-import qualet.irlite.client.light.shadow.SpotlightDepthAtlas;
+import org.qualet.irl.light.shadow.PointShadowArray;
+import org.qualet.irl.light.shadow.SpotlightDepthAtlas;
 
 /**
  * Binds IRLite shadow textures into every Iris-compiled program. Iris calls

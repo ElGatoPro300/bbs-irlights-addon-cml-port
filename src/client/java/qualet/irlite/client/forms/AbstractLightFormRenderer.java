@@ -17,7 +17,7 @@ import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
 import qualet.irlite.IrliteConfig;
 import qualet.irlite.client.light.LightCollector;
-import qualet.irlite.client.light.shadow.ShadowBakeState;
+import org.qualet.irl.light.shadow.ShadowBakeState;
 
 public abstract class AbstractLightFormRenderer<T extends Form> extends FormRenderer<T>
 {

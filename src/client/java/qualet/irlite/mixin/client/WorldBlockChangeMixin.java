@@ -7,7 +7,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import qualet.irlite.client.light.shadow.BlockShadowCache;
+import org.qualet.irl.light.shadow.BlockShadowCache;
 
 /**
  * Keeps block shadows fresh when the world changes. Without this, placing or

@@ -1,4 +1,4 @@
-package qualet.irlite.client.light.shadow;
+package org.qualet.irl.light.shadow;
 
 import io.netty.util.collection.IntObjectMap;
 import mchorse.bbs_mod.BBSModClient;
