@@ -8,7 +8,7 @@
 # Phase 5 + the VL perf-rework FOLLOW-UP (the added deferred2 pass ops).
 
 $ErrorActionPreference = "Stop"
-$repo = "C:\Users\Qualet\Documents\Project\Minecraft\BBS\IRLite"
+$repo = "C:\Users\Qualet\Documents\Project\Minecraft\BBS\bbs-irlights-addon"
 $mod  = "$repo\Shadres\Modification\ComplementaryReimagined\shaders"
 $out  = "$repo\patches\complementaryreimagined.irlights"
 
@@ -76,7 +76,7 @@ if (@($slLine).Count -ne 1) { throw "sliders line not unique" }
 $slIdx = $slLine.IndexOf('END_STAR_INTENSITY GENERATED_NORMAL_RES')
 if ($slIdx -lt 0) { throw "sliders tail anchor not found" }
 $slBody = $slLine.Substring($slIdx)
-if (-not $slBody.EndsWith('IRLITE_OUTLINE_DEPTH_THRESHOLD')) { throw "sliders body tail unexpected" }
+if (-not $slBody.EndsWith('IRLITE_OUTLINE_FRESNEL_POWER')) { throw "sliders body tail unexpected" }
 if ($slBody -notmatch 'IRLITE_VL_SHADOW_STRIDE') { throw "sliders body missing IRLITE_VL_SHADOW_STRIDE" }
 
 $lg = Lines "$mod\lang\en_US.lang"
