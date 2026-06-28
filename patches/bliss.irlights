@@ -39,12 +39,10 @@
 #define IRLITE_TOON_BANDS 3 // [2 3 4 5 6 8]
 #define IRLITE_TOON_SMOOTH 0.10 // [0.0 0.05 0.10 0.20 0.30 0.50]
 
-//#define IRLITE_OUTLINE                     // light-driven rim contour ink (composite3 merge pass; toggle in the UI)
-#define IRLITE_OUTLINE_TARGET 0 // [0 1]
-#define IRLITE_OUTLINE_PIXEL_SIZE 2 // [1 2 3 4 5]
-#define IRLITE_OUTLINE_STRENGTH 1.0 // [0.25 0.5 1.0 1.5 2.0 3.0 5.0]
-#define IRLITE_OUTLINE_WRAP 0.5 // [0.0 0.25 0.5 0.75 1.0]
-#define IRLITE_OUTLINE_DEPTH_THRESHOLD 0.05 // [0.02 0.03 0.05 0.08 0.12 0.20]
+//#define IRLITE_OUTLINE                     // backlight rim outline (depth-edge x Fresnel), from IRLEngine LocalLightOutline
+#define IRLITE_OUTLINE_PIXEL_SIZE 2 // [1 2 3 4 5 6]
+#define IRLITE_OUTLINE_STRENGTH 0.65 // [0.0 0.1 0.2 0.35 0.5 0.65 0.8 1.0 1.5 2.0 3.0]
+#define IRLITE_OUTLINE_FRESNEL_POWER 2.2 // [1.0 1.2 1.5 1.8 2.0 2.2 2.5 3.0 4.0]
 
 // Unconditional: far-LOD skipping is the runtime !isDHrange gate at the composite1 call site; dh_* programs never include this file.
 #define IRLITE_ACTIVE
@@ -61,7 +59,6 @@ struct IrliteLight
     vec4 dirType;         // xyz spot direction, w type (0 point, 1 spot)
     vec4 cone;            // x cos(outer/2), y cos(inner/2), z lightMask (0 all/1 entities/2 blocks), w bulbSize (0 = use global)
     vec4 vlParams;        // x anisotropy(HG g), y vlDensity, z beamStrength, w shadowTile/layer (-1 none)
-    vec4 cookie;          // x gobo layer (-1 none), y rotation(rad), z scale, w flags (bit0 invert)
 };
 
 layout(std430, binding = 7) buffer IrliteLights
@@ -79,52 +76,6 @@ const float IRLITE_PI = 3.14159265;
 #if defined IRLITE_SHADOWS && (defined IRLITE_SURFACE_PASS || (defined IRLITE_COMPOSITE_PASS && defined IRLITE_OUTLINE) || (defined IRLITE_VL_PASS && defined IRLITE_VOLUMETRIC && defined IRLITE_VL_SHADOWS))
     #define IRLITE_COMPILE_SHADOWS
 #endif
-
-// gobo/cookie: spot projected mask (white passes, black blocks); independent of IRLITE_SHADOWS
-#define IRLITE_COOKIE
-#if defined IRLITE_COOKIE && (defined IRLITE_SURFACE_PASS || (defined IRLITE_VL_PASS && defined IRLITE_VOLUMETRIC))
-    #define IRLITE_COMPILE_COOKIE
-#endif
-
-#ifdef IRLITE_COMPILE_COOKIE
-#extension GL_EXT_texture_array : enable    // sampler2DArray on the #version 120 packs (core elsewhere)
-uniform sampler2DArray irl_cookieArray;     // grayscale gobo layers, bound by the mod by name
-
-// Project an absolute world position into the spot's frustum and sample the gobo mask
-// -> transmission [0..1] (1 = no cookie / fully open). Same basis as irlite_spotShadow so
-// the mask lines up with the shadow; out-of-image area is black (CLAMP_TO_BORDER) -> blocked.
-float irlite_cookie(vec3 fragWorld, IrliteLight light)
-{
-    float layer = light.cookie.x;
-    if (layer < 0.0) return 1.0;
-
-    vec3 lp = light.posRadius.xyz;
-    vec3 ld = normalize(light.dirType.xyz);
-    float outerDeg = max(degrees(acos(clamp(light.cone.x, -1.0, 1.0)) * 2.0), 1.0);
-    float fY = 1.0 / tan(radians(outerDeg) * 0.5);
-
-    vec3 up = abs(ld.y) > 0.99 ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 1.0, 0.0);
-    vec3 s = normalize(cross(ld, up));
-    vec3 u = cross(s, ld);
-
-    vec3 toR = fragWorld - lp;
-    float eyeZ = -dot(ld, toR);
-    if (eyeZ > -0.001) return 1.0;
-
-    float ndcX = fY * dot(s, toR) / -eyeZ;
-    float ndcY = fY * dot(u, toR) / -eyeZ;
-
-    float sc = max(light.cookie.z, 1e-3);
-    float cr = cos(light.cookie.y), sr = sin(light.cookie.y);
-    vec2 p = vec2(ndcX, ndcY) / sc;
-    p = vec2(cr * p.x - sr * p.y, sr * p.x + cr * p.y);
-
-    vec2 uv = p * 0.5 + 0.5;
-    float m = texture(irl_cookieArray, vec3(uv, layer)).r;
-    if (light.cookie.w >= 0.5) m = 1.0 - m;
-    return m;
-}
-#endif // IRLITE_COMPILE_COOKIE
 
 // ==== SHADOW SAMPLING - spot atlas + point cube-array, PCSS; depends only on the SSBO + the two depth samplers ====
 #ifdef IRLITE_COMPILE_SHADOWS
@@ -400,99 +351,65 @@ float irlite_pointShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fa
 #ifdef IRLITE_COMPOSITE_PASS
 #ifdef IRLITE_OUTLINE
 
-// Host composite3.fsh declares far/near, texelSize, depthtex0, colortex1, colortex7 and cameraPosition - do not re-declare.
+// Host composite3.fsh declares near/far, texelSize, depthtex0, colortex1 and cameraPosition - do not re-declare.
 
-// Single-channel copy of the pack's decodeVec2 (jodie 2x8 packing, second channel) - independent of include order.
+// Single-channel copy of the pack's decodeVec2 (jodie 2x8 packing, second channel) - used by the call site for the hand mask.
 float irlite_decodeVec2Y(float a)
 {
     return fract(a * (65535.0 / 65536.0)) * (256.0 / 255.0);
 }
 
-// Linear depth of a gbuffer texel.
-float irlite_outlineLinDepth(ivec2 t)
+// Metric view-space depth (metres) at a gbuffer texel, clamped to screen. far * the pack's chocapic ld(d).
+float irlite_outlineDepth(ivec2 t)
 {
-    float d = texelFetch(depthtex0, t, 0).r;
-    return (2.0 * near) / (far + near - d * (far - near));
-}
-
-// Entity test via the entity mask channel.
-bool irlite_outlineEntity(ivec2 t)
-{
-    float opq = irlite_decodeVec2Y(texelFetch(colortex1, t, 0).a);
-    float tr  = texelFetch(colortex7, t, 0).a;
-    return abs(opq - 0.45) < 0.01 || abs(tr - 0.9) < 0.01 || abs(tr - 0.8) < 0.01;
-}
-
-// Edge mask at this fragment (0 = no line, 1 = full line).
-float irlite_outlineMask(bool centerEntity)
-{
-    const int ps = IRLITE_OUTLINE_PIXEL_SIZE;
-    const int pd = max((IRLITE_OUTLINE_PIXEL_SIZE * 707 + 500) / 1000, 1);   // round(ps / sqrt(2))
-
-    // 8 samples: 4 axis + 4 diagonal, opposite pairs; diagonal shortened for round footprint.
-    ivec2 offs[8] = ivec2[8](
-        ivec2( ps,  0), ivec2(-ps,   0),
-        ivec2(  0, ps), ivec2(  0, -ps),
-        ivec2( pd, pd), ivec2(-pd, -pd),
-        ivec2(-pd, pd), ivec2( pd, -pd));
-
-    ivec2 tc = ivec2(gl_FragCoord.xy);
     ivec2 tMax = ivec2(1.0 / texelSize) - ivec2(1);
-
-    float zC = irlite_outlineLinDepth(tc);
-
-    float z[8];
-    for (int i = 0; i < 8; i++)
-        z[i] = irlite_outlineLinDepth(clamp(tc + offs[i], ivec2(0), tMax));
-
-    // --- silhouette: second difference, slope-immune, one-sided ---
-    const float T = IRLITE_OUTLINE_DEPTH_THRESHOLD;
-    float score = 0.0;
-    for (int p = 0; p < 4; p++)
-    {
-        float rel = (z[2 * p] + z[2 * p + 1] - 2.0 * zC) / zC;
-        score += smoothstep(T, 2.0 * T, rel);
-    }
-
-    // --- border: entity/terrain boundary at touching depth ---
-    if (centerEntity)
-    {
-        for (int i = 0; i < 8; i++)
-        {
-            if (!irlite_outlineEntity(clamp(tc + offs[i], ivec2(0), tMax)))
-                score += 0.5;
-        }
-    }
-
-    // One full trigger = solid line; partial triggers fade out.
-    return smoothstep(0.35, 1.0, score);
+    t = clamp(t, ivec2(0), tMax);
+    float d = texelFetch(depthtex0, t, 0).r;
+    return (2.0 * near * far) / (far + near - d * (far - near));
 }
 
-// Light-driven rim ink: frontKill/backKill angular gates + lazy edge mask per light.
-vec3 irlite_outlineInk(vec3 playerPos, vec3 flatNormal, bool isEntity)
+// 4-corner depth-edge detector at +-PIXEL_SIZE: maxBehind x edgeness, smoothstepped.
+float irlite_outlineFactor()
 {
-    #if IRLITE_OUTLINE_TARGET == 1
-        if (!isEntity) return vec3(0.0);   // entities-only mode: terrain gets no line
-    #endif
+    int ps = IRLITE_OUTLINE_PIXEL_SIZE;
+    ivec2 tc = ivec2(gl_FragCoord.xy);
+    float zC = irlite_outlineDepth(tc);
 
+    ivec2 a = tc - ps;
+    ivec2 b = tc + ps;
+    float z0 = irlite_outlineDepth(a);
+    float z1 = irlite_outlineDepth(b);
+    float z2 = irlite_outlineDepth(ivec2(a.x, b.y));
+    float z3 = irlite_outlineDepth(ivec2(b.x, a.y));
+
+    float dz0 = z0 - zC, dz1 = z1 - zC, dz2 = z2 - zC, dz3 = z3 - zC;
+    float maxBehind = max(max(max(dz0, dz1), dz2), dz3);
+    float edgeness  = max(abs(dz0 - dz1), abs(dz2 - dz3));
+
+    float zM = max(zC, 1.0);
+    return smoothstep(0.10, 0.22, maxBehind / zM) * smoothstep(0.05, 0.12, edgeness / zM);
+}
+
+// Backlight rim ink: depth-edge x Fresnel x (1-NdotL) x attenuation, tinted by the light colour.
+vec3 irlite_outlineInk(vec3 playerPos, vec3 flatNormal)
+{
     float fl2 = dot(flatNormal, flatNormal);
-    if (fl2 < 1e-12) return vec3(0.0);   // degenerate reconstruction (flat depth)
-    vec3 nF = flatNormal * inversesqrt(fl2);
+    if (fl2 < 1e-12) return vec3(0.0);
+    vec3 n = flatNormal * inversesqrt(fl2);
 
     vec3 fragWorld = playerPos + cameraPosition;
     vec3 v = -normalize(playerPos);
-    float wrapC = 2.0 * IRLITE_OUTLINE_WRAP - 1.0;
 
-    float edgeMask = -1.0;   // lazy: -1 = not computed yet
-    vec3 ink = vec3(0.0);
+    float contourFactor = irlite_outlineFactor()
+                        * pow(clamp(1.0 - abs(dot(n, v)), 0.0, 1.0), IRLITE_OUTLINE_FRESNEL_POWER);
+    if (contourFactor <= 0.0) return vec3(0.0);
+
     uint count = irlite_lightCount;
+    vec3 ink = vec3(0.0);
 
     for (uint i = 0u; i < count; i++)
     {
         IrliteLight light = irlite_lights[i];
-        int irlMask = int(light.cone.z + 0.5);             // 0 all, 1 entities only, 2 blocks only
-        if (irlMask == 1 && !isEntity) continue;
-        if (irlMask == 2 &&  isEntity) continue;
 
         vec3 toLight = light.posRadius.xyz - fragWorld;
         float radius = light.posRadius.w;
@@ -500,6 +417,7 @@ vec3 irlite_outlineInk(vec3 playerPos, vec3 flatNormal, bool isEntity)
         if (dist2 >= radius * radius || dist2 < 1e-8) continue;
         float dist = sqrt(dist2);
         vec3 L = toLight / dist;
+        float ndl = max(dot(n, L), 0.0);
 
         float dr = dist / radius;
         float dr4 = dr * dr * dr * dr;
@@ -513,38 +431,19 @@ vec3 irlite_outlineInk(vec3 playerPos, vec3 flatNormal, bool isEntity)
             float spotCone = clamp((theta - light.cone.x) / max(light.cone.y - light.cone.x, 1e-6), 0.0, 1.0);
             if (spotCone <= 0.0) continue;
             attenuation *= spotCone;
-            #ifdef IRLITE_COMPILE_COOKIE
-                attenuation *= irlite_cookie(fragWorld, light);
-                if (attenuation <= 0.0) continue;
-            #endif
         }
-
-        // Cheap angular rejects before paying for the shadow taps.
-        float frontKill = 1.0 - smoothstep(wrapC - 0.25, wrapC + 0.25, dot(L, v));
-        float backKill = smoothstep(-0.35, -0.05, dot(nF, L));
-        if (frontKill <= 1e-4 || attenuation * backKill <= 0.02) continue;
 
         #ifdef IRLITE_SHADOWS
             attenuation *= (light.dirType.w > 0.5)
-                ? irlite_spotShadow(fragWorld, nF, light, false)
-                : irlite_pointShadow(fragWorld, nF, light, false);
+                ? irlite_spotShadow(fragWorld, n, light, false)
+                : irlite_pointShadow(fragWorld, n, light, false);
         #endif
 
-        float inkAmt = smoothstep(0.02, 0.10, attenuation * backKill) * frontKill;
-        if (inkAmt > 1e-4)
-        {
-            if (edgeMask < 0.0)
-            {
-                edgeMask = irlite_outlineMask(isEntity);
-                if (edgeMask <= 0.0) break;   // geometry has no edge here - no light can ink it
-            }
-            // RAW LINEAR ink colour (the hook adds in linear space).
-            vec3 lightCol = max(light.colorIntensity.rgb, vec3(0.0)) * light.colorIntensity.a;
-            ink += lightCol * (edgeMask * inkAmt * IRLITE_OUTLINE_STRENGTH);
-        }
+        // RAW LINEAR ink colour (the hook adds in linear space).
+        vec3 lightCol = max(light.colorIntensity.rgb, vec3(0.0)) * light.colorIntensity.a;
+        ink += lightCol * (contourFactor * (1.0 - ndl) * attenuation * IRLITE_OUTLINE_STRENGTH);
     }
 
-    // 5x baseline — STRENGTH 1.0 matches the diffuse scale.
     return ink * 5.0;
 }
 
@@ -664,10 +563,6 @@ void irlite_lightSurface(vec3 playerPos, vec3 normalW,
             float spotCone = clamp((theta - light.cone.x) / max(light.cone.y - light.cone.x, 1e-6), 0.0, 1.0);
             if (spotCone <= 0.0) continue;
             attenuation *= spotCone;
-            #ifdef IRLITE_COMPILE_COOKIE
-                attenuation *= irlite_cookie(fragWorld, light);
-                if (attenuation <= 0.0) continue;
-            #endif
         }
 
         #ifdef IRLITE_SHADOWS
@@ -948,10 +843,6 @@ vec3 irlite_volumetric(vec3 startWorld, vec3 endWorld, vec3 worldDir, float dith
                 if (spotAtten <= 0.0) continue;
                 atten = falloff * spotAtten;
                 phase = phaseSpot;
-                #ifdef IRLITE_COMPILE_COOKIE
-                    atten *= irlite_cookie(startWorld + pos, light);   // gobo shapes the beam
-                    if (atten <= 0.0) continue;
-                #endif
             }
             else
             {
@@ -1115,14 +1006,13 @@ after "#include \"/lib/DistantHorizons_projections.glsl\""
 before "  color *= vl.a*cloudAlpha ;"
 <<<
   #if defined IRLITE_ACTIVE && defined IRLITE_OUTLINE
-  // IRLite rim outline; inked before fog merge, hand excluded by mask 0.75.
+  // IRLite backlight rim outline; inked before fog merge, hand excluded by mask 0.75.
   vec3 irliteFlatN = cross(dFdx(p3), dFdy(p3));
   if (z < 1.0) {
     float irliteOpq = irlite_decodeVec2Y(texelFetch(colortex1, ivec2(gl_FragCoord.xy), 0).a);
     if (!(abs(irliteOpq - 0.75) < 0.01)) {
-      bool irliteSubject = abs(irliteOpq - 0.45) < 0.01 || isEntity;
       if (dot(irliteFlatN, p3) > 0.0) irliteFlatN = -irliteFlatN;
-      color += IRLITE_INTENSITY * irlite_outlineInk(p3, irliteFlatN, irliteSubject);
+      color += IRLITE_INTENSITY * irlite_outlineInk(p3, irliteFlatN);
     }
   }
   #endif
@@ -1162,11 +1052,11 @@ after "        screen.selection_box_outline = SELECT_BOX SELECT_BOX_COL_R SELECT
         screen.IRLITE_TOON_SCREEN = IRLITE_TOON IRLITE_TOON_BANDS IRLITE_TOON_SMOOTH
 
         screen.IRLITE_OUTLINE_SCREEN.columns = 1
-        screen.IRLITE_OUTLINE_SCREEN = IRLITE_OUTLINE IRLITE_OUTLINE_TARGET IRLITE_OUTLINE_STRENGTH IRLITE_OUTLINE_PIXEL_SIZE IRLITE_OUTLINE_WRAP IRLITE_OUTLINE_DEPTH_THRESHOLD
+        screen.IRLITE_OUTLINE_SCREEN = IRLITE_OUTLINE IRLITE_OUTLINE_STRENGTH IRLITE_OUTLINE_PIXEL_SIZE IRLITE_OUTLINE_FRESNEL_POWER
 >>>
 replace "LPV_SATURATION LPV_TINT_SATURATION LPV_NORMAL_STRENGTH"
 <<<
-LPV_SATURATION LPV_TINT_SATURATION LPV_NORMAL_STRENGTH IRLITE_INTENSITY IRLITE_SPECULAR_INTENSITY IRLITE_SPECULAR_SMOOTHNESS IRLITE_SHADOW_QUALITY IRLITE_SHADOW_SIZE IRLITE_SHADOW_BIAS IRLITE_SHADOW_NORMAL_OFFSET IRLITE_VL_SHADOW_STRIDE IRLITE_VL_INTENSITY IRLITE_VL_STEPS IRLITE_VL_TIP_BOOST IRLITE_VL_TIP_RADIUS IRLITE_VL_MAX_DIST IRLITE_TOON_BANDS IRLITE_TOON_SMOOTH IRLITE_OUTLINE_PIXEL_SIZE IRLITE_OUTLINE_STRENGTH IRLITE_OUTLINE_WRAP IRLITE_OUTLINE_DEPTH_THRESHOLD
+LPV_SATURATION LPV_TINT_SATURATION LPV_NORMAL_STRENGTH IRLITE_INTENSITY IRLITE_SPECULAR_INTENSITY IRLITE_SPECULAR_SMOOTHNESS IRLITE_SHADOW_QUALITY IRLITE_SHADOW_SIZE IRLITE_SHADOW_BIAS IRLITE_SHADOW_NORMAL_OFFSET IRLITE_VL_SHADOW_STRIDE IRLITE_VL_INTENSITY IRLITE_VL_STEPS IRLITE_VL_TIP_BOOST IRLITE_VL_TIP_RADIUS IRLITE_VL_MAX_DIST IRLITE_TOON_BANDS IRLITE_TOON_SMOOTH IRLITE_OUTLINE_PIXEL_SIZE IRLITE_OUTLINE_STRENGTH IRLITE_OUTLINE_FRESNEL_POWER
 >>>
 
 # --- option labels + tooltips (English) ---
@@ -1227,17 +1117,14 @@ option.IRLITE_TOON.comment = Quantize the IRLite diffuse into bands - a cel look
 option.IRLITE_TOON_BANDS = §aToon Bands§r
 option.IRLITE_TOON_SMOOTH = §aBand Smoothing§r
 
-option.IRLITE_OUTLINE = §eRim Outline§r
-option.IRLITE_OUTLINE.comment = Light-driven contour ink: a line appears where a light wraps an object from behind or the side. A frontal light draws nothing.
-option.IRLITE_OUTLINE_TARGET = §eOutline Target§r
-value.IRLITE_OUTLINE_TARGET.0 = Everything
-value.IRLITE_OUTLINE_TARGET.1 = Entities Only
-option.IRLITE_OUTLINE_STRENGTH = §eOutline Strength§r
-option.IRLITE_OUTLINE_PIXEL_SIZE = §eOutline Width (px)§r
-option.IRLITE_OUTLINE_WRAP = §eLight Wrap§r
-option.IRLITE_OUTLINE_WRAP.comment = How far around the object a light may sit and still ink: 0 = strict backlight, 0.5 = side and back, 1 = almost any angle.
-option.IRLITE_OUTLINE_DEPTH_THRESHOLD = §eDepth Threshold§r
-option.IRLITE_OUTLINE_DEPTH_THRESHOLD.comment = Relative depth-gap sensitivity of the silhouette test. Lower = more edges ink.
+option.IRLITE_OUTLINE = §eBacklight Rim§r
+option.IRLITE_OUTLINE.comment = Fresnel backlight rim (IRLEngine LocalLightOutline): depth-edge silhouette x Fresnel x (1-NdotL), tinted by the light colour. A frontal light draws nothing.
+option.IRLITE_OUTLINE_STRENGTH = §eRim Strength§r
+option.IRLITE_OUTLINE_STRENGTH.comment = Rim brightness multiplier. 0.65 matches the IRLite diffuse scale.
+option.IRLITE_OUTLINE_PIXEL_SIZE = §eRim Width (px)§r
+option.IRLITE_OUTLINE_PIXEL_SIZE.comment = Line thickness in pixels (depth-tap offset).
+option.IRLITE_OUTLINE_FRESNEL_POWER = §eFresnel Power§r
+option.IRLITE_OUTLINE_FRESNEL_POWER.comment = Sharpness of the silhouette rim falloff. Higher narrows the rim to grazing angles only.
 >>>
 
 # --- option labels + tooltips (Russian - the pack ships ru_RU) ---
@@ -1298,15 +1185,12 @@ option.IRLITE_TOON.comment = Квантование диффуза IRLite в п�
 option.IRLITE_TOON_BANDS = §aЧисло полос§r
 option.IRLITE_TOON_SMOOTH = §aСглаживание полос§r
 
-option.IRLITE_OUTLINE = §eКонтур (рим-инк)§r
-option.IRLITE_OUTLINE.comment = Световой контур: линия появляется там, где свет огибает объект сзади или сбоку. Фронтальный свет линию не рисует.
-option.IRLITE_OUTLINE_TARGET = §eЦель контура§r
-value.IRLITE_OUTLINE_TARGET.0 = Всё
-value.IRLITE_OUTLINE_TARGET.1 = Только энтити
-option.IRLITE_OUTLINE_STRENGTH = §eСила контура§r
-option.IRLITE_OUTLINE_PIXEL_SIZE = §eТолщина (px)§r
-option.IRLITE_OUTLINE_WRAP = §eОхват света§r
-option.IRLITE_OUTLINE_WRAP.comment = Насколько вбок может уйти свет и всё ещё рисовать линию: 0 = строго контражур, 0.5 = бок и зад, 1 = почти любой угол.
-option.IRLITE_OUTLINE_DEPTH_THRESHOLD = §eПорог глубины§r
-option.IRLITE_OUTLINE_DEPTH_THRESHOLD.comment = Относительная чувствительность силуэт-теста к разрыву глубины. Меньше = больше рёбер с линией.
+option.IRLITE_OUTLINE = §eКонтражурный рим§r
+option.IRLITE_OUTLINE.comment = Контражурный рим (IRLEngine LocalLightOutline): силуэт по разрыву глубины x Френель x (1-NdotL), в цвет источника. Фронтальный свет линию не рисует.
+option.IRLITE_OUTLINE_STRENGTH = §eСила рима§r
+option.IRLITE_OUTLINE_STRENGTH.comment = Множитель яркости рима. 0.65 соответствует диффуз-шкале IRLite.
+option.IRLITE_OUTLINE_PIXEL_SIZE = §eТолщина рима (px)§r
+option.IRLITE_OUTLINE_PIXEL_SIZE.comment = Толщина линии в пикселях (смещение depth-тапов).
+option.IRLITE_OUTLINE_FRESNEL_POWER = §eСила Френеля§r
+option.IRLITE_OUTLINE_FRESNEL_POWER.comment = Резкость спада рима у силуэта. Больше = рим уже, только у скользящих углов.
 >>>

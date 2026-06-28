@@ -10,7 +10,7 @@
 # must be empty. See memory bliss-port-plan Phase 5.
 
 $ErrorActionPreference = "Stop"
-$repo = "C:\Users\Qualet\Documents\Project\Minecraft\BBS\IRLite"
+$repo = "C:\Users\Qualet\Documents\Project\Minecraft\BBS\bbs-irlights-addon"
 $mod  = "$repo\Shadres\Modification\Bliss\shaders"
 $pris = "$repo\Shadres\Original\Bliss\shaders"
 $out  = "$repo\patches\bliss.irlights"
@@ -124,7 +124,7 @@ $slTriple = 'LPV_SATURATION LPV_TINT_SATURATION LPV_NORMAL_STRENGTH'
 $slPos = $pr[$slIdx2].IndexOf($slTriple)
 if ($slPos -lt 0) { throw "sliders tail anchor not found" }
 $slBody = $pr[$slIdx2].Substring($slPos)
-if (-not $slBody.EndsWith('IRLITE_OUTLINE_DEPTH_THRESHOLD')) { throw "sliders body tail unexpected" }
+if (-not $slBody.EndsWith('IRLITE_OUTLINE_FRESNEL_POWER')) { throw "sliders body tail unexpected" }
 
 # ---- lang: anchors and bodies read from the files (no cyrillic/section-sign
 # literals in this script - PS 5.1 source encoding dodge) ----
