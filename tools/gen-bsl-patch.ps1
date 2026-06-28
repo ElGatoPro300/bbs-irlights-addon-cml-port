@@ -8,7 +8,7 @@
 # <out> <Modification>` must be empty. See memory bsl-port-plan Phase 5.
 
 $ErrorActionPreference = "Stop"
-$repo = "C:\Users\Qualet\Documents\Project\Minecraft\BBS\IRLite"
+$repo = "C:\Users\Qualet\Documents\Project\Minecraft\BBS\bbs-irlights-addon"
 $mod  = "$repo\Shadres\Modification\BSL\shaders"
 $out  = "$repo\patches\bsl.irlights"
 
@@ -63,7 +63,7 @@ if (@($slLine).Count -ne 1) { throw "sliders line not unique" }
 $slIdx = $slLine.IndexOf('RETRO_FILTER_DEPTH WORLD_CURVATURE_SIZE')
 if ($slIdx -lt 0) { throw "sliders tail anchor not found" }
 $slBody = $slLine.Substring($slIdx)
-if (-not $slBody.EndsWith('IRLITE_OUTLINE_DEPTH_THRESHOLD')) { throw "sliders body tail unexpected" }
+if (-not $slBody.EndsWith('IRLITE_OUTLINE_FRESNEL_POWER')) { throw "sliders body tail unexpected" }
 
 $lg = Lines "$mod\lang\en_US.lang"
 $Y = IndexOfLine $lg 'option.WHITE_WORLD.comment=Replaces textures with flat white color.'
