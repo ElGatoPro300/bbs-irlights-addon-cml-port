@@ -124,7 +124,7 @@ $slTriple = 'LPV_SATURATION LPV_TINT_SATURATION LPV_NORMAL_STRENGTH'
 $slPos = $pr[$slIdx2].IndexOf($slTriple)
 if ($slPos -lt 0) { throw "sliders tail anchor not found" }
 $slBody = $pr[$slIdx2].Substring($slPos)
-if (-not $slBody.EndsWith('IRLITE_OUTLINE_FRESNEL_POWER')) { throw "sliders body tail unexpected" }
+if (-not $slBody.EndsWith('IRLITE_OUTLINE_GLOW_STRENGTH')) { throw "sliders body tail unexpected" }
 
 # ---- lang: anchors and bodies read from the files (no cyrillic/section-sign
 # literals in this script - PS 5.1 source encoding dodge) ----

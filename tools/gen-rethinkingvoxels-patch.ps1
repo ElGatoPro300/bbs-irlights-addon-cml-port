@@ -81,7 +81,7 @@ if (@($slLine).Count -ne 1) { throw "sliders IRLITE line not unique" }
 $slIdx = $slLine.IndexOf('WATER_BUMP_INTERACTIVE TEXTURE_RES')
 if ($slIdx -lt 0) { throw "sliders tail anchor not found" }
 $slBody = $slLine.Substring($slIdx)
-if (-not $slBody.EndsWith('IRLITE_OUTLINE_FRESNEL_POWER')) { throw "sliders body tail unexpected" }
+if (-not $slBody.EndsWith('IRLITE_OUTLINE_GLOW_STRENGTH')) { throw "sliders body tail unexpected" }
 if ($slBody -notmatch 'IRLITE_VL_SHADOW_STRIDE') { throw "sliders body missing IRLITE_VL_SHADOW_STRIDE" }
 
 # ---- lang/en_US.lang (append block) ----
