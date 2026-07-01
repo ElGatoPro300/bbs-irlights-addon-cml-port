@@ -21,6 +21,7 @@
 - [addon-shadows](addon-shadows.md) — референс бейк-движка (ShadowBaker/Renderer, пресеты LOW–ULTRA, кэш, cull, spot-атлас+point cube-array) + 2 open-issue (anim-token freeze, occluder-32).
 - [fix-shadow-depthstate-repin](fix-shadow-depthstate-repin.md) — MAJOR-A (ре-пин depth/blend/матриц перед каждым emit) + MAJOR-B (feet-pivot AABB->сфера); GL-диаг glGetBoolean.
 - [shadow-distance-quality-plan](shadow-distance-quality-plan.md) — качество теней на дали (Ф1-2 done в шейдере, Ф3 open) + known-open «зернистый квадрат» Softness (подозрение = бейк, не PCSS).
+- [plan-shadow-filtering-refactor](plan-shadow-filtering-refactor.md) — рефакторинг фильтрации теней: Ф0 GLSL-гигиена РЕАЛИЗОВАНА в Photon-инжекте (2026-07-01, ревью 0 блокеров; ждёт in-world + тираж на 6 паков) -> Ф1 пирамидный PCSS -> Ф2 EVSM/MSM по замеру; исследование+отчёты в `_archive/shadow-refactor-research-2026-07-01/`.
 
 ### Порты / редактор / движок / интеграции
 - [project-port-1211](project-port-1211.md) — порт 1.20.4->1.21.11 (продакшн, in-world PASS) + дельты 1.21.1/1.21.4 + карта API 1.21.x; 1.21.11 тени = реал-модели через capture-queue.
