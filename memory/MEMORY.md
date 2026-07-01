@@ -4,6 +4,7 @@
 Завершённые done-логи (порт-планы паков, фазы shadow-seam, перекрытые аудиты, выполненные план-файлы) лежат в `_archive/` — НЕ индексируется; поднять оттуда при необходимости.
 Консолидация 2026-06-29: сверены контракты по коду (SSBO 96б/6×vec4 c cookie, MAX_LIGHTS 2048, LightRegistry в irl-core); 5 завершённых план-файлов -> `_archive/`, durable-такеуэи свёрнуты в канон.
 Переформат 2026-06-29: со всех активных файлов снят декор (эмодзи/жирный/цитаты/strikethrough), описания поджаты, хвостовые «Связь»-секции сжаты в 1 строку — строгий вид под чтение LLM. Бэкап до правок: scratchpad/memory-backup-preformat.
+Инфра памяти 2026-07-01: 3 memory-дира трилогии (irlights/addon/core) = ОДИН физ. склад через Windows junctions (реальный = ключ ...BBS-irlights) -> [reference-memory-junctions](reference-memory-junctions.md); сессия в addon/core грузит ту же базу, правки видны всем трём.
 
 ## Маршрутизация и стратегия (читать первой)
 - [reference-edit-routing-by-area](reference-edit-routing-by-area.md) — карта что-где менять (патчер+свет+тени-оркестрация=irl-core; caster/UI per-mod; .irlights owner IRLite); команды сборки, что НЕ трогать.
@@ -26,6 +27,7 @@
 - [project-port-1201](project-port-1201.md) — порт 1.20.1 (только деп-матрица + LWJGL-пин; НОЛЬ правок .java). runClient PASS.
 - [project-irlite-base-ported](project-irlite-base-ported.md) — КАНОН движка+редактора: BBS-free свет (шов LightScene/PlacedLight/LightDriver) + фичи редактора (gizmo/persist/guides/локализация/ImGui-скин) — feature-complete.
 - [project-editor-vs-replay-screen-conflict](project-editor-vs-replay-screen-conflict.md) — редактор оверлеем в Replay Mod (1.20.4+1.21.11, in-replay PASS); raw-GLFW keybind; Фаза 3 курсор в облёте open.
+- [project-flashback-irlights-plan](project-flashback-irlights-plan.md) — PLAN-only (кода нет, не начат): отдельный аддон IRLights->Flashback replay (Moulberry); MC 1.21.11+Flashback 0.39.5, свет=keyframe-треки; two-mod Yarn+Mojmap; kill-switch=выживание SSBO b7 под export. Спасён из мёртвой IRL-redactor базы 2026-07-01.
 - [project-imgui-axiom-collision](project-imgui-axiom-collision.md) — краш ImGuiImplGl3.init рядом с Axiom (unrelocated imgui-java); try/catch+fallback, все ветки.
 - [project-auto-block-lights](project-auto-block-lights.md) — авто-свет от эмиссивных блоков; инкрем-скан; по умолч OFF; MAX_LIGHTS->2048 (irl-core).
 - [project-gui-lag-gpu-bound-diagnosis](project-gui-lag-gpu-bound-diagnosis.md) — лаг GUI при многих источниках = GPU-bound (не потоки); рычаг 2 (collect-cache) done; рычаг 1 GPU-cull/LOD открыт. Инструмент FrameProfiler.
@@ -46,9 +48,11 @@
 - [addon-architecture](addon-architecture.md) — пустые энтрипоинты, всё через миксины; per-frame GameRendererLightMixin->collect->bake->flush(SSBO7) до Iris.
 - [addon-forms](addon-forms.md) — модель форм на BBS Form: PointLightForm/SpotlightForm (поля/диапазоны; spot radius=угол°; blocks_only/entities_only->lightMask).
 - [addon-light-collection](addon-light-collection.md) — сбор света за кадр: SCANNER (ModelBlock) vs RENDER (актёры/реплеи), дедуп; MAX_LIGHTS=2048.
+- [fix-bone-attached-light-deadzone](fix-bone-attached-light-deadzone.md) — свет на кости (BodyPart.bone) не регал НИ scanner НИ render-path (мёртвая зона на стыке владения); фикс master: render-path забирает bone-свет всегда (form.getParent() instanceof BodyPart).
 - [addon-ui-config](addon-ui-config.md) — UI+конфиг IRLite на BBS: IrliteConfig, BBSSettings-категории, L10nMixin, in-world гайды, form-editor панели.
 - [project-refactor-origin](project-refactor-origin.md) — IRLite = рефактор IRLEngine (uniform->std430 SSBO binding7 + anchor-патчер); IRLEngine = только поведенч. референс.
 - [commit-checkpoints](commit-checkpoints.md) — (feedback) коммитить только в чекпоинты, ждать подтверждения, не авто-коммит; gitignore shaders/->git add -f.
+- [feedback-addon-runclient-command](feedback-addon-runclient-command.md) — (feedback) рантайм аддона ВСЕГДА runClient -Pmc=1.20.4 (лог run/runclient-console.log, в фоне); Prism-деплой НЕ используется; в PowerShell квотить '-Pmc=1.20.4'.
 
 ## irl-core — общее ядро
 - [patcher](patcher.md) — семантика патчера + DSL .irlights (@target/@packversion/@marker, after/before/replace, ?, |); validate-first, dry-run/rollback. CONTRACT_VERSION=1.
@@ -65,7 +69,7 @@
 
 ## Шейдер-паки — пайплайны (контракт + якоря + статус порта)
 - [project-photon-outline-switch-to-old](project-photon-outline-switch-to-old.md) — КАНОН outline: старый IRLEngine LocalLightOutline (Fresnel rim) на всех 6 паках; params PIXEL_SIZE2/STR0.65/POW2.2, default OFF; Photon = 2 патча (irlights+DoF).
-- [outline-target-entity-detection](outline-target-entity-detection.md) — IRLITE_OUTLINE_TARGET (0 both/1 entities/2 blocks); per-pack entity-метка в composite (CR materialMask 254, Solas colortex3.xy≈0, BSL инжект colortex3.z); done+runtime CR/Solas/BSL, pending Bliss/RethinkingVoxels; BBS-морфы = дефолт-метка.
+- [outline-target-entity-detection](outline-target-entity-detection.md) — IRLITE_OUTLINE_TARGET (0 both/1 entities/2 blocks); per-pack entity-метка (CR materialMask 254, Solas colortex3.xy≈0, BSL инжект colortex3.z, Bliss opaqueMasks 0.45 + безусл. инжект all_solid.vsh); done CR/Solas/BSL/RethinkingVoxels/Bliss (commit 5ab047c), Photon/IterationRP отдельно; BBS-морфы = дефолт-метка пака. + гоча stale-working-copy-2 (PatchLibrary.extracted irl-core = глобальный, не per-host — второй мод не рефрешит, open).
 - [photon-pipeline](photon-pipeline.md) — Photon (SixthSurge) deferred + 4 хук-сайта; порт done (20 ops, byte-identical). Спутник [photon-bugfix](photon-bugfix.md).
 - [photon-bugfix](photon-bugfix.md) — баг-трекер Photon: B-OUTLINE-TRANSLUCENT ЗАКРЫТ; WATCH bob-flicker self-shadow acne.
 - [shader-iterationrp-pipeline](shader-iterationrp-pipeline.md) — IterationRP deferred (#version 430, native SSBO+cubeArray) 3 хука; порт TAKE-3 done; AE-crater->PRE-albedo outline; VL unshadowed.

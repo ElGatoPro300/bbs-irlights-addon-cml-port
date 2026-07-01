@@ -61,5 +61,6 @@ KEY DELTAS vs prior ports (the porting checklist):
 - Take-2 from zero; phases 0–5 + 4.5 done 2026-06-12; 16 ops (smallest patch; VL/outline piggyback, no new passes/buffers).
 - Dual-path: composite1 deferred + all_translucent forward (dual-hook template; likely what failed take-1). Bugfix: MVI[3] view-bobbing — Bliss pre-applies, hook must pass as-is ("exactly once").
 - Outline: composite3 gate; unified params (PIXEL_SIZE 2 / STRENGTH 0.65 / FRESNEL_POWER 2.2); TAA shimmer known-minor; done 2026-06-29. Cross-pack record = [[project-photon-outline-switch-to-old]].
+- Outline TARGET (entity/block-фильтр, 2026-07-01, commit 5ab047c): детект через native opaqueMasks (colortex1.a decodeVec2Y) в composite3; entity-метка 0.45 УСЛОВНА (only player/SSS/2468 в all_solid.vsh:252) -> безусловный инжект all_solid.vsh `if(normalMat.a>0.99) normalMat.a=0.45` ловит дефолт-морфы (теряют sun-SSS, мелко); gen-bliss +1 op (17 total). Детали [[outline-target-entity-detection]].
 
 Связь: shader-inject (per-pack GLSL-инжект, авторинг на стороне IRLite через Shadres-loop, .irlights синк в redactor одно-направл. через copy-patches.ps1). Дополняет [[project-port-1211]] (Bliss как 16 ops патч). Источник: память IRLite.
