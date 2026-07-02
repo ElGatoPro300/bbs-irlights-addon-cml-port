@@ -48,9 +48,9 @@ if ($cp[$M - 1] -ne '') { throw "expected blank before #ifdef MCBL_SS" }
 if ($cpBlock[-1] -ne "`t#endif") { throw "cpBlock tail unexpected" }
 
 $pr = Lines "$mod\shaders.properties"
-$S5 = IndexOfLine $pr '#IRLite SSBO Prerequisite (binding 7 is created and bound by the IRLite mod)'
+$S5 = IndexOfLine $pr '#IRLite reduced-resolution volumetric pass (added deferred2 -> colortex10)'
 $M5 = IndexOfLine $pr '#Multi-Colored Blocklight Prerequisites'
-$prPrereq = $pr[$S5..($M5 - 1)]             # SSBO block + deferred2/size block + trailing blank (before-op)
+$prPrereq = $pr[$S5..($M5 - 1)]             # deferred2/size block + trailing blank (before-op); SSBO flag rides the iris.features replace op (raw-parse, last-in-file wins)
 if ($prPrereq[-1] -ne '') { throw "prPrereq must end with a blank line" }
 $SAO = IndexOfLine $pr 'screen.AO=<empty> <empty> AO_METHOD <empty> <empty> <empty> AO_STRENGTH ambientOcclusionLevel'
 $prScreens = $pr[($SAO + 1)..($SAO + 7)]    # blank + the 6 IRLITE screen lines (after-op)
