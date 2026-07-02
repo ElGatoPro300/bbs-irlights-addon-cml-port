@@ -7,6 +7,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import qualet.irlite.client.light.cookie.CookieArray;
 import org.qualet.irl.light.shadow.PointShadowArray;
+import org.qualet.irl.light.shadow.PointShadowEvsm;
 import org.qualet.irl.light.shadow.PointShadowPyramid;
 import org.qualet.irl.light.shadow.SpotShadowEvsm;
 import org.qualet.irl.light.shadow.SpotShadowPyramid;
@@ -35,6 +36,8 @@ public class ProgramSamplersBuilderMixin
         self.addDynamicSampler(PointShadowPyramid::getGlTextureId, "irl_pointShadowPyramid");
         // F2a: EVSM prefilter of the spot atlas (plain 2D + mips, no target rebind needed)
         self.addDynamicSampler(SpotShadowEvsm::getGlTextureId, "irl_spotEvsm");
+        // F2b: face-major point EVSM - registered 2D, rebound to GL_TEXTURE_2D_ARRAY by SamplerBindingCubeArrayMixin
+        self.addDynamicSampler(PointShadowEvsm::getGlTextureId, "irl_pointEvsm");
         // Gobo/cookie mask array — like the point cube array, registered as 2D and
         // rebound to its real GL_TEXTURE_2D_ARRAY target by SamplerBindingCubeArrayMixin.
         self.addDynamicSampler(CookieArray::getGlTextureId, "irl_cookieArray");
