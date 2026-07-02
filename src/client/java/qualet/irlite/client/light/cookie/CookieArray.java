@@ -20,7 +20,9 @@ import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A {@code GL_TEXTURE_2D_ARRAY} of grayscale gobo/cookie masks — one layer per
@@ -44,15 +46,21 @@ public final class CookieArray
 
     /** Per-layer square resolution; loaded images are resampled to this. */
     public static final int RES = 512;
-    /** Hard cap on simultaneously loaded distinct cookies (array depth). */
-    public static final int MAX_LAYERS = 16;
+    /** Array depth: distinct cookies resident at once. When full, the least-recently-
+     *  used layer is evicted and reused, so long keyframe flipbooks (image_1..image_N
+     *  animated by the film's LINK interpolation) keep loading past the cap. */
+    public static final int MAX_LAYERS = 32;
 
     private static int glTextureId = 0;
     private static boolean initialized = false;
 
-    /** link string -> array layer (or -1 cached for a known-bad asset, so a broken
-     *  image isn't re-decoded every frame). */
-    private static final Map<String, Integer> keyToLayer = new HashMap<>();
+    /** link string -> array layer (successfully loaded cookies only). */
+    private static final Map<String, Integer> layerByKey = new HashMap<>();
+    /** link string -> last resolve() stamp, drives LRU eviction when the array is full. */
+    private static final Map<String, Long> lastUse = new HashMap<>();
+    /** links whose asset failed to read/decode, so a broken image isn't re-decoded every frame. */
+    private static final Set<String> failed = new HashSet<>();
+    private static long useCounter = 0;
     private static int nextLayer = 0;
 
     private CookieArray()
@@ -65,8 +73,10 @@ public final class CookieArray
     }
 
     /** Resolve a cookie texture link to its array layer, loading on first use.
-     *  Render thread only (uploads to GL). Returns -1 for a null/empty link, a
-     *  failed load, or a full array. The result (incl. -1) is cached per link. */
+     *  Render thread only (uploads to GL). Returns -1 for a null/empty link or a
+     *  failed load (failures are cached per link). A full array evicts the
+     *  least-recently-used cookie instead of refusing, so keyframe flipbook
+     *  sequences longer than {@link #MAX_LAYERS} keep animating. */
     public static int resolve(Link link)
     {
         if (link == null)
@@ -78,17 +88,62 @@ public final class CookieArray
         {
             return -1;
         }
-        Integer cached = keyToLayer.get(key);
+        Integer cached = layerByKey.get(key);
         if (cached != null)
         {
+            lastUse.put(key, ++useCounter);
             return cached;
         }
-        int layer = (nextLayer < MAX_LAYERS) ? load(link, key) : -1;
-        keyToLayer.put(key, layer);
+        if (failed.contains(key))
+        {
+            return -1;
+        }
+
+        ByteBuffer pixels = decode(link, key);
+        if (pixels == null)
+        {
+            failed.add(key);
+            return -1;
+        }
+        try
+        {
+            int layer = (nextLayer < MAX_LAYERS) ? nextLayer++ : evictLru();
+            upload(pixels, layer);
+            layerByKey.put(key, layer);
+            lastUse.put(key, ++useCounter);
+            LOG.info("Cookie loaded '{}' -> layer {}", key, layer);
+            return layer;
+        }
+        finally
+        {
+            MemoryUtil.memFree(pixels);
+        }
+    }
+
+    /** Drop the least-recently-used cookie and hand its layer to the caller. Only
+     *  called with a full array, which always has (way) more layers than there are
+     *  cookies used in a single frame — the evicted key is never in active use. */
+    private static int evictLru()
+    {
+        String lruKey = null;
+        long lruStamp = Long.MAX_VALUE;
+        for (Map.Entry<String, Long> e : lastUse.entrySet())
+        {
+            if (e.getValue() < lruStamp)
+            {
+                lruStamp = e.getValue();
+                lruKey = e.getKey();
+            }
+        }
+        int layer = layerByKey.remove(lruKey);
+        lastUse.remove(lruKey);
+        LOG.info("Cookie evicted '{}' (array full) -> reusing layer {}", lruKey, layer);
         return layer;
     }
 
-    private static int load(Link link, String key)
+    /** Read + decode + resample the asset to a RES*RES single-channel buffer.
+     *  Returns null (and logs) on failure; the caller owns/frees the buffer. */
+    private static ByteBuffer decode(Link link, String key)
     {
         byte[] raw;
         try (InputStream in = BBSMod.getProvider().getAsset(link))
@@ -98,14 +153,13 @@ public final class CookieArray
         catch (Exception e)
         {
             LOG.warn("Cookie asset read failed: {}", key, e);
-            return -1;
+            return null;
         }
 
         ByteBuffer rawBuf = MemoryUtil.memAlloc(raw.length);
         rawBuf.put(raw).flip();
 
         ByteBuffer img = null;
-        ByteBuffer resized = null;
         try (MemoryStack stack = MemoryStack.stackPush())
         {
             IntBuffer w = stack.mallocInt(1);
@@ -116,15 +170,12 @@ public final class CookieArray
             if (img == null)
             {
                 LOG.warn("Cookie decode failed: {} ({})", key, STBImage.stbi_failure_reason());
-                return -1;
+                return null;
             }
 
-            resized = MemoryUtil.memAlloc(RES * RES);
+            ByteBuffer resized = MemoryUtil.memAlloc(RES * RES);
             STBImageResize.stbir_resize_uint8(img, w.get(0), h.get(0), 0, resized, RES, RES, 0, 1);
-
-            int layer = upload(resized);
-            LOG.info("Cookie loaded '{}' -> layer {}", key, layer);
-            return layer;
+            return resized;
         }
         finally
         {
@@ -132,17 +183,12 @@ public final class CookieArray
             {
                 STBImage.stbi_image_free(img);
             }
-            if (resized != null)
-            {
-                MemoryUtil.memFree(resized);
-            }
             MemoryUtil.memFree(rawBuf);
         }
     }
 
-    /** Upload one RES*RES grayscale buffer into the next free layer, allocating the
-     *  array on first use. Returns the layer index. Saves and restores the GL state
-     *  it touches.
+    /** Upload one RES*RES grayscale buffer into the given layer, allocating the
+     *  array on first use. Saves and restores the GL state it touches.
      *
      *  <p>Unlike the standalone editor, we run inside BBS / Sodium / Minecraft, which
      *  routinely leave a {@code GL_PIXEL_UNPACK_BUFFER} (PBO) bound and the pixel-store
@@ -151,7 +197,7 @@ public final class CookieArray
      *  out of bounds — a native {@code EXCEPTION_ACCESS_VIOLATION} crash. So force a
      *  clean, tightly-packed client-memory upload (no PBO, alignment 1, no row/skip),
      *  then restore the prior state.</p> */
-    private static int upload(ByteBuffer pixels)
+    private static void upload(ByteBuffer pixels, int layer)
     {
         int prevTex = GL11.glGetInteger(GL30.GL_TEXTURE_BINDING_2D_ARRAY);
         int prevPbo = GL11.glGetInteger(GL21.GL_PIXEL_UNPACK_BUFFER_BINDING);
@@ -176,7 +222,6 @@ public final class CookieArray
         }
         GL11.glBindTexture(GL30.GL_TEXTURE_2D_ARRAY, glTextureId);
 
-        int layer = nextLayer++;
         GL12.glTexSubImage3D(GL30.GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, RES, RES, 1,
             GL11.GL_RED, GL11.GL_UNSIGNED_BYTE, pixels);
 
@@ -188,7 +233,6 @@ public final class CookieArray
         GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_PIXELS, prevSkipPixels);
         GL11.glPixelStorei(GL12.GL_UNPACK_IMAGE_HEIGHT, prevImgHeight);
         GL11.glPixelStorei(GL12.GL_UNPACK_SKIP_IMAGES, prevSkipImages);
-        return layer;
     }
 
     private static void init()
@@ -218,7 +262,10 @@ public final class CookieArray
      *  reloads from the BBS assets (picks up an edited texture). */
     public static void reload()
     {
-        keyToLayer.clear();
+        layerByKey.clear();
+        lastUse.clear();
+        failed.clear();
+        useCounter = 0;
         nextLayer = 0;
         delete();
     }
