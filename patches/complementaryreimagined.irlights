@@ -26,33 +26,33 @@
 #define IRLITE_SHADOW_NORMAL_OFFSET 0.05 // [0.0 0.02 0.05 0.10 0.15 0.25 0.40]
 
 #define IRLITE_VL_SHADOWS                  // per-step shadowing of the VL beams/haze; active only with IRLITE_SHADOWS on
-#define IRLITE_VL_SHADOW_STRIDE 2 // [1 2 3 4]
+#define IRLITE_VL_SHADOW_STRIDE 1 // [1 2 3 4]
 #define IRLITE_VL_RESOLUTION 0.5 // [1.0 0.5 0.25]
 #define IRLITE_VL_INTENSITY 1.0 // [0.1 0.25 0.5 0.75 1.0 1.5 2.0 3.0 4.0 6.0]
-#define IRLITE_VL_STEPS 10 // [6 8 10 12 14 16 24 32]
+#define IRLITE_VL_STEPS 48 // [8 12 14 16 24 32 48 64]
 #define IRLITE_VL_TIP_BOOST 1.5 // [0.0 0.5 1.0 1.5 2.0 3.0 4.0]
 #define IRLITE_VL_TIP_RADIUS 1.5 // [0.5 0.75 1.0 1.5 2.0 3.0 4.0]
 #define IRLITE_VL_MAX_DIST 96.0 // [32.0 64.0 96.0 128.0 192.0 256.0]
 #define IRLITE_VL_NOISE                    // animated 3D density noise — breaks the uniform beam into drifting puffs
 #define IRLITE_VL_NOISE_AMOUNT 0.6 // [0.2 0.4 0.6 0.8 1.0]
 #define IRLITE_VL_NOISE_SCALE 2.0 // [0.5 1.0 1.5 2.0 3.0 4.0 6.0]
-#define IRLITE_VL_NOISE_SPEED 1.0 // [0.0 0.25 0.5 1.0 1.5 2.0 3.0]
+#define IRLITE_VL_NOISE_SPEED 0.25 // [0.0 0.25 0.5 1.0 1.5 2.0 3.0]
 #define IRLITE_VL_NOISE_STRIDE 1 // [1 2 3 4]
 
 //#define IRLITE_TOON
 #define IRLITE_TOON_BANDS 3 // [2 3 4 5 6 8]
 #define IRLITE_TOON_SMOOTH 0.10 // [0.0 0.05 0.10 0.20 0.30 0.50]
 
-//#define IRLITE_OUTLINE                    // light-driven rim: depth silhouette + Fresnel halo, back/front + glow (IRLEngine LocalLightOutline)
+#define IRLITE_OUTLINE                    // light-driven rim: depth silhouette + Fresnel halo, back/front + glow (IRLEngine LocalLightOutline)
 #define IRLITE_OUTLINE_TARGET 0 // [0 1 2]
 #define IRLITE_OUTLINE_PIXEL_SIZE 2 // [1 2 3 4 5 6]
 #define IRLITE_OUTLINE_STRENGTH 0.65 // [0.0 0.1 0.2 0.35 0.5 0.65 0.8 1.0 1.5 2.0 3.0]
 #define IRLITE_OUTLINE_FRESNEL_POWER 2.2 // [1.0 1.2 1.5 1.8 2.0 2.2 2.5 3.0 4.0]
 // each new feature = on/off toggle + strength slider (pack idiom). BACK = base rim strength, slider only (0 = off).
 #define IRLITE_OUTLINE_BACK 1.0 // [0.0 0.25 0.5 0.75 1.0 1.5 2.0]
-#define IRLITE_OUTLINE_FRONT                  // catch-light rim facing the light (on/off)
+//#define IRLITE_OUTLINE_FRONT                  // catch-light rim facing the light (on/off)
 #define IRLITE_OUTLINE_FRONT_STRENGTH 0.3 // [0.0 0.15 0.3 0.5 0.75 1.0 1.5]
-#define IRLITE_OUTLINE_GLOW                   // soft inner Fresnel halo, feeds bloom (on/off)
+//#define IRLITE_OUTLINE_GLOW                   // soft inner Fresnel halo, feeds bloom (on/off)
 #define IRLITE_OUTLINE_GLOW_STRENGTH 0.12 // [0.0 0.05 0.12 0.2 0.35 0.5 0.75]
 
 // DH/Voxy LOD passes draw distant geometry only and lack the needed uniforms - gate the whole body out; the option defines above stay visible to Iris.
@@ -1230,16 +1230,16 @@ after "        size.buffer.colortex7 = REFLECTION_RES REFLECTION_RES"
 >>>
 replace "VANILLAAO_I PLAYER_SHADOW"
 <<<
-VANILLAAO_I PLAYER_SHADOW [IRLITE_SETTINGS]
+VANILLAAO_I PLAYER_SHADOW [IRLIGHTS]
 >>>
 after "        screen.PIXELATED_LIGHTING_SETTINGS=<empty> <empty> PIXELATED_SHADOWS PIXELATED_BLOCKLIGHT PIXELATED_AO PIXEL_SCALE"
 <<<
-        screen.IRLITE_SETTINGS=<empty> <empty> IRLITE_DIFFUSE IRLITE_INTENSITY <empty> <empty> [IRLITE_SPECULAR_SETTINGS] [IRLITE_SHADOW_SETTINGS] [IRLITE_VL_SETTINGS] [IRLITE_TOON_SETTINGS] [IRLITE_OUTLINE_SETTINGS]
-            screen.IRLITE_SPECULAR_SETTINGS=<empty> <empty> IRLITE_SPECULAR IRLITE_SPECULAR_INTENSITY
-            screen.IRLITE_SHADOW_SETTINGS=<empty> <empty> IRLITE_SHADOWS IRLITE_SHADOW_QUALITY <empty> <empty> IRLITE_SHADOW_SIZE IRLITE_SHADOW_BIAS IRLITE_SHADOW_NORMAL_OFFSET
-            screen.IRLITE_VL_SETTINGS=<empty> <empty> IRLITE_VOLUMETRIC IRLITE_VL_SHADOWS IRLITE_VL_INTENSITY IRLITE_VL_RESOLUTION IRLITE_VL_STEPS IRLITE_VL_SHADOW_STRIDE <empty> <empty> IRLITE_VL_TIP_BOOST IRLITE_VL_TIP_RADIUS IRLITE_VL_MAX_DIST <empty> <empty> <empty> IRLITE_VL_NOISE IRLITE_VL_NOISE_AMOUNT IRLITE_VL_NOISE_SCALE IRLITE_VL_NOISE_SPEED IRLITE_VL_NOISE_STRIDE
-            screen.IRLITE_TOON_SETTINGS=<empty> <empty> IRLITE_TOON <empty> IRLITE_TOON_BANDS IRLITE_TOON_SMOOTH
-            screen.IRLITE_OUTLINE_SETTINGS=<empty> <empty> IRLITE_OUTLINE IRLITE_OUTLINE_TARGET <empty> <empty> IRLITE_OUTLINE_STRENGTH IRLITE_OUTLINE_PIXEL_SIZE IRLITE_OUTLINE_FRESNEL_POWER <empty> <empty> IRLITE_OUTLINE_BACK <empty> IRLITE_OUTLINE_FRONT IRLITE_OUTLINE_FRONT_STRENGTH IRLITE_OUTLINE_GLOW IRLITE_OUTLINE_GLOW_STRENGTH
+        screen.IRLIGHTS=IRLITE_DIFFUSE IRLITE_INTENSITY <empty> <empty> [IRLIGHTS_SPECULAR] [IRLIGHTS_SHADOWS] [IRLIGHTS_TOON] [IRLIGHTS_VOLUMETRIC] [IRLIGHTS_OUTLINE] <empty>
+            screen.IRLIGHTS_SPECULAR=IRLITE_SPECULAR <empty> IRLITE_SPECULAR_INTENSITY <empty>
+            screen.IRLIGHTS_SHADOWS=IRLITE_SHADOWS IRLITE_SHADOW_QUALITY <empty> <empty> IRLITE_SHADOW_SIZE IRLITE_SHADOW_BIAS IRLITE_SHADOW_NORMAL_OFFSET <empty>
+            screen.IRLIGHTS_TOON=IRLITE_TOON <empty> IRLITE_TOON_BANDS IRLITE_TOON_SMOOTH
+            screen.IRLIGHTS_VOLUMETRIC=IRLITE_VOLUMETRIC IRLITE_VL_INTENSITY IRLITE_VL_RESOLUTION IRLITE_VL_STEPS IRLITE_VL_MAX_DIST <empty> <empty> <empty> IRLITE_VL_SHADOWS IRLITE_VL_SHADOW_STRIDE IRLITE_VL_TIP_BOOST IRLITE_VL_TIP_RADIUS <empty> <empty> IRLITE_VL_NOISE IRLITE_VL_NOISE_AMOUNT IRLITE_VL_NOISE_SCALE IRLITE_VL_NOISE_SPEED IRLITE_VL_NOISE_STRIDE <empty>
+            screen.IRLIGHTS_OUTLINE=IRLITE_OUTLINE IRLITE_OUTLINE_TARGET <empty> <empty> IRLITE_OUTLINE_STRENGTH IRLITE_OUTLINE_PIXEL_SIZE IRLITE_OUTLINE_FRESNEL_POWER <empty> <empty> <empty> IRLITE_OUTLINE_BACK <empty> IRLITE_OUTLINE_FRONT IRLITE_OUTLINE_FRONT_STRENGTH IRLITE_OUTLINE_GLOW IRLITE_OUTLINE_GLOW_STRENGTH
 >>>
 replace "END_STAR_INTENSITY GENERATED_NORMAL_RES"
 <<<
@@ -1252,33 +1252,33 @@ after "option.XLIGHT_CURVE.comment=Adjusts how quickly the intensity of blocklig
 <<<
 
 
-screen.IRLITE_SETTINGS=§6IRLite Lights§r
-screen.IRLITE_SETTINGS.comment=Dynamic point and spot lights from the IRLite BBS addon. Requires the IRLite mod to feed the lights — without it these settings do nothing.
-screen.IRLITE_SPECULAR_SETTINGS=§bIRLite Specular
-screen.IRLITE_SPECULAR_SETTINGS.comment=Specular highlight from IRLite lights.
-screen.IRLITE_SHADOW_SETTINGS=§3IRLite Shadows
-screen.IRLITE_SHADOW_SETTINGS.comment=Real-time shadows baked by the IRLite mod for its lights.
-screen.IRLITE_VL_SETTINGS=§dIRLite Volumetrics
-screen.IRLITE_VL_SETTINGS.comment=Per-light volumetric beams and haze.
-screen.IRLITE_TOON_SETTINGS=§aIRLite Toon
-screen.IRLITE_TOON_SETTINGS.comment=Cel-shading style banding of IRLite lighting.
-screen.IRLITE_OUTLINE_SETTINGS=§eIRLite Outline
-screen.IRLITE_OUTLINE_SETTINGS.comment=Light-driven rim outline along IRLite-lit silhouettes: back/front rim and soft inner glow. Each sub-feature toggles independently.
+screen.IRLIGHTS=§6§lIRLights§r
+screen.IRLIGHTS.comment=Dynamic point and spot lights from the IRLights BBS addon. Requires the IRLights mod to feed the lights — without it these settings do nothing.
+screen.IRLIGHTS_SPECULAR=§bSpecular
+screen.IRLIGHTS_SPECULAR.comment=Specular highlight from IRLights lights.
+screen.IRLIGHTS_SHADOWS=§3Shadows
+screen.IRLIGHTS_SHADOWS.comment=Real-time shadows baked by the IRLights mod for its lights.
+screen.IRLIGHTS_TOON=§aToon
+screen.IRLIGHTS_TOON.comment=Cel-shading style banding of IRLights lighting.
+screen.IRLIGHTS_VOLUMETRIC=§dVolumetric
+screen.IRLIGHTS_VOLUMETRIC.comment=Per-light volumetric beams and haze.
+screen.IRLIGHTS_OUTLINE=§eOutline
+screen.IRLIGHTS_OUTLINE.comment=Light-driven rim outline along lit silhouettes: back/front rim and soft inner glow. Each sub-feature toggles independently.
 
 option.IRLITE_DIFFUSE=§6Diffuse Lighting
-option.IRLITE_DIFFUSE.comment=Surface lighting from IRLite point/spot lights.
+option.IRLITE_DIFFUSE.comment=Surface lighting from IRLights point/spot lights.
 
 option.IRLITE_INTENSITY=§6Master Intensity
-option.IRLITE_INTENSITY.comment=Multiplier for all IRLite lighting.
+option.IRLITE_INTENSITY.comment=Multiplier for all IRLights lighting.
 
-option.IRLITE_SPECULAR=§bSpecular Highlight
-option.IRLITE_SPECULAR.comment=GGX specular highlight from IRLite lights, using the pack's own specular model.
+option.IRLITE_SPECULAR=§bSpecular Highlights
+option.IRLITE_SPECULAR.comment=Specular highlight from IRLights lights, using the pack's own specular model.
 
 option.IRLITE_SPECULAR_INTENSITY=§bSpecular Intensity
-option.IRLITE_SPECULAR_INTENSITY.comment=Multiplier for the IRLite specular highlight.
+option.IRLITE_SPECULAR_INTENSITY.comment=Multiplier for the IRLights specular highlight.
 
 option.IRLITE_SHADOWS=§3Light Shadows
-option.IRLITE_SHADOWS.comment=Real-time shadows from IRLite lights, baked by the mod into a spot atlas and a point cube-array. §e[*]§r Turning this OFF also removes the related GPU constructs — use it if the pack fails to compile on exotic drivers.
+option.IRLITE_SHADOWS.comment=Real-time shadows from IRLights lights, baked by the mod into a spot atlas and a point cube-array. §e[*]§r Turning this OFF also removes the related GPU constructs — use it if the pack fails to compile on exotic drivers.
 
 option.IRLITE_SHADOW_QUALITY=§3Shadow Quality
 option.IRLITE_SHADOW_QUALITY.comment=PCSS filtering quality. Higher tiers use more samples for softer, less noisy penumbras.
@@ -1300,34 +1300,34 @@ option.IRLITE_SHADOW_NORMAL_OFFSET.comment=Receiver offset along the surface nor
 option.IRLITE_VOLUMETRIC=§dVolumetric Light
 option.IRLITE_VOLUMETRIC.comment=Per-light volumetric beams (spotlights) and glow (point lights).
 
-option.IRLITE_VL_SHADOWS=§dVolumetric Shadows
-option.IRLITE_VL_SHADOWS.comment=Occludes the beams per march step against the IRLite shadow maps — god-rays through windows. §e[*]§r Needs IRLite Shadows enabled.
+option.IRLITE_VL_INTENSITY=§dBeam Intensity
+option.IRLITE_VL_INTENSITY.comment=Multiplier for IRLights volumetric light.
 
-option.IRLITE_VL_INTENSITY=§dVolumetric Intensity
-option.IRLITE_VL_INTENSITY.comment=Multiplier for IRLite volumetric light.
-
-option.IRLITE_VL_RESOLUTION=§dVolumetric Resolution
-option.IRLITE_VL_RESOLUTION.comment=Resolution of the volumetric ray march (its own pass, upsampled afterwards). Half costs a quarter of Full and is the intended default. Quarter matches Photon's volumetric pass — fastest, slightly softer beams.
+option.IRLITE_VL_RESOLUTION=§dResolution
+option.IRLITE_VL_RESOLUTION.comment=Resolution of the volumetric ray march (its own pass, upsampled afterwards). Half costs a quarter of Full and is the intended default. Quarter is fastest, slightly softer beams.
 value.IRLITE_VL_RESOLUTION.1.0=Full
 value.IRLITE_VL_RESOLUTION.0.5=Half
 value.IRLITE_VL_RESOLUTION.0.25=Quarter
 
-option.IRLITE_VL_STEPS=§dVolumetric Steps
-option.IRLITE_VL_STEPS.comment=Ray-march steps per light. Higher is smoother but costs performance — every pixel covered by a beam pays for all of its steps (at the resolution set above).
+option.IRLITE_VL_STEPS=§dMarch Steps
+option.IRLITE_VL_STEPS.comment=Ray-march steps per light. Higher is smoother but costs performance — every pixel covered by a beam pays for all of its steps.
 
-option.IRLITE_VL_SHADOW_STRIDE=§dShadow Step Stride
-option.IRLITE_VL_SHADOW_STRIDE.comment=Tap the IRLite shadow maps every Nth march step and reuse the result in between. The per-step shadow fetch is the most expensive part of the march — 2 roughly halves its cost for slightly softer volumetric shadows. 1 = tap every step.
-
-option.IRLITE_VL_TIP_BOOST=§dTip Glow Boost
-option.IRLITE_VL_TIP_BOOST.comment=Extra glow near the light source itself.
-
-option.IRLITE_VL_TIP_RADIUS=§dTip Glow Radius
-option.IRLITE_VL_TIP_RADIUS.comment=Radius of the extra glow around the light source, in blocks.
-
-option.IRLITE_VL_MAX_DIST=§dVolumetric Max Distance
+option.IRLITE_VL_MAX_DIST=§dMax Distance
 option.IRLITE_VL_MAX_DIST.comment=Maximum ray distance in blocks. Longer rays cost more on sky pixels.
 
-option.IRLITE_VL_NOISE=§dVolumetric Noise
+option.IRLITE_VL_SHADOWS=§dBeam Shadows
+option.IRLITE_VL_SHADOWS.comment=Occludes the beams per march step against the IRLights shadow maps — god-rays through windows. §e[*]§r Needs Light Shadows enabled.
+
+option.IRLITE_VL_SHADOW_STRIDE=§dShadow Tap Stride
+option.IRLITE_VL_SHADOW_STRIDE.comment=Tap the IRLights shadow maps every Nth march step and reuse the result in between. 2 roughly halves the shadow cost for slightly softer volumetric shadows. 1 = tap every step.
+
+option.IRLITE_VL_TIP_BOOST=§dTip Glow
+option.IRLITE_VL_TIP_BOOST.comment=Extra glow near the light source itself.
+
+option.IRLITE_VL_TIP_RADIUS=§dTip Radius
+option.IRLITE_VL_TIP_RADIUS.comment=Radius of the extra glow around the light source, in blocks.
+
+option.IRLITE_VL_NOISE=§dBeam Noise
 option.IRLITE_VL_NOISE.comment=Animated 3D density noise inside the beams — breaks the uniform cone into drifting puffs of dust and haze.
 
 option.IRLITE_VL_NOISE_AMOUNT=§dNoise Amount
@@ -1336,32 +1336,32 @@ option.IRLITE_VL_NOISE_AMOUNT.comment=How strongly the noise modulates the beam.
 option.IRLITE_VL_NOISE_SCALE=§dNoise Scale
 option.IRLITE_VL_NOISE_SCALE.comment=Approximate size of the noise puffs, in blocks.
 
-option.IRLITE_VL_NOISE_SPEED=§dNoise Drift Speed
+option.IRLITE_VL_NOISE_SPEED=§dDrift Speed
 option.IRLITE_VL_NOISE_SPEED.comment=How fast the puffs drift through the beam, like dust in the air. 0 = static.
 
-option.IRLITE_VL_NOISE_STRIDE=§dNoise Step Stride
+option.IRLITE_VL_NOISE_STRIDE=§dNoise Tap Stride
 option.IRLITE_VL_NOISE_STRIDE.comment=Sample the density noise every Nth march step and reuse the value in between. Cheaper at high step counts; may band along the beam without TAA. 1 = every step.
 
 option.IRLITE_TOON=§aToon Shading
-option.IRLITE_TOON.comment=Quantizes IRLite lighting into discrete bands (cel shading).
+option.IRLITE_TOON.comment=Quantizes IRLights lighting into discrete bands (cel shading).
 
-option.IRLITE_TOON_BANDS=§aToon Bands
+option.IRLITE_TOON_BANDS=§aBands
 option.IRLITE_TOON_BANDS.comment=Number of brightness bands.
 
-option.IRLITE_TOON_SMOOTH=§aToon Smoothing
+option.IRLITE_TOON_SMOOTH=§aBand Smoothing
 option.IRLITE_TOON_SMOOTH.comment=Softness of the band edges.
 
 option.IRLITE_OUTLINE=§eRim Outline
-option.IRLITE_OUTLINE.comment=Master toggle for the light-driven rim outline (depth silhouette + glow), tinted by the light colour. Off by default. Sub-features toggle below.
+option.IRLITE_OUTLINE.comment=Master toggle for the light-driven rim outline (depth silhouette + glow), tinted by the light colour. Sub-features toggle below.
 
-option.IRLITE_OUTLINE_TARGET=§eOutline Target
-option.IRLITE_OUTLINE_TARGET.comment=Which surfaces the rim outline draws on. Both = entities and blocks; Only Entities = mobs/players/items/hand; Only Blocks = terrain and block entities. Uses the pack's gbuffer entity tag (materialMask).
+option.IRLITE_OUTLINE_TARGET=§eTarget
+option.IRLITE_OUTLINE_TARGET.comment=Which surfaces the rim outline draws on. Both = entities and blocks; Only Entities = mobs/players/items/hand; Only Blocks = terrain and block entities. Uses the pack's gbuffer entity tag.
 value.IRLITE_OUTLINE_TARGET.0=§eBoth
 value.IRLITE_OUTLINE_TARGET.1=§eOnly Entities
 value.IRLITE_OUTLINE_TARGET.2=§eOnly Blocks
 
 option.IRLITE_OUTLINE_STRENGTH=§eRim Strength
-option.IRLITE_OUTLINE_STRENGTH.comment=Rim brightness multiplier. 0.65 matches the IRLite diffuse scale.
+option.IRLITE_OUTLINE_STRENGTH.comment=Rim brightness multiplier. 0.65 matches the IRLights diffuse scale.
 
 option.IRLITE_OUTLINE_PIXEL_SIZE=§eRim Thickness
 option.IRLITE_OUTLINE_PIXEL_SIZE.comment=Line thickness in pixels (depth-tap offset).

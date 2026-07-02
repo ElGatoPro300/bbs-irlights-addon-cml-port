@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IRLights — единый экран настроек Iris (демо)</title>
+<style>
+  :root{
+    --gold:#FFAA00; --aqua:#55FFFF; --darkaqua:#00AAAA; --magenta:#FF55FF;
+    --green:#55FF55; --yellow:#FFFF55; --red:#FF5555; --gray:#AAAAAA; --dgray:#555555;
+    --mc-shadow: 2px 2px 0 rgba(0,0,0,.72);
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  body{
+    font-family:'Segoe UI',Roboto,sans-serif; background:#101318; color:#cfd6e0;
+    min-height:100vh;
+  }
+  .page{max-width:1060px; margin:0 auto; padding:28px 20px 80px}
+  h1{font-size:22px; color:#fff; margin-bottom:4px}
+  .sub{color:#8b96a5; font-size:14px; margin-bottom:18px}
+
+  /* ---------- controls ---------- */
+  .controls{display:flex; gap:10px; align-items:center; margin-bottom:16px; flex-wrap:wrap}
+  .controls .hint{color:#7d8794; font-size:13px}
+  .ctl{
+    background:#1d232c; border:1px solid #323c49; color:#cfd6e0; padding:6px 14px;
+    border-radius:6px; cursor:pointer; font-size:13px;
+  }
+  .ctl:hover{background:#252d38}
+  .ctl.active{background:#2c5c8f; border-color:#3f7ec0; color:#fff}
+
+  /* ---------- game mock ---------- */
+  .game{
+    position:relative; border-radius:10px; overflow:hidden; border:1px solid #2a3340;
+    background:
+      radial-gradient(90% 60% at 78% 105%, rgba(255,85,255,.10), transparent 60%),
+      radial-gradient(42% 68% at 22% -8%, rgba(255,170,0,.16), transparent 65%),
+      linear-gradient(180deg,#151a22 0%, #0d1015 55%, #0a0c10 100%);
+    padding:34px 16px 26px;
+  }
+  .game::before{ /* спот-луч для настроения */
+    content:''; position:absolute; left:14%; top:-12%; width:180px; height:135%;
+    background:linear-gradient(180deg, rgba(255,190,80,.14), rgba(255,190,80,0));
+    transform:rotate(16deg); filter:blur(6px); pointer-events:none;
+  }
+  .mc{
+    position:relative; font-family:'Lucida Console',Monaco,Consolas,monospace;
+    font-weight:700; letter-spacing:.3px;
+  }
+  .mc-title{
+    text-align:center; font-size:19px; color:#fff; text-shadow:var(--mc-shadow);
+    margin-bottom:4px;
+  }
+  .mc-subtitle{
+    text-align:center; font-size:12px; color:var(--gray); text-shadow:var(--mc-shadow);
+    margin-bottom:18px; font-weight:400;
+  }
+  .grid{
+    width:min(680px,100%); margin:0 auto; display:grid;
+    grid-template-columns:1fr 1fr; gap:6px 8px;
+  }
+  .spacer{height:12px; grid-column:span 2}
+
+  .mcbtn{
+    position:relative; height:42px; user-select:none; cursor:pointer;
+    background:linear-gradient(180deg,#7b7b7b,#646464 45%,#585858);
+    border:2px solid #000; border-radius:2px;
+    box-shadow:inset 2px 2px 0 rgba(255,255,255,.30), inset -2px -2px 0 rgba(0,0,0,.38);
+    display:flex; align-items:center; justify-content:center;
+    font-size:13.5px; color:#fff; text-shadow:var(--mc-shadow);
+    overflow:hidden; white-space:nowrap;
+  }
+  .mcbtn:hover{background:linear-gradient(180deg,#8b8ba4,#70708a 45%,#606078)}
+  .mcbtn:active{box-shadow:inset 2px 2px 0 rgba(0,0,0,.30), inset -2px -2px 0 rgba(255,255,255,.10)}
+
+  /* slider */
+  .mcslider{cursor:ew-resize}
+  .mcslider .groove{
+    position:absolute; inset:0;
+    background:linear-gradient(180deg,#3c3c3c,#2e2e2e 45%,#262626);
+  }
+  .mcslider .handle{
+    position:absolute; top:0; width:18px; height:100%;
+    background:linear-gradient(180deg,#9c9c9c,#7a7a7a 45%,#6a6a6a);
+    border-right:2px solid #000; border-left:2px solid #000;
+    box-shadow:inset 2px 2px 0 rgba(255,255,255,.30), inset -2px -2px 0 rgba(0,0,0,.38);
+  }
+  .mcslider .lbl{position:relative; z-index:2; pointer-events:none}
+
+  .lbl .val{color:#fff}
+  .lbl .on{color:var(--green)} .lbl .off{color:var(--red)}
+
+  /* цветовые классы категорий (§-коды) */
+  .c6{color:var(--gold)} .cb{color:var(--aqua)} .c3{color:var(--darkaqua)}
+  .cd{color:var(--magenta)} .ca{color:var(--green)} .ce{color:var(--yellow)}
+
+  .miss{
+    position:absolute; top:2px; right:5px; font-size:10px; color:#ffb347;
+    text-shadow:1px 1px 0 rgba(0,0,0,.8);
+  }
+
+  .navrow{
+    width:min(680px,100%); margin:22px auto 0; display:flex; gap:8px; justify-content:center;
+  }
+  .navrow .mcbtn{width:200px; flex:none}
+
+  /* tooltip */
+  #tip{
+    position:fixed; z-index:50; display:none; max-width:340px; pointer-events:none;
+    background:rgba(16,0,16,.94); border:2px solid rgba(80,0,255,.45); border-radius:3px;
+    padding:8px 10px; font-family:'Lucida Console',Monaco,Consolas,monospace;
+    font-size:11.5px; line-height:1.55; color:#e8e8e8; text-shadow:1px 1px 0 rgba(0,0,0,.7);
+  }
+  #tip .tid{color:#8f8f8f; display:block; margin-bottom:4px; font-size:10.5px}
+  #tip .tmiss{color:#ffb347; display:block; margin-top:5px; font-size:10.5px}
+
+  /* ---------- spec ---------- */
+  .spec{margin-top:34px}
+  .spec h2{font-size:18px; color:#fff; margin:26px 0 10px}
+  .spec p, .spec li{font-size:14px; line-height:1.65; color:#b9c2ce}
+  .spec ul{padding-left:22px; margin:6px 0}
+  .spec code{
+    background:#1b212b; border:1px solid #2c3542; border-radius:4px;
+    padding:1px 6px; font-size:12.5px; color:#d8e0ea;
+  }
+  .spec .ok{color:var(--green)} .spec .warn{color:#ffb347}
+  .tblwrap{overflow-x:auto; margin-top:10px}
+  table{border-collapse:collapse; width:100%; font-size:13px}
+  th,td{border:1px solid #2b3441; padding:7px 10px; text-align:left; vertical-align:top}
+  th{background:#1a212b; color:#e6ecf3; font-weight:600}
+  td{color:#b9c2ce}
+  .mono{font-family:Consolas,monospace; font-size:12px}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>IRLights — единый экран настроек Iris</h1>
+  <div class="sub">Интерактивное демо предлагаемого единого дизайна категории (бывш. «IRLite Lights») для всех 7 шейдер-паков. Кнопки кликаются, слайдеры тянутся, наведение — тултип.</div>
+
+  <div class="controls">
+    <span class="hint">Язык лейблов:</span>
+    <button class="ctl active" id="btnEn" onclick="setLang('en')">EN</button>
+    <button class="ctl" id="btnRu" onclick="setLang('ru')">RU</button>
+    <button class="ctl" onclick="resetState()">Сбросить значения</button>
+    <span class="hint">оранжевый «!» на кнопке = опции сейчас нет в части паков (см. тултип)</span>
+  </div>
+
+  <div class="game mc">
+    <div class="mc-title" id="mcTitle"></div>
+    <div class="mc-subtitle" id="mcSub"></div>
+    <div class="grid" id="grid"></div>
+    <div class="navrow" id="nav"></div>
+  </div>
+
+  <div id="tip"></div>
+
+  <div class="spec">
+    <h2>1. Ребрендинг: IRLite → IRLights (только видимое)</h2>
+    <ul>
+      <li>Все <b>видимые</b> названия — единые: главная кнопка <code>§6§lIRLights§r</code>, подэкраны без префикса «IRLite»: <code>Specular</code>, <code>Shadows</code>, <code>Toon</code>, <code>Volumetric</code>, <code>Outline</code> (так уже сделано в Photon и IterationRP — берём за образец).</li>
+      <li><b>Внутренние ID не трогаем</b>: дефайны <code>IRLITE_*</code>, GLSL-функции <code>irlite_*</code>, struct <code>IrliteLight</code> остаются — ноль правок шейдер-кода, ноль риска сломать якоря и сохранённые настройки пользователей (Iris хранит выбор по имени дефайна).</li>
+      <li>Ключи экранов унифицируем в один канон: <code>screen.IRLIGHTS</code>, <code>IRLIGHTS_SPECULAR</code>, <code>IRLIGHTS_SHADOWS</code>, <code>IRLIGHTS_TOON</code>, <code>IRLIGHTS_VOLUMETRIC</code>, <code>IRLIGHTS_OUTLINE</code> (ключи невидимы игроку, живут только в наших инжектах — переименование бесплатно).</li>
+    </ul>
+
+    <h2>2. Единая структура (то, что в демо выше)</h2>
+    <ul>
+      <li><b>columns=2</b> на всех экранах во всех паках (сейчас: Bliss=1, остальные 2/default).</li>
+      <li>Единый порядок: на каждом подэкране первым идёт тумблер фичи, дальше параметры; группы разделены пустой строкой (<code>&lt;empty&gt; &lt;empty&gt;</code>).</li>
+      <li>Единые цвета категорий (уже почти везде так): §6 главный, §b Specular, §3 Shadows, §d Volumetric, §a Toon, §e Outline.</li>
+      <li>Единый набор слайдеров (<code>sliders=</code>): все числовые опции; кнопками-циклами остаются только тумблеры и <code>IRLITE_VL_RESOLUTION</code> (3 значения с текстовыми лейблами).</li>
+      <li>Единые лейблы и тултипы EN+RU (лучшие из текущих паков, как в демо). RU-локаль сейчас есть только у Solas/Bliss — при переносе добавляем <code>ru_RU.lang</code>-инжект всем паками, у которых есть файл ru_RU.</li>
+      <li>Единые <b>дефолты</b> (правка <code>#define</code>-значений в options-блоке патчей): <code>IRLITE_VL_STEPS 48</code> (было 14), <code>IRLITE_VL_SHADOW_STRIDE 1</code> (было 2), <code>IRLITE_OUTLINE</code> включён по умолчанию, при этом <code>IRLITE_OUTLINE_FRONT</code> и <code>IRLITE_OUTLINE_GLOW</code> выключены.</li>
+    </ul>
+
+    <h2>3. Текущий разнобой по пакам (что чиним переносом)</h2>
+    <div class="tblwrap">
+    <table>
+      <tr><th>Пак</th><th>Заголовок сейчас</th><th>Ключи экранов</th><th>columns</th><th>Чего нет в UI (добавить)</th></tr>
+      <tr><td>Complementary Reimagined</td><td class="mono">§6IRLite Lights§r</td><td class="mono">IRLITE_*_SETTINGS</td><td>2 (default)</td><td class="mono">SPECULAR_SMOOTHNESS</td></tr>
+      <tr><td>RethinkingVoxels</td><td class="mono">§6IRLite Lights§r</td><td class="mono">IRLITE_*_SETTINGS</td><td>2 (default)</td><td class="mono">SPECULAR_SMOOTHNESS</td></tr>
+      <tr><td>BSL</td><td class="mono">§6IRLite Lights§r</td><td class="mono">IRLITE_*_SETTINGS</td><td>2 (default)</td><td>— (полный набор)</td></tr>
+      <tr><td>Solas</td><td class="mono">§6IRLite Lights</td><td class="mono">IRLITE_*_SETTINGS</td><td>2 (default)</td><td>— (полный набор)</td></tr>
+      <tr><td>Bliss</td><td class="mono">§6IRLite Lights§r</td><td class="mono">IRLITE_*_SCREEN</td><td><span class="warn">1</span></td><td class="mono">VL_RESOLUTION</td></tr>
+      <tr><td>Photon</td><td class="mono ok">§6§lIRLights</td><td class="mono"><span class="warn">irlite_* (lowercase)</span></td><td>default</td><td class="mono">SPECULAR_SMOOTHNESS, SHADOW_NORMAL_OFFSET*, VL_RESOLUTION, VL_SHADOWS*, VL_SHADOW_STRIDE</td></tr>
+      <tr><td>IterationRP</td><td class="mono ok">§6§lIRLights</td><td class="mono">IRLITE_*_SCR</td><td>2</td><td class="mono">SPECULAR_SMOOTHNESS, VL_RESOLUTION</td></tr>
+    </table>
+    </div>
+    <p style="margin-top:8px">* у Photon дефайны <code>IRLITE_SHADOW_NORMAL_OFFSET</code> и <code>IRLITE_VL_SHADOWS</code> в коде уже есть (VL-тени всегда включены) — их надо просто вывести в экран. Опции, которых в паке нет физически (нет пасса под <code>VL_RESOLUTION</code> в Bliss/Photon/IterationRP, нет smoothness-канала в CR/RV/Photon/IterationRP), в этом паке просто не показываем — единая структура это допускает: строка убирается целиком, порядок остальных не меняется.</p>
+
+    <h2>4. Порядок переноса</h2>
+    <ul>
+      <li>Один пак = один проход по его <code>.irlights</code>: (1) ключи экранов → <code>IRLIGHTS_*</code>, (2) раскладка экранов → канон из демо, (3) lang EN → канон, (4) lang RU → добавить/канон, (5) <code>sliders=</code> → канон.</li>
+      <li>Очерёдность: Complementary (эталон) → RethinkingVoxels → BSL → Solas → Bliss → Photon → IterationRP; после каждого — diff-проверка, в конце общий ин-гейм прогон.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ================= данные ================= */
+const C = {g:'c6', b:'cb', s:'c3', v:'cd', t:'ca', o:'ce'};
+
+/* type: 'toggle' | 'slider' | 'cycle'; vals как строки — сохраняем форматирование Iris */
+const OPTS = {
+  IRLITE_DIFFUSE:{t:'toggle',def:1,c:C.g,en:'Diffuse Lighting',ru:'Диффузный свет',
+    te:'Matte lighting from IRLights point and spot lights.',tr:'Матовое (диффузное) освещение от точечных и прожекторных источников IRLights.'},
+  IRLITE_INTENSITY:{t:'slider',vals:['0.1','0.25','0.5','0.75','1.0','1.5','2.0','3.0','4.0'],def:4,c:C.g,en:'Master Intensity',ru:'Общая яркость',
+    te:'Master brightness multiplier for all IRLights lights.',tr:'Общий множитель яркости всех источников IRLights.'},
+
+  IRLITE_SPECULAR:{t:'toggle',def:1,c:C.b,en:'Specular Highlights',ru:'Блики',
+    te:'Specular highlights from IRLights lights.',tr:'Зеркальные блики от источников IRLights.'},
+  IRLITE_SPECULAR_INTENSITY:{t:'slider',vals:['0.0','0.25','0.5','0.75','1.0','1.5','2.0','3.0','4.0'],def:4,c:C.b,en:'Specular Intensity',ru:'Яркость бликов',
+    te:'Brightness of the specular highlight.',tr:'Яркость зеркального блика.'},
+  IRLITE_SPECULAR_SMOOTHNESS:{t:'slider',vals:['0.1','0.2','0.3','0.4','0.5','0.6','0.7','0.8','0.9','0.95'],def:4,c:C.b,en:'Smoothness',ru:'Гладкость',
+    te:'Surface smoothness for the highlight: higher = tighter, sharper blick.',tr:'Гладкость поверхности для блика: выше — уже и резче блик.',
+    miss:['Complementary','RethinkingVoxels','Photon','IterationRP']},
+
+  IRLITE_SHADOWS:{t:'toggle',def:1,c:C.s,en:'Light Shadows',ru:'Тени света',
+    te:'Real-time shadows baked by the IRLights mod (spot atlas + point cube-array).',tr:'Тени от источников, запекаемые модом IRLights (спот-атлас + куб-массив поинтов).'},
+  IRLITE_SHADOW_QUALITY:{t:'slider',vals:['0','1','2','3','4'],def:2,c:C.s,en:'Shadow Quality',ru:'Качество теней',
+    vl:{en:['Hard','Low','Medium','High','Very High'],ru:['Жёсткие','Низкое','Среднее','Высокое','Оч. высокое']},
+    te:'PCSS tap count. Hard is a single tap; higher tiers soften contact shadows. Affects performance.',tr:'Число PCSS-сэмплов. Hard — один тап; выше — мягче контактные тени. Влияет на производительность.'},
+  IRLITE_SHADOW_SIZE:{t:'slider',vals:['0.0','0.02','0.05','0.10','0.20','0.40','0.80'],def:3,c:C.s,en:'Light Size',ru:'Размер источника',
+    te:'Apparent light size for PCSS: bigger = softer, wider penumbra.',tr:'Видимый размер источника для PCSS: больше — мягче и шире полутень.'},
+  IRLITE_SHADOW_BIAS:{t:'slider',vals:['0.0','0.01','0.02','0.05','0.10','0.20','0.40'],def:3,c:C.s,en:'Shadow Bias',ru:'Сдвиг глубины',
+    te:'Depth bias against shadow acne. Too high detaches shadows (peter-panning).',tr:'Сдвиг глубины против «акне». Слишком много — тень отрывается от объекта.'},
+  IRLITE_SHADOW_NORMAL_OFFSET:{t:'slider',vals:['0.0','0.02','0.05','0.10','0.15','0.25','0.40'],def:2,c:C.s,en:'Normal Offset',ru:'Сдвиг по нормали',
+    te:'Shifts the sample along the surface normal — cures residual acne on slanted faces.',tr:'Смещение сэмпла вдоль нормали — лечит остаточное акне на наклонных гранях.',
+    miss:['Photon (дефайн есть, в UI нет)']},
+
+  IRLITE_VOLUMETRIC:{t:'toggle',def:1,c:C.v,en:'Volumetric Light',ru:'Объёмный свет',
+    te:'Per-light volumetric beams and haze (single-scatter ray march).',tr:'Объёмные лучи и дымка от каждого источника (рей-марч, single-scatter).'},
+  IRLITE_VL_INTENSITY:{t:'slider',vals:['0.1','0.25','0.5','0.75','1.0','1.5','2.0','3.0','4.0','6.0'],def:4,c:C.v,en:'Beam Intensity',ru:'Яркость лучей',
+    te:'Brightness of the volumetric beams.',tr:'Яркость объёмных лучей.'},
+  IRLITE_VL_RESOLUTION:{t:'cycle',vals:['1.0','0.5','0.25'],def:1,c:C.v,en:'Resolution',ru:'Разрешение',
+    vl:{en:['Full','Half','Quarter'],ru:['Полное','Половина','Четверть']},
+    te:'Resolution of the volumetric pass. Half costs a quarter of Full, Quarter a sixteenth.',tr:'Разрешение волюметрик-пасса. Половина стоит четверть Полного, Четверть — шестнадцатую.',
+    miss:['Bliss','Photon','IterationRP']},
+  IRLITE_VL_STEPS:{t:'slider',vals:['8','12','14','16','24','32','48','64'],def:6,c:C.v,en:'March Steps',ru:'Шаги марша',
+    te:'Ray-march step count per light. More = smoother beams, higher cost.',tr:'Число шагов рей-марча на источник. Больше — глаже лучи, дороже.'},
+  IRLITE_VL_MAX_DIST:{t:'slider',vals:['32.0','64.0','96.0','128.0','192.0','256.0'],def:2,c:C.v,en:'Max Distance',ru:'Макс. дистанция',
+    te:'Camera distance beyond which volumetrics fade out.',tr:'Дистанция от камеры, за которой волюметрика затухает.'},
+  IRLITE_VL_SHADOWS:{t:'toggle',def:1,c:C.v,en:'Beam Shadows',ru:'Тени в лучах',
+    te:'Per-step shadowing of the beams (god-rays occluded by geometry).',tr:'Затенение лучей по шагам марша (god-rays, перекрытые геометрией).',
+    miss:['Photon (всегда вкл., в UI нет)']},
+  IRLITE_VL_SHADOW_STRIDE:{t:'slider',vals:['1','2','3','4'],def:0,c:C.v,en:'Shadow Tap Stride',ru:'Шаг теневых тапов',
+    te:'Sample shadows every N-th march step; between taps the last value is reused.',tr:'Тени сэмплируются каждый N-й шаг марша; между тапами значение переиспользуется.',
+    miss:['Photon']},
+  IRLITE_VL_TIP_BOOST:{t:'slider',vals:['0.0','0.5','1.0','1.5','2.0','3.0','4.0'],def:3,c:C.v,en:'Tip Glow',ru:'Свечение у источника',
+    te:'Extra glow right at the light source tip of the beam.',tr:'Дополнительное свечение у самого источника (вершины луча).'},
+  IRLITE_VL_TIP_RADIUS:{t:'slider',vals:['0.5','0.75','1.0','1.5','2.0','3.0','4.0'],def:3,c:C.v,en:'Tip Radius',ru:'Радиус свечения',
+    te:'Radius of the tip glow, in blocks.',tr:'Радиус свечения у источника, в блоках.'},
+  IRLITE_VL_NOISE:{t:'toggle',def:1,c:C.v,en:'Beam Noise',ru:'Шум луча',
+    te:'Animated 3D density noise — breaks the uniform beam into drifting puffs.',tr:'Анимированный 3D-шум плотности — разбивает ровный луч на плывущие клубы.'},
+  IRLITE_VL_NOISE_AMOUNT:{t:'slider',vals:['0.2','0.4','0.6','0.8','1.0'],def:2,c:C.v,en:'Noise Amount',ru:'Сила шума',
+    te:'How strongly the noise modulates beam density.',tr:'Насколько сильно шум модулирует плотность луча.'},
+  IRLITE_VL_NOISE_SCALE:{t:'slider',vals:['0.5','1.0','1.5','2.0','3.0','4.0','6.0'],def:3,c:C.v,en:'Noise Scale',ru:'Масштаб шума',
+    te:'Size of the noise puffs, in blocks.',tr:'Размер клубов шума, в блоках.'},
+  IRLITE_VL_NOISE_SPEED:{t:'slider',vals:['0.0','0.25','0.5','1.0','1.5','2.0','3.0'],def:1,c:C.v,en:'Drift Speed',ru:'Скорость дрейфа',
+    te:'Wind drift speed of the puffs. 0 freezes them in place.',tr:'Скорость ветрового дрейфа клубов. 0 — клубы неподвижны.'},
+  IRLITE_VL_NOISE_STRIDE:{t:'slider',vals:['1','2','3','4'],def:0,c:C.v,en:'Noise Tap Stride',ru:'Шаг шумовых тапов',
+    te:'Sample the noise every N-th march step (perf lever).',tr:'Шум сэмплируется каждый N-й шаг марша (рычаг производительности).'},
+
+  IRLITE_TOON:{t:'toggle',def:0,c:C.t,en:'Toon Shading',ru:'Тун-шейдинг',
+    te:'Quantize IRLights diffuse into discrete bands for a cel-shaded look.',tr:'Квантование диффуза IRLights в дискретные полосы — cel-shading.'},
+  IRLITE_TOON_BANDS:{t:'slider',vals:['2','3','4','5','6','8'],def:1,c:C.t,en:'Bands',ru:'Полосы',
+    te:'Number of brightness bands.',tr:'Число полос яркости.'},
+  IRLITE_TOON_SMOOTH:{t:'slider',vals:['0.0','0.05','0.10','0.20','0.30','0.50'],def:2,c:C.t,en:'Band Smoothing',ru:'Сглаживание полос',
+    te:'Softens the edges between bands.',tr:'Смягчение границ между полосами.'},
+
+  IRLITE_OUTLINE:{t:'toggle',def:1,c:C.o,en:'Rim Outline',ru:'Контурный рим',
+    te:'Light-driven rim outline along IRLights-lit silhouettes: back/front rim and inner glow.',tr:'Световой рим-контур по силуэтам в свете IRLights: задний/передний рим и внутреннее свечение.'},
+  IRLITE_OUTLINE_TARGET:{t:'slider',vals:['0','1','2'],def:0,c:C.o,en:'Target',ru:'Область',
+    vl:{en:['Both','Only Entities','Only Blocks'],ru:['Всё','Только сущности','Только блоки']},
+    te:'Which surfaces the rim draws on: both, entities only, or blocks only.',tr:'На что наносится рим: на всё, только на сущностей или только на блоки.'},
+  IRLITE_OUTLINE_STRENGTH:{t:'slider',vals:['0.0','0.1','0.2','0.35','0.5','0.65','0.8','1.0','1.5','2.0','3.0'],def:5,c:C.o,en:'Rim Strength',ru:'Сила рима',
+    te:'Overall rim brightness.',tr:'Общая яркость рима.'},
+  IRLITE_OUTLINE_PIXEL_SIZE:{t:'slider',vals:['1','2','3','4','5','6'],def:1,c:C.o,en:'Rim Thickness',ru:'Толщина рима',
+    te:'Rim thickness in pixels.',tr:'Толщина рима в пикселях.'},
+  IRLITE_OUTLINE_FRESNEL_POWER:{t:'slider',vals:['1.0','1.2','1.5','1.8','2.0','2.2','2.5','3.0','4.0'],def:5,c:C.o,en:'Fresnel Power',ru:'Сила Френеля',
+    te:'How tightly the rim hugs the silhouette edge.',tr:'Насколько узко рим прижат к краю силуэта.'},
+  IRLITE_OUTLINE_BACK:{t:'slider',vals:['0.0','0.25','0.5','0.75','1.0','1.5','2.0'],def:4,c:C.o,en:'Back Rim',ru:'Задний рим',
+    te:'Backlight rim strength (0 = off).',tr:'Сила контражурного (заднего) рима. 0 — выключен.'},
+  IRLITE_OUTLINE_FRONT:{t:'toggle',def:0,c:C.o,en:'Front Catch-Light',ru:'Передний блик',
+    te:'Catch-light rim on the side facing the light.',tr:'Рим-подсветка на стороне, обращённой к источнику.'},
+  IRLITE_OUTLINE_FRONT_STRENGTH:{t:'slider',vals:['0.0','0.15','0.3','0.5','0.75','1.0','1.5'],def:2,c:C.o,en:'Front Strength',ru:'Сила переднего',
+    te:'Brightness of the front catch-light.',tr:'Яркость переднего блика.'},
+  IRLITE_OUTLINE_GLOW:{t:'toggle',def:0,c:C.o,en:'Inner Glow',ru:'Внутр. свечение',
+    te:'Soft inner Fresnel halo, feeds bloom.',tr:'Мягкое внутреннее френель-гало, уходит в блум.'},
+  IRLITE_OUTLINE_GLOW_STRENGTH:{t:'slider',vals:['0.0','0.05','0.12','0.2','0.35','0.5','0.75'],def:2,c:C.o,en:'Glow Strength',ru:'Сила свечения',
+    te:'Brightness of the inner glow.',tr:'Яркость внутреннего свечения.'}
+};
+
+const SCREENS = {
+  MAIN:{en:'IRLights',ru:'IRLights',c:C.g,sub:{en:'Dynamic point & spot lights (IRLights mod)',ru:'Динамические точечные и прожекторные источники (мод IRLights)'},
+    cells:['IRLITE_DIFFUSE','IRLITE_INTENSITY',null,null,'@SPECULAR','@SHADOWS','@TOON','@VL','@OUTLINE',null]},
+  SPECULAR:{en:'Specular',ru:'Блики',c:C.b,
+    cells:['IRLITE_SPECULAR',null,'IRLITE_SPECULAR_INTENSITY','IRLITE_SPECULAR_SMOOTHNESS']},
+  SHADOWS:{en:'Shadows',ru:'Тени',c:C.s,
+    cells:['IRLITE_SHADOWS','IRLITE_SHADOW_QUALITY',null,null,'IRLITE_SHADOW_SIZE','IRLITE_SHADOW_BIAS','IRLITE_SHADOW_NORMAL_OFFSET',null]},
+  VL:{en:'Volumetric',ru:'Объёмный свет',c:C.v,
+    cells:['IRLITE_VOLUMETRIC','IRLITE_VL_INTENSITY','IRLITE_VL_RESOLUTION','IRLITE_VL_STEPS','IRLITE_VL_MAX_DIST',null,null,null,
+           'IRLITE_VL_SHADOWS','IRLITE_VL_SHADOW_STRIDE','IRLITE_VL_TIP_BOOST','IRLITE_VL_TIP_RADIUS',null,null,
+           'IRLITE_VL_NOISE','IRLITE_VL_NOISE_AMOUNT','IRLITE_VL_NOISE_SCALE','IRLITE_VL_NOISE_SPEED','IRLITE_VL_NOISE_STRIDE',null]},
+  TOON:{en:'Toon',ru:'Тун',c:C.t,
+    cells:['IRLITE_TOON',null,'IRLITE_TOON_BANDS','IRLITE_TOON_SMOOTH']},
+  OUTLINE:{en:'Outline',ru:'Контур',c:C.o,
+    cells:['IRLITE_OUTLINE','IRLITE_OUTLINE_TARGET',null,null,
+           'IRLITE_OUTLINE_STRENGTH','IRLITE_OUTLINE_PIXEL_SIZE','IRLITE_OUTLINE_FRESNEL_POWER',null,null,null,
+           'IRLITE_OUTLINE_BACK',null,'IRLITE_OUTLINE_FRONT','IRLITE_OUTLINE_FRONT_STRENGTH','IRLITE_OUTLINE_GLOW','IRLITE_OUTLINE_GLOW_STRENGTH']}
+};
+
+/* ================= состояние ================= */
+let lang='en', cur='MAIN', state={};
+function resetState(){
+  for(const id in OPTS) state[id]=OPTS[id].def;
+  render();
+}
+function setLang(l){
+  lang=l;
+  document.getElementById('btnEn').classList.toggle('active',l==='en');
+  document.getElementById('btnRu').classList.toggle('active',l==='ru');
+  render();
+}
+
+/* ================= рендер ================= */
+const grid=document.getElementById('grid'), tip=document.getElementById('tip');
+
+function valText(id){
+  const o=OPTS[id];
+  if(o.t==='toggle') return state[id]?'<span class="on">ON</span>':'<span class="off">OFF</span>';
+  const raw=o.vals[state[id]];
+  const label=o.vl?o.vl[lang][state[id]]:raw;
+  return '<span class="val">'+label+'</span>';
+}
+function labelHTML(id){
+  const o=OPTS[id];
+  return '<span class="lbl"><span class="'+o.c+'">'+(lang==='en'?o.en:o.ru)+'</span>: '+valText(id)+'</span>';
+}
+
+function showTip(e,id){
+  const o=OPTS[id];
+  let h='<span class="tid">'+id+'</span>'+(lang==='en'?o.te:o.tr);
+  if(o.miss) h+='<span class="tmiss">Сейчас нет в: '+o.miss.join(', ')+'</span>';
+  tip.innerHTML=h; tip.style.display='block'; moveTip(e);
+}
+function moveTip(e){
+  const w=tip.offsetWidth,hh=tip.offsetHeight;
+  let x=e.clientX+16,y=e.clientY+14;
+  if(x+w>innerWidth-8)x=e.clientX-w-12;
+  if(y+hh>innerHeight-8)y=e.clientY-hh-10;
+  tip.style.left=x+'px'; tip.style.top=y+'px';
+}
+function hideTip(){tip.style.display='none'}
+
+function makeButton(id){
+  const o=OPTS[id];
+  const el=document.createElement('div');
+  el.className='mcbtn'+(o.t==='slider'?' mcslider':'');
+  if(o.t==='slider'){
+    el.innerHTML='<div class="groove"></div><div class="handle"></div>'+labelHTML(id);
+    requestAnimationFrame(()=>positionHandle(el,id));
+    attachSlider(el,id);
+  }else{
+    el.innerHTML=labelHTML(id);
+    el.addEventListener('click',()=>{
+      if(o.t==='toggle') state[id]=state[id]?0:1;
+      else state[id]=(state[id]+1)%o.vals.length;
+      el.innerHTML=(o.miss?'<span class="miss">!</span>':'')+labelHTML(id);
+    });
+  }
+  if(o.miss) el.insertAdjacentHTML('beforeend','<span class="miss">!</span>');
+  el.addEventListener('mouseenter',e=>showTip(e,id));
+  el.addEventListener('mousemove',moveTip);
+  el.addEventListener('mouseleave',hideTip);
+  return el;
+}
+function positionHandle(el,id){
+  const o=OPTS[id],h=el.querySelector('.handle');
+  const f=o.vals.length>1?state[id]/(o.vals.length-1):0;
+  h.style.left=(f*(el.clientWidth-18-4)+2)+'px';
+}
+function attachSlider(el,id){
+  const o=OPTS[id];
+  function set(e){
+    const r=el.getBoundingClientRect();
+    const f=Math.min(1,Math.max(0,(e.clientX-r.left-9)/(r.width-18)));
+    const idx=Math.round(f*(o.vals.length-1));
+    if(state[id]!==idx){
+      state[id]=idx;
+      el.querySelector('.lbl').outerHTML=labelHTML(id);
+    }
+    positionHandle(el,id);
+  }
+  el.addEventListener('pointerdown',e=>{
+    el.setPointerCapture(e.pointerId); set(e);
+    const mv=ev=>set(ev);
+    el.addEventListener('pointermove',mv);
+    el.addEventListener('pointerup',()=>el.removeEventListener('pointermove',mv),{once:true});
+  });
+}
+
+function render(){
+  const s=SCREENS[cur];
+  document.getElementById('mcTitle').innerHTML=
+    '<span class="'+s.c+'">'+(cur==='MAIN'?'<b>':'')+(lang==='en'?s.en:s.ru)+(cur==='MAIN'?'</b>':'')+'</span>';
+  document.getElementById('mcSub').textContent=s.sub?(lang==='en'?s.sub.en:s.sub.ru):'';
+  grid.innerHTML='';
+  let i=0;
+  while(i<s.cells.length){
+    const c=s.cells[i];
+    if(c===null && s.cells[i+1]===null && i%2===0){ /* пустая строка = разделитель группы */
+      const sp=document.createElement('div'); sp.className='spacer'; grid.appendChild(sp); i+=2; continue;
+    }
+    if(c===null){ grid.appendChild(document.createElement('div')); i++; continue; }
+    if(c[0]==='@'){
+      const key=c.slice(1), sc=SCREENS[key];
+      const el=document.createElement('div'); el.className='mcbtn';
+      el.innerHTML='<span class="lbl"><span class="'+sc.c+'">'+(lang==='en'?sc.en:sc.ru)+'</span>…</span>';
+      el.addEventListener('click',()=>{cur=key;hideTip();render();});
+      grid.appendChild(el); i++; continue;
+    }
+    grid.appendChild(makeButton(c)); i++;
+  }
+  /* нижний ряд */
+  const nav=document.getElementById('nav'); nav.innerHTML='';
+  if(cur!=='MAIN'){
+    const back=document.createElement('div'); back.className='mcbtn';
+    back.textContent=lang==='en'?'← Back':'← Назад';
+    back.addEventListener('click',()=>{cur='MAIN';hideTip();render();});
+    nav.appendChild(back);
+  }
+  const done=document.createElement('div'); done.className='mcbtn';
+  done.textContent=lang==='en'?'Done':'Готово';
+  done.addEventListener('click',()=>{cur='MAIN';hideTip();render();});
+  nav.appendChild(done);
+}
+
+resetState();
+</script>
+</body>
+</html>

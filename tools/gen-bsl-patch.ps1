@@ -55,8 +55,8 @@ if ($prPrereq[-1] -ne '') { throw "prPrereq must end with a blank line" }
 $SAO = IndexOfLine $pr 'screen.AO=<empty> <empty> AO_METHOD <empty> <empty> <empty> AO_STRENGTH ambientOcclusionLevel'
 $prScreens = $pr[($SAO + 1)..($SAO + 7)]    # blank + the 6 IRLITE screen lines (after-op)
 if ($prScreens[0] -ne '') { throw "prScreens must start with a blank line" }
-if (-not $prScreens[1].StartsWith('screen.IRLITE_SETTINGS=')) { throw "prScreens head unexpected" }
-if (-not $prScreens[6].StartsWith('screen.IRLITE_OUTLINE_SETTINGS=')) { throw "prScreens tail unexpected" }
+if (-not $prScreens[1].StartsWith('screen.IRLIGHTS=')) { throw "prScreens head unexpected" }
+if (-not $prScreens[6].StartsWith('screen.IRLIGHTS_OUTLINE=')) { throw "prScreens tail unexpected" }
 if ($pr[$SAO + 8] -ne '') { throw "expected blank after the IRLITE screens" }
 $slLine = $pr | Where-Object { $_.StartsWith('sliders=') }
 if (@($slLine).Count -ne 1) { throw "sliders line not unique" }
@@ -70,7 +70,7 @@ $Y = IndexOfLine $lg 'option.WHITE_WORLD.comment=Replaces textures with flat whi
 $langTail = $lg[($Y + 1)..($lg.Count - 1)]  # leading blank + the whole IRLite block
 while ($langTail[-1] -eq '') { $langTail = $langTail[0..($langTail.Count - 2)] }
 if ($langTail[0] -ne '') { throw "langTail must start with a blank line" }
-if ($langTail[1] -ne '#IRLite') { throw "langTail head unexpected" }
+if ($langTail[1] -ne '#IRLights') { throw "langTail head unexpected" }
 
 # ---- assemble the patch ----
 $sb = New-Object System.Text.StringBuilder
@@ -156,7 +156,7 @@ EmitBody @('iris.features.optional=CUSTOM_IMAGES FADE_VARIABLE SSBO')
 Emit 'before "#Multi-Colored Blocklight Prerequisites"'
 EmitBody $prPrereq
 Emit 'replace "DYNAMIC_HANDLIGHT HALF_LAMBERT"'
-EmitBody @('DYNAMIC_HANDLIGHT HALF_LAMBERT [IRLITE_SETTINGS]')
+EmitBody @('DYNAMIC_HANDLIGHT HALF_LAMBERT [IRLIGHTS]')
 Emit 'after "screen.AO=<empty> <empty> AO_METHOD <empty> <empty> <empty> AO_STRENGTH ambientOcclusionLevel"'
 EmitBody $prScreens
 Emit 'replace "RETRO_FILTER_DEPTH WORLD_CURVATURE_SIZE"'

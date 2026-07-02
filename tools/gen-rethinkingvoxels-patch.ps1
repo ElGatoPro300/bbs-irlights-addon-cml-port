@@ -153,7 +153,7 @@ Emit '@file shaders/shaders.properties'
 Emit 'before "# Miscellaneous"'
 EmitBody $prBlock
 Emit 'replace "VANILLAAO_I PLAYER_SHADOW"'
-EmitBody @('VANILLAAO_I PLAYER_SHADOW [IRLITE_SETTINGS]')
+EmitBody @('VANILLAAO_I PLAYER_SHADOW [IRLIGHTS]')
 Emit 'after "        screen.PIXELATED_LIGHTING_SETTINGS=<empty> <empty> PIXELATED_SHADOWS PIXELATED_BLOCKLIGHT PIXELATED_AO PIXEL_SCALE TEXTURE_RES"'
 EmitBody $propsScreens
 Emit 'replace "WATER_BUMP_INTERACTIVE TEXTURE_RES"'

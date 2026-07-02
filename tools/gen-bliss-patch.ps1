@@ -120,12 +120,12 @@ $featAnchor = $prP[$featAnchorIdx]
 if ($featAnchor + ' SSBO' -cne $featLine) { throw "features anchor/body mismatch" }
 $M = IndexOfLine $pr '[Misc_Settings] [Mod_support] \'
 $miscBody = $pr[$M..($M + 2)]
-if ($miscBody[2] -cne '[IRLITE_SETTINGS] <empty> \') { throw "main-screen row unexpected" }
+if ($miscBody[2] -cne '[IRLIGHTS] <empty> \') { throw "main-screen row unexpected" }
 $SB = IndexOfLine $pr '        screen.selection_box_outline = SELECT_BOX SELECT_BOX_COL_R SELECT_BOX_COL_G SELECT_BOX_COL_B'
-$endS = IndexOfLineStarting $pr '        screen.IRLITE_OUTLINE_SCREEN = '
+$endS = IndexOfLineStarting $pr '        screen.IRLIGHTS_OUTLINE = '
 $scrBody = $pr[($SB + 1)..$endS]
 if ($scrBody[0] -cne '' -or $scrBody[1] -cne '') { throw "expected 2 leading blanks in screens body" }
-if (-not $scrBody[2].StartsWith('######## IRLITE')) { throw "screens banner unexpected" }
+if (-not $scrBody[2].StartsWith('######## IRLIGHTS')) { throw "screens banner unexpected" }
 $slIdx2 = IndexOfLineStarting $pr 'sliders = '
 $slTriple = 'LPV_SATURATION LPV_TINT_SATURATION LPV_NORMAL_STRENGTH'
 $slPos = $pr[$slIdx2].IndexOf($slTriple)
@@ -140,13 +140,13 @@ $YenIdx = IndexOfLineStarting $lgEn 'option.TRANSLUCENT_COLORED_SHADOWS.comment 
 $enAnchor = $lgEn[$YenIdx]
 $enTail = $lgEn[($YenIdx + 1)..($lgEn.Count - 1)]
 while ($enTail[-1] -eq '') { $enTail = $enTail[0..($enTail.Count - 2)] }
-if ($enTail[0] -cne '' -or -not $enTail[1].StartsWith('######## IRLITE')) { throw "enTail head unexpected" }
+if ($enTail[0] -cne '' -or -not $enTail[1].StartsWith('######## IRLIGHTS')) { throw "enTail head unexpected" }
 $lgRu = Lines "$mod\lang\ru_RU.lang"
 $YruIdx = IndexOfLineStarting $lgRu 'option.TRANSLUCENT_COLORED_SHADOWS.comment = '
 $ruAnchor = $lgRu[$YruIdx]
 $ruTail = $lgRu[($YruIdx + 1)..($lgRu.Count - 1)]
 while ($ruTail[-1] -eq '') { $ruTail = $ruTail[0..($ruTail.Count - 2)] }
-if ($ruTail[0] -cne '' -or -not $ruTail[1].StartsWith('######## IRLITE')) { throw "ruTail head unexpected" }
+if ($ruTail[0] -cne '' -or -not $ruTail[1].StartsWith('######## IRLIGHTS')) { throw "ruTail head unexpected" }
 
 # ---- assemble the patch ----
 $sb = New-Object System.Text.StringBuilder

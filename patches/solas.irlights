@@ -27,10 +27,10 @@
 #define IRLITE_SHADOW_NORMAL_OFFSET 0.05 // [0.0 0.02 0.05 0.10 0.15 0.25 0.40]
 
 #define IRLITE_VL_SHADOWS                  // per-step shadowing of the VL beams/haze; active only with IRLITE_SHADOWS on
-#define IRLITE_VL_SHADOW_STRIDE 2 // [1 2 3 4]
+#define IRLITE_VL_SHADOW_STRIDE 1 // [1 2 3 4]
 #define IRLITE_VL_RESOLUTION 0.5 // [1.0 0.5 0.25]
 #define IRLITE_VL_INTENSITY 1.0 // [0.1 0.25 0.5 0.75 1.0 1.5 2.0 3.0 4.0 6.0]
-#define IRLITE_VL_STEPS 10 // [6 8 10 12 14 16 24 32]
+#define IRLITE_VL_STEPS 48 // [8 12 14 16 24 32 48 64]
 #define IRLITE_VL_TIP_BOOST 1.5 // [0.0 0.5 1.0 1.5 2.0 3.0 4.0]
 #define IRLITE_VL_TIP_RADIUS 1.5 // [0.5 0.75 1.0 1.5 2.0 3.0 4.0]
 #define IRLITE_VL_MAX_DIST 96.0 // [32.0 64.0 96.0 128.0 192.0 256.0]
@@ -44,16 +44,16 @@
 #define IRLITE_TOON_BANDS 3 // [2 3 4 5 6 8]
 #define IRLITE_TOON_SMOOTH 0.10 // [0.0 0.05 0.10 0.20 0.30 0.50]
 
-//#define IRLITE_OUTLINE                     // backlight rim outline (depth-edge x Fresnel), from IRLEngine LocalLightOutline
+#define IRLITE_OUTLINE                     // backlight rim outline (depth-edge x Fresnel), from IRLEngine LocalLightOutline
 #define IRLITE_OUTLINE_TARGET 0 // [0 1 2]
 #define IRLITE_OUTLINE_PIXEL_SIZE 2 // [1 2 3 4 5 6]
 #define IRLITE_OUTLINE_STRENGTH 0.65 // [0.0 0.1 0.2 0.35 0.5 0.65 0.8 1.0 1.5 2.0 3.0]
 #define IRLITE_OUTLINE_FRESNEL_POWER 2.2 // [1.0 1.2 1.5 1.8 2.0 2.2 2.5 3.0 4.0]
 // each new feature = on/off toggle + strength slider. BACK = base rim strength, slider only (0 = off).
 #define IRLITE_OUTLINE_BACK 1.0 // [0.0 0.25 0.5 0.75 1.0 1.5 2.0]
-#define IRLITE_OUTLINE_FRONT                  // catch-light rim facing the light (on/off)
+//#define IRLITE_OUTLINE_FRONT                  // catch-light rim facing the light (on/off)
 #define IRLITE_OUTLINE_FRONT_STRENGTH 0.3 // [0.0 0.15 0.3 0.5 0.75 1.0 1.5]
-#define IRLITE_OUTLINE_GLOW                   // soft inner Fresnel halo, feeds bloom (on/off)
+//#define IRLITE_OUTLINE_GLOW                   // soft inner Fresnel halo, feeds bloom (on/off)
 #define IRLITE_OUTLINE_GLOW_STRENGTH 0.12 // [0.0 0.05 0.12 0.2 0.35 0.5 0.75]
 
 // dh_* draws distant LOD only and Voxy replaces the gbuffer matrices/uniforms - gate the whole body (SSBO included) out via the pack's line-1 self-defines; the options above stay visible to Iris.
@@ -1312,13 +1312,13 @@ size.buffer.colortex10=IRLITE_VL_RESOLUTION IRLITE_VL_RESOLUTION
 >>>
 replace "VANILLA_AO SSAO AO_STRENGTH"
 <<<
-VANILLA_AO SSAO AO_STRENGTH [IRLITE_SETTINGS]
-screen.IRLITE_SETTINGS=<empty> <empty> IRLITE_DIFFUSE IRLITE_INTENSITY <empty> <empty> [IRLITE_SPECULAR_SETTINGS] [IRLITE_SHADOW_SETTINGS] [IRLITE_VL_SETTINGS] [IRLITE_TOON_SETTINGS] [IRLITE_OUTLINE_SETTINGS] <empty>
-screen.IRLITE_SPECULAR_SETTINGS=<empty> <empty> IRLITE_SPECULAR <empty> IRLITE_SPECULAR_INTENSITY IRLITE_SPECULAR_SMOOTHNESS
-screen.IRLITE_SHADOW_SETTINGS=<empty> <empty> IRLITE_SHADOWS IRLITE_SHADOW_QUALITY IRLITE_SHADOW_SIZE IRLITE_SHADOW_BIAS IRLITE_SHADOW_NORMAL_OFFSET <empty>
-screen.IRLITE_VL_SETTINGS=<empty> <empty> IRLITE_VOLUMETRIC IRLITE_VL_INTENSITY IRLITE_VL_RESOLUTION IRLITE_VL_STEPS IRLITE_VL_SHADOWS IRLITE_VL_SHADOW_STRIDE IRLITE_VL_TIP_BOOST IRLITE_VL_TIP_RADIUS IRLITE_VL_MAX_DIST <empty> IRLITE_VL_NOISE IRLITE_VL_NOISE_AMOUNT IRLITE_VL_NOISE_SCALE IRLITE_VL_NOISE_SPEED IRLITE_VL_NOISE_STRIDE
-screen.IRLITE_TOON_SETTINGS=<empty> <empty> IRLITE_TOON <empty> IRLITE_TOON_BANDS IRLITE_TOON_SMOOTH
-screen.IRLITE_OUTLINE_SETTINGS=<empty> <empty> IRLITE_OUTLINE IRLITE_OUTLINE_TARGET <empty> <empty> IRLITE_OUTLINE_STRENGTH IRLITE_OUTLINE_PIXEL_SIZE IRLITE_OUTLINE_FRESNEL_POWER <empty> <empty> IRLITE_OUTLINE_BACK <empty> IRLITE_OUTLINE_FRONT IRLITE_OUTLINE_FRONT_STRENGTH IRLITE_OUTLINE_GLOW IRLITE_OUTLINE_GLOW_STRENGTH
+VANILLA_AO SSAO AO_STRENGTH [IRLIGHTS]
+screen.IRLIGHTS=IRLITE_DIFFUSE IRLITE_INTENSITY <empty> <empty> [IRLIGHTS_SPECULAR] [IRLIGHTS_SHADOWS] [IRLIGHTS_TOON] [IRLIGHTS_VOLUMETRIC] [IRLIGHTS_OUTLINE] <empty>
+screen.IRLIGHTS_SPECULAR=IRLITE_SPECULAR <empty> IRLITE_SPECULAR_INTENSITY IRLITE_SPECULAR_SMOOTHNESS
+screen.IRLIGHTS_SHADOWS=IRLITE_SHADOWS IRLITE_SHADOW_QUALITY <empty> <empty> IRLITE_SHADOW_SIZE IRLITE_SHADOW_BIAS IRLITE_SHADOW_NORMAL_OFFSET <empty>
+screen.IRLIGHTS_TOON=IRLITE_TOON <empty> IRLITE_TOON_BANDS IRLITE_TOON_SMOOTH
+screen.IRLIGHTS_VOLUMETRIC=IRLITE_VOLUMETRIC IRLITE_VL_INTENSITY IRLITE_VL_RESOLUTION IRLITE_VL_STEPS IRLITE_VL_MAX_DIST <empty> <empty> <empty> IRLITE_VL_SHADOWS IRLITE_VL_SHADOW_STRIDE IRLITE_VL_TIP_BOOST IRLITE_VL_TIP_RADIUS <empty> <empty> IRLITE_VL_NOISE IRLITE_VL_NOISE_AMOUNT IRLITE_VL_NOISE_SCALE IRLITE_VL_NOISE_SPEED IRLITE_VL_NOISE_STRIDE <empty>
+screen.IRLIGHTS_OUTLINE=IRLITE_OUTLINE IRLITE_OUTLINE_TARGET <empty> <empty> IRLITE_OUTLINE_STRENGTH IRLITE_OUTLINE_PIXEL_SIZE IRLITE_OUTLINE_FRESNEL_POWER <empty> <empty> <empty> IRLITE_OUTLINE_BACK <empty> IRLITE_OUTLINE_FRONT IRLITE_OUTLINE_FRONT_STRENGTH IRLITE_OUTLINE_GLOW IRLITE_OUTLINE_GLOW_STRENGTH
 >>>
 replace "WAVING_AMPLITUDE FIREFLIES_BRIGHTNESS"
 <<<
@@ -1331,93 +1331,126 @@ after "option.FIREFLIES_BRIGHTNESS=Fireflies Brightness"
 <<<
 
 
-#IRLite Lights (BBS addon) - dynamic point/spot lights
-screen.IRLITE_SETTINGS=§6IRLite Lights
-option.IRLITE_DIFFUSE=§6Diffuse Light
-option.IRLITE_DIFFUSE.comment=Surface lighting from the IRLite point/spot lights placed in the BBS editor.
+#IRLights (BBS addon) - dynamic point/spot lights
+screen.IRLIGHTS=§6§lIRLights§r
+screen.IRLIGHTS.comment=Dynamic point and spot lights from the IRLights BBS addon. Requires the IRLights mod to feed the lights — without it these settings do nothing.
+screen.IRLIGHTS_SPECULAR=§bSpecular
+screen.IRLIGHTS_SPECULAR.comment=Specular highlight from IRLights lights.
+screen.IRLIGHTS_SHADOWS=§3Shadows
+screen.IRLIGHTS_SHADOWS.comment=Real-time shadows baked by the IRLights mod for its lights.
+screen.IRLIGHTS_TOON=§aToon
+screen.IRLIGHTS_TOON.comment=Cel-shading style banding of IRLights lighting.
+screen.IRLIGHTS_VOLUMETRIC=§dVolumetric
+screen.IRLIGHTS_VOLUMETRIC.comment=Per-light volumetric beams and haze.
+screen.IRLIGHTS_OUTLINE=§eOutline
+screen.IRLIGHTS_OUTLINE.comment=Light-driven rim outline along lit silhouettes: back/front rim and soft inner glow. Each sub-feature toggles independently.
+
+option.IRLITE_DIFFUSE=§6Diffuse Lighting
+option.IRLITE_DIFFUSE.comment=Surface lighting from IRLights point/spot lights.
+
 option.IRLITE_INTENSITY=§6Master Intensity
-option.IRLITE_INTENSITY.comment=Master brightness multiplier for all IRLite terms.
+option.IRLITE_INTENSITY.comment=Multiplier for all IRLights lighting.
 
-screen.IRLITE_SPECULAR_SETTINGS=§bSpecular
 option.IRLITE_SPECULAR=§bSpecular Highlights
-option.IRLITE_SPECULAR.comment=GGX highlight from IRLite lights. Applies to models, held items and block entities only - vanilla terrain stays matte.
+option.IRLITE_SPECULAR.comment=Specular highlight from IRLights lights, using the pack's own specular model.
+
 option.IRLITE_SPECULAR_INTENSITY=§bSpecular Intensity
-option.IRLITE_SPECULAR_INTENSITY.comment=Highlight brightness, multiplied with Master Intensity.
-option.IRLITE_SPECULAR_SMOOTHNESS=§bSpecular Smoothness
-option.IRLITE_SPECULAR_SMOOTHNESS.comment=Global lobe width - higher means tighter, mirror-like highlights.
+option.IRLITE_SPECULAR_INTENSITY.comment=Multiplier for the IRLights specular highlight.
 
-screen.IRLITE_SHADOW_SETTINGS=§3Shadows
+option.IRLITE_SPECULAR_SMOOTHNESS=§bSmoothness
+option.IRLITE_SPECULAR_SMOOTHNESS.comment=Surface smoothness for the highlight: higher gives a tighter, sharper blick.
+
 option.IRLITE_SHADOWS=§3Light Shadows
-option.IRLITE_SHADOWS.comment=Real-time baked shadows for IRLite lights (spot atlas + point cube maps). Turning this off also removes the cube-array sampler - use it if the pack fails to compile on a strict driver.
-option.IRLITE_SHADOW_QUALITY=§3Shadow Quality
-option.IRLITE_SHADOW_QUALITY.comment=PCSS tap count. Hard is a single tap; higher tiers soften contact shadows. §c[-]§rAffects performance.
-value.IRLITE_SHADOW_QUALITY.0=Hard
-value.IRLITE_SHADOW_QUALITY.1=Low
-value.IRLITE_SHADOW_QUALITY.2=Medium
-value.IRLITE_SHADOW_QUALITY.3=High
-value.IRLITE_SHADOW_QUALITY.4=Very High
-option.IRLITE_SHADOW_SIZE=§3Light Size
-option.IRLITE_SHADOW_SIZE.comment=Virtual light-source size for the penumbra, in blocks. A per-light bulb size set in BBS overrides this.
-option.IRLITE_SHADOW_BIAS=§3Shadow Bias
-option.IRLITE_SHADOW_BIAS.comment=Depth bias against shadow acne. Raise only if acne survives the normal offset.
-option.IRLITE_SHADOW_NORMAL_OFFSET=§3Normal Offset
-option.IRLITE_SHADOW_NORMAL_OFFSET.comment=Receiver nudge along the surface normal, in blocks. Kills the texel staircase without peter-panning. 0 disables.
+option.IRLITE_SHADOWS.comment=Real-time shadows from IRLights lights, baked by the mod into a spot atlas and a point cube-array. §e[*]§r Turning this OFF also removes the related GPU constructs — use it if the pack fails to compile on exotic drivers.
 
-screen.IRLITE_VL_SETTINGS=§dVolumetrics
+option.IRLITE_SHADOW_QUALITY=§3Shadow Quality
+option.IRLITE_SHADOW_QUALITY.comment=PCSS filtering quality. Higher tiers use more samples for softer, less noisy penumbras.
+value.IRLITE_SHADOW_QUALITY.0=§aHard
+value.IRLITE_SHADOW_QUALITY.1=§eLow
+value.IRLITE_SHADOW_QUALITY.2=§eMedium
+value.IRLITE_SHADOW_QUALITY.3=§cHigh
+value.IRLITE_SHADOW_QUALITY.4=§4§lVery High
+
+option.IRLITE_SHADOW_SIZE=§3Light Size
+option.IRLITE_SHADOW_SIZE.comment=Default light source size in blocks, controls penumbra softness. Used when a light has no per-light bulb size set in the editor.
+
+option.IRLITE_SHADOW_BIAS=§3Shadow Bias
+option.IRLITE_SHADOW_BIAS.comment=Depth bias in blocks. Raise if you see shadow acne, lower if shadows detach from objects.
+
+option.IRLITE_SHADOW_NORMAL_OFFSET=§3Normal Offset
+option.IRLITE_SHADOW_NORMAL_OFFSET.comment=Receiver offset along the surface normal in blocks. Removes the staircase acne pattern without peter-panning. 0.0 disables it.
+
 option.IRLITE_VOLUMETRIC=§dVolumetric Light
-option.IRLITE_VOLUMETRIC.comment=Per-light beams and haze, marched in a reduced-resolution pass. Per-light beam strength comes from BBS.
-option.IRLITE_VL_INTENSITY=§dVL Intensity
-option.IRLITE_VL_INTENSITY.comment=Brightness of the beams and haze.
-option.IRLITE_VL_RESOLUTION=§dVL Resolution
-option.IRLITE_VL_RESOLUTION.comment=Resolution of the volumetric pass. Half costs a quarter of Full, Quarter a sixteenth. §c[-]§rLower values may shimmer on thin beams.
+option.IRLITE_VOLUMETRIC.comment=Per-light volumetric beams (spotlights) and glow (point lights).
+
+option.IRLITE_VL_INTENSITY=§dBeam Intensity
+option.IRLITE_VL_INTENSITY.comment=Multiplier for IRLights volumetric light.
+
+option.IRLITE_VL_RESOLUTION=§dResolution
+option.IRLITE_VL_RESOLUTION.comment=Resolution of the volumetric ray march (its own pass, upsampled afterwards). Half costs a quarter of Full and is the intended default. Quarter is fastest, slightly softer beams.
 value.IRLITE_VL_RESOLUTION.1.0=Full
 value.IRLITE_VL_RESOLUTION.0.5=Half
 value.IRLITE_VL_RESOLUTION.0.25=Quarter
-option.IRLITE_VL_STEPS=§dVL Steps
-option.IRLITE_VL_STEPS.comment=Ray-march samples per light. §c[-]§rAffects performance.
-option.IRLITE_VL_SHADOWS=§dVL Shadows
-option.IRLITE_VL_SHADOWS.comment=Per-step occlusion of the beams by the baked shadow maps - god-rays through windows. Needs Light Shadows.
-option.IRLITE_VL_SHADOW_STRIDE=§dVL Shadow Stride
-option.IRLITE_VL_SHADOW_STRIDE.comment=Tap the shadow map every Nth march step and reuse the result in between. §a[+]§rHigher is faster.
+
+option.IRLITE_VL_STEPS=§dMarch Steps
+option.IRLITE_VL_STEPS.comment=Ray-march steps per light. Higher is smoother but costs performance — every pixel covered by a beam pays for all of its steps.
+
+option.IRLITE_VL_MAX_DIST=§dMax Distance
+option.IRLITE_VL_MAX_DIST.comment=Maximum ray distance in blocks. Longer rays cost more on sky pixels.
+
+option.IRLITE_VL_SHADOWS=§dBeam Shadows
+option.IRLITE_VL_SHADOWS.comment=Occludes the beams per march step against the IRLights shadow maps — god-rays through windows. §e[*]§r Needs Light Shadows enabled.
+
+option.IRLITE_VL_SHADOW_STRIDE=§dShadow Tap Stride
+option.IRLITE_VL_SHADOW_STRIDE.comment=Tap the IRLights shadow maps every Nth march step and reuse the result in between. 2 roughly halves the shadow cost for slightly softer volumetric shadows. 1 = tap every step.
+
 option.IRLITE_VL_TIP_BOOST=§dTip Glow
 option.IRLITE_VL_TIP_BOOST.comment=Extra glow near the light source itself.
-option.IRLITE_VL_TIP_RADIUS=§dTip Radius
-option.IRLITE_VL_TIP_RADIUS.comment=Radius of the tip glow, in blocks.
-option.IRLITE_VL_MAX_DIST=§dVL Max Distance
-option.IRLITE_VL_MAX_DIST.comment=Ray length cap, in blocks. Keeps sky rays cheap.
-option.IRLITE_VL_NOISE=§dVL Noise
-option.IRLITE_VL_NOISE.comment=Animated 3D density noise - breaks the uniform beam into drifting puffs.
-option.IRLITE_VL_NOISE_AMOUNT=§dNoise Amount
-option.IRLITE_VL_NOISE_AMOUNT.comment=How strongly the noise modulates the beam. Average brightness is preserved.
-option.IRLITE_VL_NOISE_SCALE=§dNoise Scale
-option.IRLITE_VL_NOISE_SCALE.comment=Approximate puff size, in blocks.
-option.IRLITE_VL_NOISE_SPEED=§dNoise Drift Speed
-option.IRLITE_VL_NOISE_SPEED.comment=How fast the puffs drift through the beam. 0 = static.
-option.IRLITE_VL_NOISE_STRIDE=§dNoise Tap Stride
-option.IRLITE_VL_NOISE_STRIDE.comment=Tap the noise every Nth march step and reuse it in between. §a[+]§rHigher is faster.
 
-screen.IRLITE_TOON_SETTINGS=§aToon
-option.IRLITE_TOON=§aToon Banding
-option.IRLITE_TOON.comment=Quantizes IRLite diffuse into bands - a cel-shading look.
+option.IRLITE_VL_TIP_RADIUS=§dTip Radius
+option.IRLITE_VL_TIP_RADIUS.comment=Radius of the extra glow around the light source, in blocks.
+
+option.IRLITE_VL_NOISE=§dBeam Noise
+option.IRLITE_VL_NOISE.comment=Animated 3D density noise inside the beams — breaks the uniform cone into drifting puffs of dust and haze.
+
+option.IRLITE_VL_NOISE_AMOUNT=§dNoise Amount
+option.IRLITE_VL_NOISE_AMOUNT.comment=How strongly the noise modulates the beam. Low keeps it mostly uniform, 1 fully breaks it into puffs. Average brightness is preserved.
+
+option.IRLITE_VL_NOISE_SCALE=§dNoise Scale
+option.IRLITE_VL_NOISE_SCALE.comment=Approximate size of the noise puffs, in blocks.
+
+option.IRLITE_VL_NOISE_SPEED=§dDrift Speed
+option.IRLITE_VL_NOISE_SPEED.comment=How fast the puffs drift through the beam, like dust in the air. 0 = static.
+
+option.IRLITE_VL_NOISE_STRIDE=§dNoise Tap Stride
+option.IRLITE_VL_NOISE_STRIDE.comment=Sample the density noise every Nth march step and reuse the value in between. Cheaper at high step counts; may band along the beam without TAA. 1 = every step.
+
+option.IRLITE_TOON=§aToon Shading
+option.IRLITE_TOON.comment=Quantizes IRLights lighting into discrete bands (cel shading).
+
 option.IRLITE_TOON_BANDS=§aBands
 option.IRLITE_TOON_BANDS.comment=Number of brightness bands.
+
 option.IRLITE_TOON_SMOOTH=§aBand Smoothing
 option.IRLITE_TOON_SMOOTH.comment=Softness of the band edges.
 
-screen.IRLITE_OUTLINE_SETTINGS=§eRim Outline
-option.IRLITE_OUTLINE=§eBacklight Rim
-option.IRLITE_OUTLINE.comment=Master toggle for the light-driven rim outline (depth silhouette + glow), tinted by the light colour. Off by default. Sub-features toggle below.
-option.IRLITE_OUTLINE_TARGET=§eOutline Target
-option.IRLITE_OUTLINE_TARGET.comment=Which surfaces the rim outline draws on. Both = entities and blocks; Only Entities = mobs/players/morphs/items; Only Blocks = terrain and block entities. Uses the pack's entity gbuffer tag.
+option.IRLITE_OUTLINE=§eRim Outline
+option.IRLITE_OUTLINE.comment=Master toggle for the light-driven rim outline (depth silhouette + glow), tinted by the light colour. Sub-features toggle below.
+
+option.IRLITE_OUTLINE_TARGET=§eTarget
+option.IRLITE_OUTLINE_TARGET.comment=Which surfaces the rim outline draws on. Both = entities and blocks; Only Entities = mobs/players/items/hand; Only Blocks = terrain and block entities. Uses the pack's gbuffer entity tag.
 value.IRLITE_OUTLINE_TARGET.0=§eBoth
 value.IRLITE_OUTLINE_TARGET.1=§eOnly Entities
 value.IRLITE_OUTLINE_TARGET.2=§eOnly Blocks
+
 option.IRLITE_OUTLINE_STRENGTH=§eRim Strength
-option.IRLITE_OUTLINE_STRENGTH.comment=Rim brightness multiplier. 0.65 matches the IRLite diffuse scale.
+option.IRLITE_OUTLINE_STRENGTH.comment=Rim brightness multiplier. 0.65 matches the IRLights diffuse scale.
+
 option.IRLITE_OUTLINE_PIXEL_SIZE=§eRim Thickness
 option.IRLITE_OUTLINE_PIXEL_SIZE.comment=Line thickness in pixels (depth-tap offset).
+
 option.IRLITE_OUTLINE_FRESNEL_POWER=§eFresnel Power
-option.IRLITE_OUTLINE_FRESNEL_POWER.comment=Sharpness of the silhouette rim falloff. Higher narrows the rim to grazing angles only.
+option.IRLITE_OUTLINE_FRESNEL_POWER.comment=Sharpness of the silhouette rim falloff. Higher values narrow the rim to grazing angles only.
 
 option.IRLITE_OUTLINE_BACK=§eBack Rim
 option.IRLITE_OUTLINE_BACK.comment=Strength of the rim where the light is behind the surface (classic backlight halo). 0 = off.
@@ -1441,91 +1474,139 @@ after "option.FIREFLIES_BRIGHTNESS=Яркость Светлячков"
 <<<
 
 
-#IRLite Lights (аддон BBS) - динамические источники света
-screen.IRLITE_SETTINGS=§6IRLite Свет
-option.IRLITE_DIFFUSE=§6Диффузный Свет
-option.IRLITE_DIFFUSE.comment=Освещение поверхностей от поинтов и спотов IRLite, расставленных в редакторе BBS.
-option.IRLITE_INTENSITY=§6Общая Яркость
-option.IRLITE_INTENSITY.comment=Главный множитель яркости всех эффектов IRLite.
+#IRLights (аддон BBS) - динамические источники света
+screen.IRLIGHTS=§6§lIRLights§r
+screen.IRLIGHTS.comment=Динамические точечные и прожекторные источники света из BBS-аддона IRLights. Требуется мод IRLights — без него эти настройки ничего не делают.
+screen.IRLIGHTS_SPECULAR=§bБлики
+screen.IRLIGHTS_SPECULAR.comment=Зеркальные блики от источников IRLights.
+screen.IRLIGHTS_SHADOWS=§3Тени
+screen.IRLIGHTS_SHADOWS.comment=Тени в реальном времени, запекаемые модом IRLights для его источников.
+screen.IRLIGHTS_TOON=§aТун
+screen.IRLIGHTS_TOON.comment=Полосатое (cel-shading) квантование света IRLights.
+screen.IRLIGHTS_VOLUMETRIC=§dОбъёмный свет
+screen.IRLIGHTS_VOLUMETRIC.comment=Объёмные лучи и дымка от каждого источника.
+screen.IRLIGHTS_OUTLINE=§eКонтур
+screen.IRLIGHTS_OUTLINE.comment=Световой рим-контур по силуэтам: задний/передний рим и мягкое внутреннее свечение. Каждая под-фича включается отдельно.
 
-screen.IRLITE_SPECULAR_SETTINGS=§bБлики
+option.IRLITE_DIFFUSE=§6Диффузный свет
+option.IRLITE_DIFFUSE.comment=Освещение поверхностей точечными/прожекторными источниками IRLights.
+
+option.IRLITE_INTENSITY=§6Общая яркость
+option.IRLITE_INTENSITY.comment=Множитель всего освещения IRLights.
+
 option.IRLITE_SPECULAR=§bБлики
-option.IRLITE_SPECULAR.comment=GGX-блик от источников IRLite. Только модели, предметы в руке и блок-энтити - ванильный террейн остаётся матовым.
-option.IRLITE_SPECULAR_INTENSITY=§bЯркость Бликов
-option.IRLITE_SPECULAR_INTENSITY.comment=Яркость блика, умножается на Общую Яркость.
+option.IRLITE_SPECULAR.comment=Блик от источников IRLights на спекулярной модели самого пака.
+
+option.IRLITE_SPECULAR_INTENSITY=§bЯркость бликов
+option.IRLITE_SPECULAR_INTENSITY.comment=Множитель яркости блика IRLights.
+
 option.IRLITE_SPECULAR_SMOOTHNESS=§bГладкость
-option.IRLITE_SPECULAR_SMOOTHNESS.comment=Глобальная ширина лепестка - выше значит узкий, зеркальный блик.
+option.IRLITE_SPECULAR_SMOOTHNESS.comment=Гладкость поверхности для блика: выше — уже и резче блик.
 
-screen.IRLITE_SHADOW_SETTINGS=§3Тени
-option.IRLITE_SHADOWS=§3Тени Света
-option.IRLITE_SHADOWS.comment=Тени от источников IRLite в реальном времени (атлас спотов + куб-карты поинтов). Выключение убирает и cube-array сэмплер - спасение, если пак не компилируется на строгом драйвере.
-option.IRLITE_SHADOW_QUALITY=§3Качество Теней
-option.IRLITE_SHADOW_QUALITY.comment=Число PCSS-сэмплов. Hard - один тап; выше - мягче контактные тени. §c[-]§rВлияет на производительность.
-value.IRLITE_SHADOW_QUALITY.0=Жёсткие
-value.IRLITE_SHADOW_QUALITY.1=Низкое
-value.IRLITE_SHADOW_QUALITY.2=Среднее
-value.IRLITE_SHADOW_QUALITY.3=Высокое
-value.IRLITE_SHADOW_QUALITY.4=Очень Высокое
-option.IRLITE_SHADOW_SIZE=§3Размер Источника
-option.IRLITE_SHADOW_SIZE.comment=Виртуальный размер источника для полутени, в блоках. Пер-лайт размер лампы из BBS перекрывает это значение.
-option.IRLITE_SHADOW_BIAS=§3Сдвиг Глубины
-option.IRLITE_SHADOW_BIAS.comment=Биас против теневого акне. Поднимай, только если акне пережило сдвиг по нормали.
-option.IRLITE_SHADOW_NORMAL_OFFSET=§3Сдвиг по Нормали
-option.IRLITE_SHADOW_NORMAL_OFFSET.comment=Сдвиг ресивера вдоль нормали, в блоках. Убирает лесенку текселей без отрыва тени от объекта. 0 - выкл.
+option.IRLITE_SHADOWS=§3Тени света
+option.IRLITE_SHADOWS.comment=Тени от источников IRLights, запекаемые модом в спот-атлас и куб-массив. §e[*]§r Выключение убирает и сами GPU-конструкции — используйте, если пак не компилируется на экзотических драйверах.
 
-screen.IRLITE_VL_SETTINGS=§dВолюметрика
-option.IRLITE_VOLUMETRIC=§dОбъёмный Свет
-option.IRLITE_VOLUMETRIC.comment=Лучи и дымка от каждого источника, маршируются в пассе уменьшенного разрешения. Сила луча задаётся в BBS.
-option.IRLITE_VL_INTENSITY=§dЯркость Лучей
-option.IRLITE_VL_INTENSITY.comment=Яркость лучей и дымки.
+option.IRLITE_SHADOW_QUALITY=§3Качество теней
+option.IRLITE_SHADOW_QUALITY.comment=Качество PCSS-фильтрации. Выше — больше сэмплов, мягче и чище полутени.
+value.IRLITE_SHADOW_QUALITY.0=§aЖёсткие
+value.IRLITE_SHADOW_QUALITY.1=§eНизкое
+value.IRLITE_SHADOW_QUALITY.2=§eСреднее
+value.IRLITE_SHADOW_QUALITY.3=§cВысокое
+value.IRLITE_SHADOW_QUALITY.4=§4§lОч. высокое
+
+option.IRLITE_SHADOW_SIZE=§3Размер источника
+option.IRLITE_SHADOW_SIZE.comment=Размер источника света в блоках по умолчанию, задаёт мягкость полутени. Действует, когда в редакторе не задан свой размер лампы.
+
+option.IRLITE_SHADOW_BIAS=§3Сдвиг глубины
+option.IRLITE_SHADOW_BIAS.comment=Сдвиг глубины в блоках. Поднимите при «акне» теней, опустите, если тень отрывается от объекта.
+
+option.IRLITE_SHADOW_NORMAL_OFFSET=§3Сдвиг по нормали
+option.IRLITE_SHADOW_NORMAL_OFFSET.comment=Смещение приёмника вдоль нормали в блоках. Убирает лесенку-акне без отрыва теней. 0.0 — выключено.
+
+option.IRLITE_VOLUMETRIC=§dОбъёмный свет
+option.IRLITE_VOLUMETRIC.comment=Объёмные лучи (прожекторы) и свечение (точечные источники).
+
+option.IRLITE_VL_INTENSITY=§dЯркость лучей
+option.IRLITE_VL_INTENSITY.comment=Множитель объёмного света IRLights.
+
 option.IRLITE_VL_RESOLUTION=§dРазрешение
-option.IRLITE_VL_RESOLUTION.comment=Разрешение волюметрик-пасса. Половина стоит четверть Полного, Четверть - шестнадцатую. §c[-]§rНа тонких лучах возможен шиммер.
+option.IRLITE_VL_RESOLUTION.comment=Разрешение объёмного рей-марча (отдельный пасс с апсемплом). Половина стоит четверть Полного и является целевым дефолтом. Четверть — быстрее всего, лучи чуть мягче.
 value.IRLITE_VL_RESOLUTION.1.0=Полное
 value.IRLITE_VL_RESOLUTION.0.5=Половина
 value.IRLITE_VL_RESOLUTION.0.25=Четверть
-option.IRLITE_VL_STEPS=§dШаги Марша
-option.IRLITE_VL_STEPS.comment=Сэмплов на луч. §c[-]§rВлияет на производительность.
-option.IRLITE_VL_SHADOWS=§dТени в Лучах
-option.IRLITE_VL_SHADOWS.comment=Окклюзия лучей запечёнными тенями - год-рейс через окно. Нужны включённые Тени Света.
-option.IRLITE_VL_SHADOW_STRIDE=§dШаг Теневых Тапов
-option.IRLITE_VL_SHADOW_STRIDE.comment=Тап теневой карты каждый N-й шаг марша, между тапами результат переиспользуется. §a[+]§rВыше - быстрее.
-option.IRLITE_VL_TIP_BOOST=§dСвечение у Источника
-option.IRLITE_VL_TIP_BOOST.comment=Дополнительное свечение возле самой лампы.
-option.IRLITE_VL_TIP_RADIUS=§dРадиус Свечения
-option.IRLITE_VL_TIP_RADIUS.comment=Радиус свечения у источника, в блоках.
-option.IRLITE_VL_MAX_DIST=§dМакс. Дистанция
-option.IRLITE_VL_MAX_DIST.comment=Ограничение длины луча, в блоках. Держит лучи в небо дешёвыми.
-option.IRLITE_VL_NOISE=§dШум Луча
-option.IRLITE_VL_NOISE.comment=Анимированный 3D-шум плотности - разбивает ровный конус на плывущие клубы.
-option.IRLITE_VL_NOISE_AMOUNT=§dСила Шума
-option.IRLITE_VL_NOISE_AMOUNT.comment=Насколько сильно шум модулирует луч. Средняя яркость сохраняется.
-option.IRLITE_VL_NOISE_SCALE=§dМасштаб Шума
-option.IRLITE_VL_NOISE_SCALE.comment=Примерный размер клубов, в блоках.
-option.IRLITE_VL_NOISE_SPEED=§dСкорость Дрейфа
-option.IRLITE_VL_NOISE_SPEED.comment=Скорость дрейфа клубов сквозь луч. 0 = статично.
-option.IRLITE_VL_NOISE_STRIDE=§dШаг Шумовых Тапов
-option.IRLITE_VL_NOISE_STRIDE.comment=Тап шума каждый N-й шаг марша, между тапами значение переиспользуется. §a[+]§rВыше - быстрее.
 
-screen.IRLITE_TOON_SETTINGS=§aТун
-option.IRLITE_TOON=§aТун-Бандинг
-option.IRLITE_TOON.comment=Квантует диффуз IRLite в полосы - сel-shading вид.
+option.IRLITE_VL_STEPS=§dШаги марша
+option.IRLITE_VL_STEPS.comment=Шагов рей-марча на источник. Больше — глаже, но дороже: каждый пиксель под лучом платит за все шаги.
+
+option.IRLITE_VL_MAX_DIST=§dМакс. дистанция
+option.IRLITE_VL_MAX_DIST.comment=Максимальная длина луча в блоках. Длиннее — дороже на пикселях неба.
+
+option.IRLITE_VL_SHADOWS=§dТени в лучах
+option.IRLITE_VL_SHADOWS.comment=Затенение лучей по шагам марша теневыми картами IRLights — god-rays сквозь окна. §e[*]§r Требует включённых Теней света.
+
+option.IRLITE_VL_SHADOW_STRIDE=§dШаг теневых тапов
+option.IRLITE_VL_SHADOW_STRIDE.comment=Тап теневых карт каждый N-й шаг марша с переиспользованием между ними. 2 примерно вдвое дешевле при чуть более мягких тенях. 1 — тап каждый шаг.
+
+option.IRLITE_VL_TIP_BOOST=§dСвечение у источника
+option.IRLITE_VL_TIP_BOOST.comment=Дополнительное свечение возле самого источника.
+
+option.IRLITE_VL_TIP_RADIUS=§dРадиус свечения
+option.IRLITE_VL_TIP_RADIUS.comment=Радиус дополнительного свечения вокруг источника, в блоках.
+
+option.IRLITE_VL_NOISE=§dШум луча
+option.IRLITE_VL_NOISE.comment=Анимированный 3D-шум плотности внутри лучей — разбивает ровный конус на плывущие клубы пыли и дымки.
+
+option.IRLITE_VL_NOISE_AMOUNT=§dСила шума
+option.IRLITE_VL_NOISE_AMOUNT.comment=Насколько сильно шум модулирует луч. Меньше — почти ровный луч, 1 — полностью разбит на клубы. Средняя яркость сохраняется.
+
+option.IRLITE_VL_NOISE_SCALE=§dМасштаб шума
+option.IRLITE_VL_NOISE_SCALE.comment=Примерный размер клубов шума, в блоках.
+
+option.IRLITE_VL_NOISE_SPEED=§dСкорость дрейфа
+option.IRLITE_VL_NOISE_SPEED.comment=Как быстро клубы плывут сквозь луч, как пыль в воздухе. 0 — статично.
+
+option.IRLITE_VL_NOISE_STRIDE=§dШаг шумовых тапов
+option.IRLITE_VL_NOISE_STRIDE.comment=Сэмпл шума каждый N-й шаг марша с переиспользованием между ними. Дешевле при большом числе шагов; без TAA возможен бандинг вдоль луча. 1 — каждый шаг.
+
+option.IRLITE_TOON=§aТун-шейдинг
+option.IRLITE_TOON.comment=Квантует освещение IRLights в дискретные полосы (cel shading).
+
 option.IRLITE_TOON_BANDS=§aПолосы
 option.IRLITE_TOON_BANDS.comment=Число полос яркости.
-option.IRLITE_TOON_SMOOTH=§aСглаживание Полос
-option.IRLITE_TOON_SMOOTH.comment=Мягкость границ полос.
 
-screen.IRLITE_OUTLINE_SETTINGS=§eКонтур
-option.IRLITE_OUTLINE=§eКонтражурный рим
-option.IRLITE_OUTLINE.comment=Контражурный рим (IRLEngine LocalLightOutline): силуэт по разрыву глубины x Френель x (1-NdotL), в цвет источника. Фронтальный свет линию не рисует. По умолчанию выкл.
-option.IRLITE_OUTLINE_TARGET=§eОбласть рима
-option.IRLITE_OUTLINE_TARGET.comment=На что наносится рим. Обе = сущности и блоки; Только сущности = мобы/игроки/морфы/предметы; Только блоки = террейн и блок-сущности. Использует gbuffer-метку сущностей пака.
-value.IRLITE_OUTLINE_TARGET.0=§eОбе
+option.IRLITE_TOON_SMOOTH=§aСглаживание полос
+option.IRLITE_TOON_SMOOTH.comment=Мягкость границ между полосами.
+
+option.IRLITE_OUTLINE=§eКонтурный рим
+option.IRLITE_OUTLINE.comment=Главный тумблер светового рим-контура (силуэт по глубине + свечение) в цвет источника. Под-фичи ниже.
+
+option.IRLITE_OUTLINE_TARGET=§eОбласть
+option.IRLITE_OUTLINE_TARGET.comment=На что наносится рим. Всё = сущности и блоки; Только сущности = мобы/игроки/предметы/рука; Только блоки = террейн и блок-сущности. Использует gbuffer-метку сущностей пака.
+value.IRLITE_OUTLINE_TARGET.0=§eВсё
 value.IRLITE_OUTLINE_TARGET.1=§eТолько сущности
 value.IRLITE_OUTLINE_TARGET.2=§eТолько блоки
+
 option.IRLITE_OUTLINE_STRENGTH=§eСила рима
-option.IRLITE_OUTLINE_STRENGTH.comment=Множитель яркости рима. 0.65 соответствует диффуз-шкале IRLite.
+option.IRLITE_OUTLINE_STRENGTH.comment=Множитель яркости рима. 0.65 соответствует диффузной шкале IRLights.
+
 option.IRLITE_OUTLINE_PIXEL_SIZE=§eТолщина рима
-option.IRLITE_OUTLINE_PIXEL_SIZE.comment=Толщина линии в пикселях (смещение depth-тапов).
+option.IRLITE_OUTLINE_PIXEL_SIZE.comment=Толщина линии в пикселях (смещение тапа глубины).
+
 option.IRLITE_OUTLINE_FRESNEL_POWER=§eСила Френеля
-option.IRLITE_OUTLINE_FRESNEL_POWER.comment=Резкость спада рима у силуэта. Больше = рим уже, только у скользящих углов.
+option.IRLITE_OUTLINE_FRESNEL_POWER.comment=Резкость спада рима по силуэту. Выше — рим только на касательных углах.
+
+option.IRLITE_OUTLINE_BACK=§eЗадний рим
+option.IRLITE_OUTLINE_BACK.comment=Сила рима там, где свет позади поверхности (классический контражур). 0 — выключен.
+
+option.IRLITE_OUTLINE_FRONT=§eПередний блик
+option.IRLITE_OUTLINE_FRONT.comment=Рим на грани, обращённой к источнику (catch-light), поверх заднего рима.
+
+option.IRLITE_OUTLINE_FRONT_STRENGTH=§eСила переднего
+option.IRLITE_OUTLINE_FRONT_STRENGTH.comment=Яркость переднего блика.
+
+option.IRLITE_OUTLINE_GLOW=§eВнутр. свечение
+option.IRLITE_OUTLINE_GLOW.comment=Мягкое френель-гало сразу внутри силуэта; подхватывается блумом пака — свет будто обнимает край.
+
+option.IRLITE_OUTLINE_GLOW_STRENGTH=§eСила свечения
+option.IRLITE_OUTLINE_GLOW_STRENGTH.comment=Интенсивность внутреннего свечения.
 >>>

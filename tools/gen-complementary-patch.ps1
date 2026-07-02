@@ -148,7 +148,7 @@ EmitBody $prToggles
 Emit 'after "        size.buffer.colortex7 = REFLECTION_RES REFLECTION_RES"'
 EmitBody $prSize
 Emit 'replace "VANILLAAO_I PLAYER_SHADOW"'
-EmitBody @('VANILLAAO_I PLAYER_SHADOW [IRLITE_SETTINGS]')
+EmitBody @('VANILLAAO_I PLAYER_SHADOW [IRLIGHTS]')
 Emit 'after "        screen.PIXELATED_LIGHTING_SETTINGS=<empty> <empty> PIXELATED_SHADOWS PIXELATED_BLOCKLIGHT PIXELATED_AO PIXEL_SCALE"'
 EmitBody $propsScreens
 Emit 'replace "END_STAR_INTENSITY GENERATED_NORMAL_RES"'
