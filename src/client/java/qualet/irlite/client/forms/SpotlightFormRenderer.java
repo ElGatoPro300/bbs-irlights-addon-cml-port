@@ -1,6 +1,7 @@
 package qualet.irlite.client.forms;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import mchorse.bbs_mod.forms.renderers.FormRenderType;
 import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -35,7 +36,9 @@ public class SpotlightFormRenderer extends AbstractLightFormRenderer<SpotlightFo
     @Override
     protected void renderGuide(FormRenderingContext context, Color color)
     {
-        if (context.modelRenderer)
+        /* Editor preview and in-world film actors both host draggable handles —
+         * capture the guide's local->view matrix wherever the guide is drawn. */
+        if (context.modelRenderer || context.type == FormRenderType.ENTITY)
         {
             SpotGuideDrag.captureGuideMatrix(this.form, context.stack);
         }

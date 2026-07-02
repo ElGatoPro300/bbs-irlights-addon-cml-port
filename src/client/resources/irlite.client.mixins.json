@@ -8,6 +8,7 @@
     "FormUtilsClientMixin",
     "GameRendererLightMixin",
     "L10nMixin",
+    "UIFilmControllerMixin",
     "UIFormEditorMixin",
     "UIPickableFormRendererMixin",
     "UIReplaysEditorColorMixin",

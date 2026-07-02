@@ -69,7 +69,11 @@ public abstract class AbstractLightFormRenderer<T extends Form> extends FormRend
                 this.registerLight(context);
             }
 
-            if (IrliteConfig.showGuides())
+            /* Guides show with the global setting, or ad-hoc on the replay
+             * currently selected in an open film editor (marked from the film
+             * stencil pass — the rendered form is a COPY of replay.form, so
+             * identity checks against the replay don't work here). */
+            if (IrliteConfig.showGuides() || SpotGuideDrag.isFilmSelected(this.form))
             {
                 this.renderGuide(context, this.tintedColor(context));
             }
@@ -89,12 +93,24 @@ public abstract class AbstractLightFormRenderer<T extends Form> extends FormRend
             return;
         }
 
-        /* Editor-preview stencil pass: register interactive guide handles
-         * BEFORE the pick box so each grabs its own stencil ID (draw with
-         * Target = objectIndex, then addPicking assigns it and increments;
-         * the box below then lands on the next free ID, which the outer
-         * FormRenderer.render() maps to the whole form via updateStencilMap). */
-        if (context.modelRenderer && context.stencilMap.increment)
+        /* Stencil pass: register interactive guide handles BEFORE the pick box
+         * so each grabs its own stencil ID (draw with the current objectIndex,
+         * then addPicking assigns it and increments; the box below then lands
+         * on the next free ID, which the outer FormRenderer.render() maps to
+         * the whole form via updateStencilMap). Active in the form-editor
+         * preview and in the film viewport for the selected replay — BBS's
+         * film picking renders ONLY the selected replay with increment on
+         * (per-bone picking), other actors pick as whole entities and are
+         * skipped. That same signal marks the form so the world pass shows
+         * its guides. */
+        boolean entityPick = context.type == FormRenderType.ENTITY;
+
+        if (entityPick && context.stencilMap.increment)
+        {
+            SpotGuideDrag.markFilmSelected(this.form);
+        }
+
+        if (context.stencilMap.increment && (context.modelRenderer || entityPick))
         {
             this.renderStencilHandles(context);
         }

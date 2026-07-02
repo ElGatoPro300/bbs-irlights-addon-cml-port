@@ -1,13 +1,26 @@
 package qualet.irlite.client.forms;
 
+import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.camera.Camera;
 import mchorse.bbs_mod.camera.CameraUtils;
+import mchorse.bbs_mod.film.replays.Replay;
+import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.forms.Form;
+import mchorse.bbs_mod.ui.dashboard.UIDashboard;
+import mchorse.bbs_mod.ui.film.UIFilmPanel;
+import mchorse.bbs_mod.ui.film.controller.UIFilmController;
 import mchorse.bbs_mod.ui.forms.editors.utils.UIPickableFormRenderer;
 import mchorse.bbs_mod.ui.framework.UIContext;
+import mchorse.bbs_mod.ui.framework.UIScreen;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.StencilFormFramebuffer;
+import mchorse.bbs_mod.settings.values.base.BaseValue;
+import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
 import mchorse.bbs_mod.utils.Pair;
+import mchorse.bbs_mod.utils.keyframes.Keyframe;
+import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
+import mchorse.bbs_mod.utils.keyframes.KeyframeSegment;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.math.MatrixStack;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -49,10 +62,26 @@ public final class SpotGuideDrag
     private static final Map<SpotlightForm, Matrix4f> GUIDE_MATRICES = new WeakHashMap<>();
 
     private static WeakReference<UISpotlightFormPanel> panel = new WeakReference<>(null);
+    private static WeakReference<UIFilmPanel> filmPanelCache = new WeakReference<>(null);
 
+    /* Active drag session. Host identifies which viewport owns the drag
+     * (UIPickableFormRenderer in the form editor, UIFilmController in the
+     * film editor); camera/viewport are live references from that host. */
     private static SpotlightForm dragForm;
     private static String dragHandle;
-    private static WeakReference<UIPickableFormRenderer> dragRenderer = new WeakReference<>(null);
+    private static Object dragHost;
+    private static Camera dragCamera;
+    private static Area dragViewport;
+
+    /**
+     * Film drags are KEYFRAME edits: the write target is the keyframe governing
+     * the playhead in the property's channel of the selected replay. No channel
+     * or no keyframes — the handle refuses to drag (film values are keyframe-
+     * driven; a static write would be stomped by applyProperties every frame).
+     * Null while dragging in the form-editor preview, which edits the form
+     * values directly.
+     */
+    private static Keyframe dragKeyframe;
 
     private SpotGuideDrag()
     {}
@@ -75,20 +104,91 @@ public final class SpotGuideDrag
     }
 
     /**
-     * Start a drag if the stencil pixel under the cursor is one of our handles.
-     * Called from the renderer mixin at the head of {@code subMouseClicked};
-     * returning true consumes the click before BBS's gizmo/bone picking.
+     * Form-editor preview: start a drag if the stencil pixel under the cursor is
+     * one of our handles. Called from the renderer mixin at the head of
+     * {@code subMouseClicked}; returning true consumes the click before BBS's
+     * gizmo/bone picking.
      */
     public static boolean tryStart(UIPickableFormRenderer renderer, UIContext context)
     {
-        if (context.mouseButton != 0)
+        return tryStartWith(renderer, renderer.getStencil(), renderer.camera, renderer.area, context);
+    }
+
+    /**
+     * Film editor: same, but against the film controller's stencil and the film
+     * viewport camera (the exact pair BBS's own film gizmo drags with, see
+     * {@code UIReplaysEditorUtils.startFilmGizmo}).
+     */
+    public static boolean tryStartFilm(UIFilmController controller, UIContext context)
+    {
+        /* No drags while flying or while the cursor is grabbed (actor control
+         * mode) — the stencil pick under a locked cursor is meaningless. */
+        if (controller.panel.isFlying() || MinecraftClient.getInstance().mouse.isCursorLocked())
         {
             return false;
         }
 
-        StencilFormFramebuffer stencil = renderer.getStencil();
+        if (!tryStartWith(
+            controller,
+            controller.getGizmoStencil(),
+            controller.panel.getCamera(),
+            controller.panel.preview.getViewport(),
+            context
+        ))
+        {
+            return false;
+        }
 
-        if (!stencil.hasPicked())
+        /* Keyframe gate: dragging in the film edits keyframes only. */
+        dragKeyframe = resolveFilmKeyframe(controller);
+
+        if (dragKeyframe == null)
+        {
+            stop();
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * The keyframe the drag will edit: in the selected replay's channel for the
+     * dragged property, the keyframe governing the current playhead position.
+     * Null when the property has no channel or no keyframes.
+     */
+    private static Keyframe resolveFilmKeyframe(UIFilmController controller)
+    {
+        Replay replay = selectedReplay();
+
+        if (replay == null || dragForm == null || dragHandle == null)
+        {
+            return null;
+        }
+
+        BaseValue property = switch (dragHandle)
+        {
+            case HANDLE_RANGE -> dragForm.range;
+            case HANDLE_INNER -> dragForm.innerRadius;
+            default -> dragForm.radius;
+        };
+
+        String key = FormUtils.getPropertyPath(property);
+        KeyframeChannel channel = key == null ? null : replay.properties.properties.get(key);
+
+        if (channel == null || channel.isEmpty())
+        {
+            return null;
+        }
+
+        KeyframeSegment segment = channel.findSegment(controller.panel.getCursor());
+
+        return segment == null ? null : segment.a;
+    }
+
+    private static boolean tryStartWith(Object host, StencilFormFramebuffer stencil, Camera camera, Area viewport, UIContext context)
+    {
+        if (context.mouseButton != 0 || !stencil.hasPicked())
         {
             return false;
         }
@@ -107,7 +207,9 @@ public final class SpotGuideDrag
 
         dragForm = spot;
         dragHandle = pair.b;
-        dragRenderer = new WeakReference<>(renderer);
+        dragHost = host;
+        dragCamera = camera;
+        dragViewport = viewport;
 
         return true;
     }
@@ -129,13 +231,24 @@ public final class SpotGuideDrag
     {
         dragForm = null;
         dragHandle = null;
-        dragRenderer = new WeakReference<>(null);
+        dragHost = null;
+        dragCamera = null;
+        dragViewport = null;
+        dragKeyframe = null;
     }
 
-    /** Per-frame drag update, driven from the renderer mixin at the tail of {@code renderUserModel}. */
-    public static void update(UIPickableFormRenderer renderer, UIContext context)
+    /**
+     * Per-frame drag update, driven from the host mixins (form editor:
+     * {@code renderUserModel} tail; film editor: {@code renderPickingPreview} head).
+     */
+    public static void update(Object host, UIContext context)
     {
-        if (dragForm == null || dragRenderer.get() != renderer)
+        if (dragForm == null || dragHost != host)
+        {
+            return;
+        }
+
+        if (host instanceof UIFilmController controller && controller.panel.isFlying())
         {
             return;
         }
@@ -149,8 +262,8 @@ public final class SpotGuideDrag
             return;
         }
 
-        Camera camera = renderer.camera;
-        Area area = renderer.area;
+        Camera camera = dragCamera;
+        Area area = dragViewport;
 
         /* Guide-local -> camera-relative "world" of the preview scene. */
         Matrix4f localToWorld = new Matrix4f(camera.view).invert().mul(guide);
@@ -215,7 +328,7 @@ public final class SpotGuideDrag
         float capSign = Math.signum(LightGuideRenderer.spotRingZ(1F));
         float range = clamp(capSign * axisZ, 0.1F, 128F);
 
-        dragForm.range.set(range);
+        writeValue(range, dragForm.range);
     }
 
     /**
@@ -247,12 +360,86 @@ public final class SpotGuideDrag
 
         if (inner)
         {
-            dragForm.innerRadius.set(clamp(angle, 1F, dragForm.radius.get()));
+            writeValue(clamp(angle, 1F, dragForm.radius.get()), dragForm.innerRadius);
         }
         else
         {
-            dragForm.radius.set(clamp(angle, 1F, 179F));
+            writeValue(clamp(angle, 1F, 179F), dragForm.radius);
         }
+    }
+
+    /**
+     * Lands the dragged value: film drags write the governing keyframe (the
+     * per-frame applyProperties then propagates it into the rendered copy),
+     * preview drags write the edited form's value directly.
+     */
+    @SuppressWarnings("unchecked")
+    private static void writeValue(float value, ValueFloat directTarget)
+    {
+        if (dragKeyframe != null)
+        {
+            dragKeyframe.setValue(value);
+        }
+        else
+        {
+            directTarget.set(value);
+        }
+    }
+
+    /**
+     * True when the given form belongs to the replay currently selected in an
+     * OPEN film editor — the state in which in-world guides and grab handles
+     * are shown without the global show-guides setting.
+     */
+    /**
+     * The film editor renders actors with COPIES of {@code replay.form}, so
+     * identity checks against the replay are useless on the render side.
+     * Instead we ride BBS's own selection signal: the film stencil pass picks
+     * ONLY the selected replay per-bone ({@code increment=true}); the light
+     * renderer calls {@link #markFilmSelected} from exactly that pass, and the
+     * world pass shows guides for marked roots while the mark stays fresh.
+     */
+    private static final Map<Form, Long> FILM_SELECTED = new WeakHashMap<>();
+
+    private static final long FILM_MARK_TTL_MS = 300L;
+
+    public static void markFilmSelected(Form form)
+    {
+        Form root = FormUtils.getRoot(form);
+
+        if (root != null)
+        {
+            FILM_SELECTED.put(root, System.currentTimeMillis());
+        }
+    }
+
+    public static boolean isFilmSelected(Form form)
+    {
+        Form root = FormUtils.getRoot(form);
+        Long mark = root == null ? null : FILM_SELECTED.get(root);
+
+        return mark != null && System.currentTimeMillis() - mark < FILM_MARK_TTL_MS;
+    }
+
+    /** The replay currently selected in the film editor's replays panel, if any. */
+    private static Replay selectedReplay()
+    {
+        UIDashboard dashboard = BBSModClient.getDashboardIfCreated();
+
+        if (dashboard == null || UIScreen.getCurrentMenu() != dashboard)
+        {
+            return null;
+        }
+
+        UIFilmPanel film = filmPanelCache.get();
+
+        if (film == null)
+        {
+            film = dashboard.getPanel(UIFilmPanel.class);
+            filmPanelCache = new WeakReference<>(film);
+        }
+
+        return film == null ? null : film.replayEditor.getReplay();
     }
 
     public static boolean isHandle(String bone)

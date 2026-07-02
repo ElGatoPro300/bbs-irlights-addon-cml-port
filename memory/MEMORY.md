@@ -51,7 +51,7 @@
 - [addon-light-collection](addon-light-collection.md) — сбор света за кадр: SCANNER (ModelBlock) vs RENDER (актёры/реплеи), дедуп; MAX_LIGHTS=2048.
 - [fix-bone-attached-light-deadzone](fix-bone-attached-light-deadzone.md) — свет на кости (BodyPart.bone) не регал НИ scanner НИ render-path (мёртвая зона на стыке владения); фикс master: render-path забирает bone-свет всегда (form.getParent() instanceof BodyPart).
 - [addon-ui-config](addon-ui-config.md) — UI+конфиг IRLite на BBS: IrliteConfig, BBSSettings-категории, L10nMixin, in-world гайды, form-editor панели.
-- [plan-interactive-spot-guides](plan-interactive-spot-guides.md) — интерактивные гайды спота в превью редактора форм (drag кольца=radius/inner, диск торца=range) через стенсил-пикинг BBS + миксин UIPickableFormRenderer; in-game PASS 2026-07-02; open: Ф2 in-world, тюнинг толщин, коммит.
+- [plan-interactive-spot-guides](plan-interactive-spot-guides.md) — интерактивные гайды спота: превью редактора (прямые значения) + film editor (драг = правка кейфрейма, без кейфреймов инертно; форма актёра = КОПИЯ replay.form); обе фазы PASS+коммит 2026-07-02.
 - [project-refactor-origin](project-refactor-origin.md) — IRLite = рефактор IRLEngine (uniform->std430 SSBO binding7 + anchor-патчер); IRLEngine = только поведенч. референс.
 - [commit-checkpoints](commit-checkpoints.md) — (feedback) коммитить только в чекпоинты, ждать подтверждения, не авто-коммит; gitignore shaders/->git add -f.
 - [feedback-addon-runclient-command](feedback-addon-runclient-command.md) — (feedback) рантайм аддона ВСЕГДА runClient -Pmc=1.20.4 (лог run/runclient-console.log, в фоне); Prism-деплой НЕ используется; в PowerShell квотить '-Pmc=1.20.4'.

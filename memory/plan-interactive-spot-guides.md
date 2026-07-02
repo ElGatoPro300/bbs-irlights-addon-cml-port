@@ -1,13 +1,20 @@
 ---
 name: plan-interactive-spot-guides
-description: "Интерактивные гайды спотлайта в превью редактора форм (drag колец = radius/inner, диска торца = range) через реюз стенсил-пикинга BBS"
+description: "Интерактивные гайды спотлайта (drag колец = radius/inner, диска торца = range) в превью редактора форм + film editor (кейфрейм-режим); обе фазы done 2026-07-02"
 metadata: 
   node_type: memory
   type: project
   originSessionId: 7f172475-bb40-4100-a82e-64c096a5d6f7
 ---
 
-Фича (2026-07-02): гайды спотлайта в превью редактора форм интерактивны — хват за внешнее кольцо тянет radius (угол), за внутреннее кольцо inner_radius, за диск в центре торца range. Реюз машинерии bbs-fs, point light отложен (юзер: только спот). Ф2 (in-world drag в film editor, UIFilmController) не начата.
+Фича (2026-07-02, обе фазы in-game PASS): гайды спотлайта интерактивны — хват за внешнее кольцо тянет radius (угол), за внутреннее inner_radius, за диск в центре торца range. Ф1 = превью редактора форм (прямые значения). Ф2 = film editor in-world (кейфрейм-режим). Реюз машинерии bbs-fs, point light отложен (юзер: только спот).
+
+Ф2 film editor (семантика по требованию юзера, keyframe-first):
+- Хват-зоны в film-стенсил по родному сигналу BBS: renderStencil рендерит ТОЛЬКО выбранный реплей с increment=true (по-костевой пикинг) -> render3D: type==ENTITY && increment -> renderStencilHandles + markFilmSelected(root).
+- Гайды в мире: при isFilmSelected(form) (TTL-пометка 300мс из стенсил-пасса). НЕ сравнивать рендер-форму с replay.form по идентичности: BaseFilmController:732 даёт актёру FormUtils.copy(replay.form.get()) — копия (первый заход Ф2 на identity был мёртв, дебаг показал match=false).
+- Драг = ПРАВКА КЕЙФРЕЙМА: нет кейфреймов у параметра -> драг запрещён (зона инертна, клик проходит мимо); есть -> пишется segment.a (кейфрейм, управляющий плейхедом panel.getCursor()) канала replay.properties.properties.get(FormUtils.getPropertyPath(value)); applyProperties сам прокидывает в копию актёра (live-визуал). Keyframe extends BaseValue -> film-undo ловит. Прямая запись replay.form отвергнута: applyProperties перетирает каждый кадр.
+- Гейты пикинга BBS в film (без них «ничего не работает»): реплей ДОЛЖЕН быть выбран + POV не first-person (иначе renderStencil ранний return; спасает Alt); гизмо BBS дополнительно требует F8 (shouldRenderAxes) — наши зоны F8 не требуют. Гарды драга: isFlying + mouse.isCursorLocked.
+- UIFilmControllerMixin: subMouseClicked HEAD (tryStartFilm), subMouseReleased HEAD, renderPickingPreview HEAD (апдейт на HEAD, не TAIL — метод рано выходит, когда под курсором пусто).
 
 Механика BBS (проверено по bbs-2.3.1 jar, 1:1 с исходниками bbs-fs):
 - UIPickableFormRenderer.renderUserModel гоняет стенсил-пасс каждый кадр при курсоре во вьюпорте: StencilMap.setup (гизмо ID 1..STENCIL_MAX, формы дальше), FormUtilsClient.render с context.stencilMap, gizmo stencil поверх, pickGUI = glReadPixels 1x1 -> getPicked() = Pair<Form,String>. Ховер-подсветка + лейбл-карточка "Form - bone" бесплатны (PickerPreviewProgram).
@@ -24,4 +31,4 @@ metadata:
 - UIPickableFormRendererMixin (mixin/client, зарегистрирован в irlite.client.mixins.json): subMouseClicked HEAD -> tryStart (съедает клик до clickViewport), subMouseReleased HEAD -> mouseReleased, renderUserModel TAIL -> update.
 - UISpotlightFormPanel: bindPanel в startEdit + syncLightShape (live setValue трекпадов range/radius/innerRadius при драге).
 
-Статус: in-game PASS (2026-07-02, юзер подтвердил «заработали»); дебаг-логи сняты, compile PASS. Ложный след при тесте: два захода «ничего не поменялось» = тест вне dev-клиента/не дошёл до превью (дебаг показал 0 вызовов render3D за сессию) — фичу тестировать ТОЛЬКО в runClient или свежем jar. Знак ringZ подтверждён практикой (хват-зоны совпали с видимыми кольцами). Открыто: тюнинг толщин хватов по желанию, Ф2 in-world (model block панель/film editor — оба GizmoViewport со своим стенсилом), point light (юзер не уверен что нужно), порт-ветки 1.21.x, коммит-чекпоинт.
+Статус: Ф1+Ф2 in-game PASS, юзер подтвердил «работает корректно», дебаг снят, закоммичено 2026-07-02. Фантомные «регрессии» в процессе = стейл-jar в run/mods (см. [[feedback-addon-runclient-command]]). Знак ringZ подтверждён практикой (хват-зоны совпали с видимыми кольцами). Открыто: тюнинг толщин хватов по желанию, point light (юзер не уверен, что нужно), model block панель (тоже GizmoViewport — при желании тот же приём), порт-ветки 1.21.x.
