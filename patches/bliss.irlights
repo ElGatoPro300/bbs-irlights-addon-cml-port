@@ -34,6 +34,11 @@
 #define IRLITE_VL_TIP_BOOST 1.5 // [0.0 0.5 1.0 1.5 2.0 3.0 4.0]
 #define IRLITE_VL_TIP_RADIUS 1.5 // [0.5 0.75 1.0 1.5 2.0 3.0 4.0]
 #define IRLITE_VL_MAX_DIST 96.0 // [32.0 64.0 96.0 128.0 192.0 256.0]
+#define IRLITE_VL_NOISE                    // animated 3D density noise - breaks the uniform beam into drifting puffs
+#define IRLITE_VL_NOISE_AMOUNT 0.6 // [0.2 0.4 0.6 0.8 1.0]
+#define IRLITE_VL_NOISE_SCALE 2.0 // [0.5 1.0 1.5 2.0 3.0 4.0 6.0]
+#define IRLITE_VL_NOISE_SPEED 0.25 // [0.0 0.25 0.5 1.0 1.5 2.0 3.0]
+#define IRLITE_VL_NOISE_STRIDE 1 // [1 2 3 4]
 
 //#define IRLITE_TOON
 #define IRLITE_TOON_BANDS 3 // [2 3 4 5 6 8]
@@ -679,6 +684,31 @@ float irlite_phaseHG(float cosTheta, float g)
     return (1.0 / (4.0 * IRLITE_PI)) * (1.0 - gg) / (denom * sqrt(max(denom, 1e-6)));
 }
 
+#ifdef IRLITE_VL_NOISE
+// Pseudo-3D value noise from noisetex z-slices; .a = the pack's per-texel white-noise channel (512px, texel = SCALE blocks).
+float irlite_noise3D(vec3 p)
+{
+    p.z = fract(p.z) * 128.0;
+    float iz = floor(p.z);
+    float fz = p.z - iz;
+    vec2 offA = vec2(23.0, 29.0) * iz / 128.0;
+    vec2 offB = vec2(23.0, 29.0) * (iz + 1.0) / 128.0;
+    float a = texture2D(noisetex, p.xy + offA).a;
+    float b = texture2D(noisetex, p.xy + offB).a;
+    return mix(a, b, fz);
+}
+
+// 2-octave fBm; w2 = octave-2 weight, faded per light when the march step undersamples it (anti-shimmer).
+float irlite_vlNoise(vec3 worldP, float w2)
+{
+    // wind in WHOLE field periods per frameTimeCounter wrap (3600 s): SPEED slider is a multiple of 0.25 and the period vectors of 4, so the hourly reset lands seamlessly.
+    vec3 wind = frameTimeCounter * (IRLITE_VL_NOISE_SPEED / 3600.0) * vec3(12.0, 4.0, 8.0);
+    vec3 p = worldP / (512.0 * IRLITE_VL_NOISE_SCALE);
+    return (1.0 - w2) * irlite_noise3D(p + wind)
+         + w2 * irlite_noise3D(p * 2.53 + wind * 2.0 + vec3(0.31, 0.53, 0.47));
+}
+#endif
+
 // Ray vs finite cone intersection; returns [near, far] t-interval or vec2(-1) on miss.
 vec2 irlite_rayCone(vec3 rO, vec3 rD, vec3 apex, vec3 axis, float cosHalfAngle, float height)
 {
@@ -868,6 +898,10 @@ vec3 irlite_volumetric(vec3 startWorld, vec3 endWorld, vec3 worldDir, float dith
         // Beer-Lambert step transmittance (hoisted; constant for fixed stepLen).
         float absorption = exp(-extinction * stepLen);
         float oneMinusAbsorption = 1.0 - absorption;
+        #ifdef IRLITE_VL_NOISE
+            // octave-2 feature is SCALE/2.53 blocks; fade it out once stepLen can no longer resolve it.
+            float noiseW2 = 0.35 * clamp(IRLITE_VL_NOISE_SCALE / (2.53 * stepLen), 0.0, 1.0);
+        #endif
 
         #ifdef IRLITE_COMPILE_SHADOWS
             // Per-light shadow constants hoisted out of the march.
@@ -894,6 +928,9 @@ vec3 irlite_volumetric(vec3 startWorld, vec3 endWorld, vec3 worldDir, float dith
         vec3 acc = vec3(0.0);
         #ifdef IRLITE_COMPILE_SHADOWS
             float shadowVis = 1.0;   // cached across strided steps
+        #endif
+        #ifdef IRLITE_VL_NOISE
+            float noiseVal = 0.5;    // cached across strided steps (0.5 = neutral fBm mean)
         #endif
 
         for (int s = 0; s < steps; s++, pos += stepV)
@@ -948,6 +985,20 @@ vec3 irlite_volumetric(vec3 startWorld, vec3 endWorld, vec3 worldDir, float dith
             #endif
 
             float inscatter = atten * visibility * phase * lightT * tipGlow;
+            #ifdef IRLITE_VL_NOISE
+                // world-anchored puffs; 2*mean(fBm)~1 keeps the average beam brightness, skipped on dead steps.
+                if (inscatter > 1e-5)
+                {
+                    // Tap every IRLITE_VL_NOISE_STRIDE steps, reuse the cached value between.
+                    #if IRLITE_VL_NOISE_STRIDE > 1
+                    if (s % IRLITE_VL_NOISE_STRIDE == 0)
+                    #endif
+                    {
+                        noiseVal = irlite_vlNoise(startWorld + pos, noiseW2);
+                    }
+                    inscatter *= mix(1.0, 2.0 * noiseVal, IRLITE_VL_NOISE_AMOUNT);
+                }
+            #endif
 
             acc += lightCol * inscatter * oneMinusAbsorption * transmittance;
             transmittance *= absorption;
@@ -1137,7 +1188,7 @@ after "        screen.selection_box_outline = SELECT_BOX SELECT_BOX_COL_R SELECT
         screen.IRLITE_SHADOW_SCREEN = IRLITE_SHADOWS IRLITE_SHADOW_QUALITY IRLITE_SHADOW_SIZE IRLITE_SHADOW_BIAS IRLITE_SHADOW_NORMAL_OFFSET
 
         screen.IRLITE_VL_SCREEN.columns = 1
-        screen.IRLITE_VL_SCREEN = IRLITE_VOLUMETRIC IRLITE_VL_INTENSITY IRLITE_VL_STEPS IRLITE_VL_MAX_DIST <empty> IRLITE_VL_SHADOWS IRLITE_VL_SHADOW_STRIDE <empty> IRLITE_VL_TIP_BOOST IRLITE_VL_TIP_RADIUS
+        screen.IRLITE_VL_SCREEN = IRLITE_VOLUMETRIC IRLITE_VL_INTENSITY IRLITE_VL_STEPS IRLITE_VL_MAX_DIST <empty> IRLITE_VL_SHADOWS IRLITE_VL_SHADOW_STRIDE <empty> IRLITE_VL_TIP_BOOST IRLITE_VL_TIP_RADIUS <empty> <empty> IRLITE_VL_NOISE IRLITE_VL_NOISE_AMOUNT IRLITE_VL_NOISE_SCALE IRLITE_VL_NOISE_SPEED IRLITE_VL_NOISE_STRIDE
 
         screen.IRLITE_TOON_SCREEN.columns = 1
         screen.IRLITE_TOON_SCREEN = IRLITE_TOON IRLITE_TOON_BANDS IRLITE_TOON_SMOOTH
@@ -1147,7 +1198,7 @@ after "        screen.selection_box_outline = SELECT_BOX SELECT_BOX_COL_R SELECT
 >>>
 replace "LPV_SATURATION LPV_TINT_SATURATION LPV_NORMAL_STRENGTH"
 <<<
-LPV_SATURATION LPV_TINT_SATURATION LPV_NORMAL_STRENGTH IRLITE_INTENSITY IRLITE_SPECULAR_INTENSITY IRLITE_SPECULAR_SMOOTHNESS IRLITE_SHADOW_QUALITY IRLITE_SHADOW_SIZE IRLITE_SHADOW_BIAS IRLITE_SHADOW_NORMAL_OFFSET IRLITE_VL_SHADOW_STRIDE IRLITE_VL_INTENSITY IRLITE_VL_STEPS IRLITE_VL_TIP_BOOST IRLITE_VL_TIP_RADIUS IRLITE_VL_MAX_DIST IRLITE_TOON_BANDS IRLITE_TOON_SMOOTH IRLITE_OUTLINE_TARGET IRLITE_OUTLINE_PIXEL_SIZE IRLITE_OUTLINE_STRENGTH IRLITE_OUTLINE_FRESNEL_POWER IRLITE_OUTLINE_BACK IRLITE_OUTLINE_FRONT_STRENGTH IRLITE_OUTLINE_GLOW_STRENGTH
+LPV_SATURATION LPV_TINT_SATURATION LPV_NORMAL_STRENGTH IRLITE_INTENSITY IRLITE_SPECULAR_INTENSITY IRLITE_SPECULAR_SMOOTHNESS IRLITE_SHADOW_QUALITY IRLITE_SHADOW_SIZE IRLITE_SHADOW_BIAS IRLITE_SHADOW_NORMAL_OFFSET IRLITE_VL_SHADOW_STRIDE IRLITE_VL_INTENSITY IRLITE_VL_STEPS IRLITE_VL_TIP_BOOST IRLITE_VL_TIP_RADIUS IRLITE_VL_MAX_DIST IRLITE_VL_NOISE_AMOUNT IRLITE_VL_NOISE_SCALE IRLITE_VL_NOISE_SPEED IRLITE_VL_NOISE_STRIDE IRLITE_TOON_BANDS IRLITE_TOON_SMOOTH IRLITE_OUTLINE_TARGET IRLITE_OUTLINE_PIXEL_SIZE IRLITE_OUTLINE_STRENGTH IRLITE_OUTLINE_FRESNEL_POWER IRLITE_OUTLINE_BACK IRLITE_OUTLINE_FRONT_STRENGTH IRLITE_OUTLINE_GLOW_STRENGTH
 >>>
 
 # --- option labels + tooltips (English) ---
@@ -1202,6 +1253,16 @@ option.IRLITE_VL_SHADOW_STRIDE = §dVL Shadow Stride§r
 option.IRLITE_VL_SHADOW_STRIDE.comment = Tap the shadow map every Nth march step and reuse it in between. Higher = faster, slightly coarser beams.
 option.IRLITE_VL_TIP_BOOST = §dTip Glow Boost§r
 option.IRLITE_VL_TIP_RADIUS = §dTip Glow Radius§r
+option.IRLITE_VL_NOISE = §dVL Noise§r
+option.IRLITE_VL_NOISE.comment = Animated 3D density noise - breaks the uniform beam into drifting puffs of dust and haze.
+option.IRLITE_VL_NOISE_AMOUNT = §dNoise Amount§r
+option.IRLITE_VL_NOISE_AMOUNT.comment = How strongly the noise modulates the beam. Average brightness is preserved.
+option.IRLITE_VL_NOISE_SCALE = §dNoise Scale§r
+option.IRLITE_VL_NOISE_SCALE.comment = Approximate puff size, in blocks.
+option.IRLITE_VL_NOISE_SPEED = §dNoise Drift Speed§r
+option.IRLITE_VL_NOISE_SPEED.comment = How fast the puffs drift through the beam. 0 = static.
+option.IRLITE_VL_NOISE_STRIDE = §dNoise Tap Stride§r
+option.IRLITE_VL_NOISE_STRIDE.comment = Tap the noise every Nth march step and reuse it in between. Higher = faster; may band without TAA.
 
 option.IRLITE_TOON = §aToon Shading§r
 option.IRLITE_TOON.comment = Quantize the IRLite diffuse into bands - a cel look.
@@ -1290,6 +1351,16 @@ option.IRLITE_VL_SHADOW_STRIDE = §dШаг тени в марше§r
 option.IRLITE_VL_SHADOW_STRIDE.comment = Тень сэмплируется каждый N-й шаг марша, между ними переиспользуется. Больше = быстрее, чуть грубее лучи.
 option.IRLITE_VL_TIP_BOOST = §dСвечение у лампы§r
 option.IRLITE_VL_TIP_RADIUS = §dРадиус свечения§r
+option.IRLITE_VL_NOISE = §dШум луча§r
+option.IRLITE_VL_NOISE.comment = Анимированный 3D-шум плотности - разбивает ровный конус на плывущие клубы пыли.
+option.IRLITE_VL_NOISE_AMOUNT = §dСила шума§r
+option.IRLITE_VL_NOISE_AMOUNT.comment = Насколько сильно шум модулирует луч. Средняя яркость сохраняется.
+option.IRLITE_VL_NOISE_SCALE = §dМасштаб шума§r
+option.IRLITE_VL_NOISE_SCALE.comment = Примерный размер клубов, в блоках.
+option.IRLITE_VL_NOISE_SPEED = §dСкорость дрейфа§r
+option.IRLITE_VL_NOISE_SPEED.comment = Скорость дрейфа клубов сквозь луч. 0 = статично.
+option.IRLITE_VL_NOISE_STRIDE = §dШаг шумовых тапов§r
+option.IRLITE_VL_NOISE_STRIDE.comment = Тап шума каждый N-й шаг марша, между ними переиспользуется. Больше = быстрее; без TAA возможны полосы.
 
 option.IRLITE_TOON = §aТун-шейдинг§r
 option.IRLITE_TOON.comment = Квантование диффуза IRLite в полосы - cel-look.
