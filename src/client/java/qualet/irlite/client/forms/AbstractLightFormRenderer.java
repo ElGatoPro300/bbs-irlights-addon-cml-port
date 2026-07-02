@@ -89,8 +89,22 @@ public abstract class AbstractLightFormRenderer<T extends Form> extends FormRend
             return;
         }
 
+        /* Editor-preview stencil pass: register interactive guide handles
+         * BEFORE the pick box so each grabs its own stencil ID (draw with
+         * Target = objectIndex, then addPicking assigns it and increments;
+         * the box below then lands on the next free ID, which the outer
+         * FormRenderer.render() maps to the whole form via updateStencilMap). */
+        if (context.modelRenderer && context.stencilMap.increment)
+        {
+            this.renderStencilHandles(context);
+        }
+
         this.renderPickBox(context);
     }
+
+    /** Override to add draggable guide handles to the editor-preview picking pass. */
+    protected void renderStencilHandles(FormRenderingContext context)
+    {}
 
     private Color tintedColor(FormRenderingContext context)
     {

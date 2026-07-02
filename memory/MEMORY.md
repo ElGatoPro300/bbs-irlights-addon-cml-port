@@ -20,8 +20,8 @@
 - [project-shadow-bake-perf-audit](project-shadow-bake-perf-audit.md) — ЕДИНСТВЕННЫЙ живой док перфа бейка (канон-таксономия; план-файлы в `_archive/`). Все Tier-1/2 done на всех линиях; открыт только C10 per-face block-cull (~320ms спайк).
 - [addon-shadows](addon-shadows.md) — референс бейк-движка (ShadowBaker/Renderer, пресеты LOW–ULTRA, кэш, cull, spot-атлас+point cube-array) + 2 open-issue (anim-token freeze, occluder-32).
 - [fix-shadow-depthstate-repin](fix-shadow-depthstate-repin.md) — MAJOR-A (ре-пин depth/blend/матриц перед каждым emit) + MAJOR-B (feet-pivot AABB->сфера); GL-диаг glGetBoolean.
-- [shadow-distance-quality-plan](shadow-distance-quality-plan.md) — качество теней на дали (Ф1-2 done в шейдере, Ф3 open) + known-open «зернистый квадрат» Softness (подозрение = бейк, не PCSS).
-- [plan-shadow-filtering-refactor](plan-shadow-filtering-refactor.md) — рефакторинг фильтрации теней: Ф0 GLSL-гигиена РЕАЛИЗОВАНА в Photon-инжекте (2026-07-01, ревью 0 блокеров; ждёт in-world + тираж на 6 паков) -> Ф1 пирамидный PCSS -> Ф2 EVSM/MSM по замеру; исследование+отчёты в `_archive/shadow-refactor-research-2026-07-01/`.
+- [shadow-distance-quality-plan](shadow-distance-quality-plan.md) — качество теней на дали (Ф1-2 done в шейдере, Ф3 open) + known-open «зернистый квадрат» Softness (диагноз найден 2026-07-02 -> point-shadow-square-root-cause).
+- [project-point-shadow-square-root-cause](project-point-shadow-square-root-cause.md) — сравнение с IRLEngine (2026-07-02): корень «зернистого квадрата» = дефолт разрешения point 512 vs 1024 (D1); cull/polygon-offset/кодировка/биндинг исключены; сэмплинг-дельты = усилители; эксперименты E1-E4 open.
 
 ### Порты / редактор / движок / интеграции
 - [project-port-1211](project-port-1211.md) — порт 1.20.4->1.21.11 (продакшн, in-world PASS) + дельты 1.21.1/1.21.4 + карта API 1.21.x; 1.21.11 тени = реал-модели через capture-queue.
@@ -51,6 +51,7 @@
 - [addon-light-collection](addon-light-collection.md) — сбор света за кадр: SCANNER (ModelBlock) vs RENDER (актёры/реплеи), дедуп; MAX_LIGHTS=2048.
 - [fix-bone-attached-light-deadzone](fix-bone-attached-light-deadzone.md) — свет на кости (BodyPart.bone) не регал НИ scanner НИ render-path (мёртвая зона на стыке владения); фикс master: render-path забирает bone-свет всегда (form.getParent() instanceof BodyPart).
 - [addon-ui-config](addon-ui-config.md) — UI+конфиг IRLite на BBS: IrliteConfig, BBSSettings-категории, L10nMixin, in-world гайды, form-editor панели.
+- [plan-interactive-spot-guides](plan-interactive-spot-guides.md) — интерактивные гайды спота в превью редактора форм (drag кольца=radius/inner, диск торца=range) через стенсил-пикинг BBS + миксин UIPickableFormRenderer; in-game PASS 2026-07-02; open: Ф2 in-world, тюнинг толщин, коммит.
 - [project-refactor-origin](project-refactor-origin.md) — IRLite = рефактор IRLEngine (uniform->std430 SSBO binding7 + anchor-патчер); IRLEngine = только поведенч. референс.
 - [commit-checkpoints](commit-checkpoints.md) — (feedback) коммитить только в чекпоинты, ждать подтверждения, не авто-коммит; gitignore shaders/->git add -f.
 - [feedback-addon-runclient-command](feedback-addon-runclient-command.md) — (feedback) рантайм аддона ВСЕГДА runClient -Pmc=1.20.4 (лог run/runclient-console.log, в фоне); Prism-деплой НЕ используется; в PowerShell квотить '-Pmc=1.20.4'.
@@ -60,9 +61,10 @@
 - [addon-light-buffer-ssbo](addon-light-buffer-ssbo.md) — std430-контракт LightBuffer: SSBO binding7, header 16B + 6×vec4/96б (incl. cookie); MAX_LIGHTS=2048; инжект-GLSL зеркалит байт-в-байт.
 
 ## Шейдер-инжект — общие контракты
+- [plan-lens-flare](plan-lens-flare.md) — PLAN-only lens flare для IRL-источников: каркас BSL-композита + тинт цветом лампы + окклюжн/фейд из старого ir_lens_flare.glsl; единый блоб как VL; open: SSBO-слот (реком. 7-й vec4).
 - [shader-irlite-glsl](shader-irlite-glsl.md) — контракт irlite_lights.glsl: struct IrliteLight (6×vec4 incl. cookie), #define-опции, per-light математика (Frostbite falloff, спот-конус, lightMask).
 - [shader-shadow-sampling](shader-shadow-sampling.md) — GLSL-чтение теней: spot 2D-атлас + point cube-array, PCSS, normal-offset bias. Гард: vlParams.w<0 ДО int().
-- [shader-volumetric](shader-volumetric.md) — GLSL-волюметрика: single-scatter Beer-Lambert ray-march, Хеньи-Гринштейн. VL-тени пока только Photon.
+- [shader-volumetric](shader-volumetric.md) — GLSL-волюметрика: single-scatter Beer-Lambert ray-march, Хеньи-Гринштейн. VL-тени пока только Photon; VL-noise (клубы, 2026-07-02) done+PASS на Complementary Modification, НА ПАУЗЕ: порт в 5 паков + реген complementary-патча open.
 - [shader-settings](shader-settings.md) — инъекция настроек в Iris UI (shaders.properties+lang). Гоча: boolean #define виден только при голом #ifdef X.
 - [addon-iris-integration](addon-iris-integration.md) — (ref) 2 миксина (remap=false) биндят тени: ProgramSamplersBuilderMixin + SamplerBindingCubeArrayMixin.
 - [ref-irlengine-photon-patch](ref-irlengine-photon-patch.md) — (ref) старый IRLEngine->Photon как образец математики; reuse, но adapt uniform->SSBO + re-verify якоря (version drift).

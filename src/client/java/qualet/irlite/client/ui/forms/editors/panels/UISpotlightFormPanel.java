@@ -12,6 +12,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.utils.colors.Color;
+import qualet.irlite.client.forms.SpotGuideDrag;
 import qualet.irlite.forms.SpotlightForm;
 
 public class UISpotlightFormPanel extends UIFormPanel<SpotlightForm>
@@ -116,10 +117,25 @@ public class UISpotlightFormPanel extends UIFormPanel<SpotlightForm>
         );
     }
 
+    /** Live-sync of the shape trackpads while a guide handle is dragged in the viewport. */
+    public void syncLightShape(SpotlightForm form)
+    {
+        if (this.form != form)
+        {
+            return;
+        }
+
+        this.range.setValue(form.range.get());
+        this.radius.setValue(form.radius.get());
+        this.innerRadius.setValue(form.innerRadius.get());
+    }
+
     @Override
     public void startEdit(SpotlightForm form)
     {
         super.startEdit(form);
+
+        SpotGuideDrag.bindPanel(this);
 
         this.color.setColor(form.color.get().getARGBColor());
         this.intensity.setValue(form.intensity.get());
