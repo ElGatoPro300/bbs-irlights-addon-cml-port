@@ -14,7 +14,7 @@
 #define IRLITE_SHADOW_QUALITY 2 // [0 1 2 3 4]
 #define IRLITE_SHADOW_SIZE 0.10 // [0.0 0.02 0.05 0.10 0.20 0.40 0.80]
 #define IRLITE_SHADOW_BIAS 0.05 // [0.0 0.01 0.02 0.05 0.10 0.20 0.40]
-#define IRLITE_SHADOW_NORMAL_OFFSET 0.05 // [0.0 0.02 0.05 0.10 0.15 0.25 0.40]
+#define IRLITE_SHADOW_NORMAL_OFFSET 0.05   // receiver normal-offset bias (world units); internal, not on the settings screen
 
 // F0 sampling-refactor toggles (compile-time, not in the settings screen; comment one out to A/B against the legacy path)
 //#define IRLITE_SHADOW_IGN               // interleaved gradient noise rotation; OFF by user preference — the sin-hash "film grain" look reads better than IGN's ordered weave (2026-07-02)
@@ -31,11 +31,10 @@
 // F2a/F2b: EVSM prefilter (irl-core Spot/PointShadowEvsm; REQUIRES a matching irl-core build)
 #define IRLITE_SHADOW_PREFILTER           // wide penumbra = 1 trilinear Chebyshev fetch instead of the PCF loop (spot atlas + point cube)
 #define IRLITE_PREFILTER_MIN_PEN 3.0      // penumbra (depth texels) where the EVSM blend starts (full EVSM at 1.5x this); lowered 4->3: the noise-free branch takes over earlier
-#define IRLITE_EVSM_BLEED 0.10 // [0.0 0.05 0.1 0.2 0.35]
-#define IRLITE_EVSM_BLEED_POINT 0.10 // [0.0 0.05 0.1 0.18 0.25] point-only linstep on the MSM result; MSM bleeds far less than Chebyshev, 0.25 was the EVSM-era crutch
+#define IRLITE_EVSM_BLEED 0.10   // spot EVSM light-bleed reduction (Chebyshev linstep floor); point uses IRLITE_EVSM_BLEED_POINT
+#define IRLITE_EVSM_BLEED_POINT 0.10   // point-only linstep on the MSM result; MSM bleeds far less than Chebyshev, 0.25 was the EVSM-era crutch
 #define IRLITE_MSM_DEPTH_BIAS 3.0e-4 // linear-depth bias for the Hamburger receiver (fraction of far-near; anti self-shadow)
-#define IRLITE_MSM_MOMENT_BIAS 1.0e-4 // [3.0e-7 3.0e-5 1.0e-4 3.0e-4 1.0e-3] Hamburger moment bias: up = kills acne rings, down = crisper bimodal overlap
-#define IRLITE_POINT_DEBUG 0 // [0 1 2 3] seam-band diag: 1 fixed penumbra (bypass search), 2 show penumbra, 3 show lod
+#define IRLITE_MSM_MOMENT_BIAS 1.0e-4   // Hamburger moment bias: up = kills acne rings, down = crisper bimodal overlap
 
 #define IRLITE_COOKIE                     // spot projected mask (gobo): white passes, black blocks
 
@@ -46,6 +45,11 @@
 #define IRLITE_VL_TIP_BOOST 1.5 // [0.0 0.5 1.0 1.5 2.0 3.0 4.0]
 #define IRLITE_VL_TIP_RADIUS 1.5 // [0.5 0.75 1.0 1.5 2.0 3.0 4.0]
 #define IRLITE_VL_MAX_DIST 96.0 // [32.0 64.0 96.0 128.0 192.0 256.0]
+#define IRLITE_VL_NOISE                    // animated 3D density noise - breaks the uniform beam into drifting puffs
+#define IRLITE_VL_NOISE_AMOUNT 0.6 // [0.2 0.4 0.6 0.8 1.0]
+#define IRLITE_VL_NOISE_SCALE 2.0 // [0.5 1.0 1.5 2.0 3.0 4.0 6.0]
+#define IRLITE_VL_NOISE_SPEED 0.25 // [0.0 0.25 0.5 1.0 1.5 2.0 3.0]
+#define IRLITE_VL_NOISE_STRIDE 1 // [1 2 3 4]
 
 //#define IRLITE_TOON
 #define IRLITE_TOON_BANDS 3 // [2 3 4 5 6 8]
@@ -700,18 +704,10 @@ float irlite_pointShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fa
     float minPen = 1.5 * texelWorld;
     float penumbra = max(penumbraPhys, minPen);
 
-#if IRLITE_POINT_DEBUG == 1
-    penumbra = max(lightSize, minPen);   // uniform footprint: lines still here => fetch/moments side; gone => search/penumbra side
-#elif IRLITE_POINT_DEBUG == 2
-    return clamp(penumbra / max(lightSize, 1e-4), 0.0, 1.0);   // penumbra map as brightness
-#endif
-
     #ifdef IRLITE_SHADOW_PREFILTER
     // Wide penumbra: one trilinear Hamburger-MSM fetch through the CUBE_MAP_ARRAY texture
     // view — seamless cubemap filtering crosses face edges in hardware at every mip, so no
     // face-uv math, clamp margins or neighbour blending is needed on the sampling side.
-    float irlPreVisP = -1.0;
-    float irlPreWP = 0.0;
     {
         float penTexP = penumbra / texelWorld;
         float evsmResP = float(textureSize(irl_pointEvsm, 0).x);
@@ -722,9 +718,6 @@ float irlite_pointShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fa
         if (evsmResP * 2.0 == faceRes)   // size gate: matching irl-core build
         {
             float lodP = clamp(log2(penTexP * 0.25), 0.0, float(findMSB(int(faceRes)) - 1));
-#if IRLITE_POINT_DEBUG == 3
-            return lodP / 8.0;   // lod map as brightness
-#endif
             {
                 vec4 mm = textureLod(irl_pointEvsm, vec4(dir, float(layer)), lodP);
                 if (mm.z < 0.0)   // validity: the third MSM moment is stored NEGATED (the point pyramid/foreign textures read back >= 0 — size gate alone is blind to them)
@@ -759,11 +752,7 @@ float irlite_pointShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fa
     for (int i = 0; i < pcfN; i++)
     {
         #ifdef IRLITE_SHADOW_EARLY_OUT
-            #ifdef IRLITE_SHADOW_PREFILTER
-                if (irlPreVisP < 0.0 && i == 4 && (sum <= 1e-3 || sum >= 4.0 - 1e-3)) return sum * 0.25;   // probe disabled in the blend zone
-            #else
-                if (i == 4 && (sum <= 1e-3 || sum >= 4.0 - 1e-3)) return sum * 0.25;   // fully shadowed / fully lit after the first 4 probe taps
-            #endif
+            if (i == 4 && (sum <= 1e-3 || sum >= 4.0 - 1e-3)) return sum * 0.25;   // fully shadowed / fully lit after the first 4 probe taps
         #endif
         int t = (i * perm) % pcfN;   // permutation spreads the 4 probe taps across the disk radius; full-loop sum unchanged (bijection)
         vec2 off = irlite_vogel(t, pcfN, phiPcf) * penumbra;
@@ -780,9 +769,6 @@ float irlite_pointShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fa
         // when the physical penumbra is below the texel floor, sharpen the anti-aliased edge back (Photon linear_step pattern)
         float sharpen = 0.4 * max((minPen - penumbraPhys) / max(minPen, 1e-6), 0.0);   // 1e-6 guard: minPen -> 0 when fragWorld == lp
         shadow = clamp((shadow - sharpen) / max(1.0 - 2.0 * sharpen, 1e-4), 0.0, 1.0);
-    #endif
-    #ifdef IRLITE_SHADOW_PREFILTER
-        if (irlPreVisP >= 0.0) shadow = mix(shadow, irlPreVisP, irlPreWP);   // seam-free branch transition
     #endif
     return shadow;
 #else
@@ -967,6 +953,31 @@ float irlite_phaseHG(float cosTheta, float g)
     float denom = 1.0 + gg - 2.0 * g * cosTheta;
     return (1.0 / (4.0 * IRLITE_PI)) * (1.0 - gg) / (denom * sqrt(max(denom, 1e-6)));
 }
+
+#ifdef IRLITE_VL_NOISE
+// Pseudo-3D value noise from noisetex z-slices; .b = the pack's per-texel white-noise channel (512px, texel = SCALE blocks).
+float irlite_noise3D(vec3 p)
+{
+    p.z = fract(p.z) * 128.0;
+    float iz = floor(p.z);
+    float fz = p.z - iz;
+    vec2 offA = vec2(23.0, 29.0) * iz / 128.0;
+    vec2 offB = vec2(23.0, 29.0) * (iz + 1.0) / 128.0;
+    float a = textureLod(noisetex, p.xy + offA, 0.0).b;
+    float b = textureLod(noisetex, p.xy + offB, 0.0).b;
+    return mix(a, b, fz);
+}
+
+// 2-octave fBm; w2 = octave-2 weight, faded per light when the march step undersamples it (anti-shimmer).
+float irlite_vlNoise(vec3 worldP, float w2)
+{
+    // wind in WHOLE field periods per frameTimeCounter wrap (3600 s): SPEED slider is a multiple of 0.25 and the period vectors of 4, so the hourly reset lands seamlessly.
+    vec3 wind = frameTimeCounter * (IRLITE_VL_NOISE_SPEED / 3600.0) * vec3(12.0, 4.0, 8.0);
+    vec3 p = worldP / (512.0 * IRLITE_VL_NOISE_SCALE);
+    return (1.0 - w2) * irlite_noise3D(p + wind)
+         + w2 * irlite_noise3D(p * 2.53 + wind * 2.0 + vec3(0.31, 0.53, 0.47));
+}
+#endif
 
 // Ray vs finite cone; returns [near,far] t-interval inside the cone, or vec2(-1) on miss.
 vec2 irlite_rayCone(vec3 rO, vec3 rD, vec3 apex, vec3 axis, float cosHalfAngle, float height)
@@ -1155,6 +1166,10 @@ vec3 irlite_volumetric(vec3 startWorld, vec3 endWorld, vec3 worldDir, float dith
         // Beer-Lambert absorption per step (constant for fixed stepLen), hoisted.
         float absorption = exp(-extinction * stepLen);
         float oneMinusAbsorption = 1.0 - absorption;
+        #ifdef IRLITE_VL_NOISE
+            // octave-2 feature is SCALE/2.53 blocks; fade it out once stepLen can no longer resolve it.
+            float noiseW2 = 0.35 * clamp(IRLITE_VL_NOISE_SCALE / (2.53 * stepLen), 0.0, 1.0);
+        #endif
 
         #ifdef IRLITE_VL_SHADOWS
             // Per-light shadow constants hoisted before the march.
@@ -1187,6 +1202,9 @@ vec3 irlite_volumetric(vec3 startWorld, vec3 endWorld, vec3 worldDir, float dith
             #if IRLITE_VL_SHADOW_STRIDE > 1
                 int shadowTaps = 0;  // counts steps that REACH the shadow block — skipped steps must not eat stride slots
             #endif
+        #endif
+        #ifdef IRLITE_VL_NOISE
+            float noiseVal = 0.5;    // cached across strided steps (0.5 = neutral fBm mean)
         #endif
 
         for (int s = 0; s < steps; s++, pos += stepV)
@@ -1241,6 +1259,20 @@ vec3 irlite_volumetric(vec3 startWorld, vec3 endWorld, vec3 worldDir, float dith
             #endif
 
             float inscatter = atten * visibility * phase * lightT * tipGlow;
+            #ifdef IRLITE_VL_NOISE
+                // world-anchored puffs; 2*mean(fBm)~1 keeps the average beam brightness, skipped on dead steps.
+                if (inscatter > 1e-5)
+                {
+                    // Tap every IRLITE_VL_NOISE_STRIDE steps, reuse the cached value between.
+                    #if IRLITE_VL_NOISE_STRIDE > 1
+                    if (s % IRLITE_VL_NOISE_STRIDE == 0)
+                    #endif
+                    {
+                        noiseVal = irlite_vlNoise(startWorld + pos, noiseW2);
+                    }
+                    inscatter *= mix(1.0, 2.0 * noiseVal, IRLITE_VL_NOISE_AMOUNT);
+                }
+            #endif
 
             acc += lightCol * inscatter * oneMinusAbsorption * transmittance;
             transmittance *= absorption;
