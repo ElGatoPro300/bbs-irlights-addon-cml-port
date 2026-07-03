@@ -23,7 +23,7 @@
 #define IRLITE_SHADOW_QUALITY 2 // [0 1 2 3 4]
 #define IRLITE_SHADOW_SIZE 0.10 // [0.0 0.02 0.05 0.10 0.20 0.40 0.80]
 #define IRLITE_SHADOW_BIAS 0.05 // [0.0 0.01 0.02 0.05 0.10 0.20 0.40]
-#define IRLITE_SHADOW_NORMAL_OFFSET 0.05   // receiver normal-offset bias (world units); internal, not on the settings screen
+#define IRLITE_SHADOW_NORMAL_OFFSET 0.05 // [0.0 0.02 0.05 0.10 0.15 0.25 0.40]
 
 // F0 sampling-refactor toggles (compile-time, not in the settings screen; comment one out to A/B against the legacy path)
 //#define IRLITE_SHADOW_IGN               // interleaved gradient noise rotation; OFF by user preference — the sin-hash "film grain" look reads better than IGN's ordered weave (2026-07-02)
@@ -1402,7 +1402,7 @@ after "screen.box          = BOX_MODE BOX_LINE_WIDTH BOX_COLOR_R BOX_COLOR_G BOX
 # IRLights (point/spot lights addon) submenus
 screen.IRLIGHTS            = IRLITE_DIFFUSE IRLITE_INTENSITY <empty> <empty> [IRLIGHTS_SPECULAR] [IRLIGHTS_SHADOWS] [IRLIGHTS_TOON] [IRLIGHTS_VOLUMETRIC] [IRLIGHTS_OUTLINE] <empty>
 screen.IRLIGHTS_SPECULAR   = IRLITE_SPECULAR <empty> IRLITE_SPECULAR_INTENSITY <empty>
-screen.IRLIGHTS_SHADOWS    = IRLITE_SHADOWS IRLITE_SHADOW_QUALITY <empty> <empty> IRLITE_SHADOW_SIZE IRLITE_SHADOW_BIAS <empty> <empty>
+screen.IRLIGHTS_SHADOWS    = IRLITE_SHADOWS IRLITE_SHADOW_QUALITY <empty> <empty> IRLITE_SHADOW_SIZE IRLITE_SHADOW_BIAS IRLITE_SHADOW_NORMAL_OFFSET <empty>
 screen.IRLIGHTS_TOON       = IRLITE_TOON <empty> IRLITE_TOON_BANDS IRLITE_TOON_SMOOTH
 screen.IRLIGHTS_VOLUMETRIC = IRLITE_VOLUMETRIC IRLITE_VL_INTENSITY IRLITE_VL_STEPS IRLITE_VL_MAX_DIST <empty> <empty> IRLITE_VL_SHADOWS IRLITE_VL_SHADOW_STRIDE IRLITE_VL_TIP_BOOST IRLITE_VL_TIP_RADIUS <empty> <empty> IRLITE_VL_NOISE IRLITE_VL_NOISE_AMOUNT IRLITE_VL_NOISE_SCALE IRLITE_VL_NOISE_SPEED IRLITE_VL_NOISE_STRIDE <empty>
 screen.IRLIGHTS_OUTLINE    = IRLITE_OUTLINE IRLITE_OUTLINE_TARGET <empty> <empty> IRLITE_OUTLINE_STRENGTH IRLITE_OUTLINE_PIXEL_SIZE IRLITE_OUTLINE_FRESNEL_POWER <empty> <empty> <empty> IRLITE_OUTLINE_BACK <empty> IRLITE_OUTLINE_FRONT IRLITE_OUTLINE_FRONT_STRENGTH IRLITE_OUTLINE_GLOW IRLITE_OUTLINE_GLOW_STRENGTH
@@ -1410,7 +1410,7 @@ screen.IRLIGHTS_OUTLINE    = IRLITE_OUTLINE IRLITE_OUTLINE_TARGET <empty> <empty
 
 replace "DH_OVERDRAW_FADE_LENGTH SHADOW_SSRT_STEPS"
 <<<
-DH_OVERDRAW_FADE_LENGTH SHADOW_SSRT_STEPS IRLITE_INTENSITY IRLITE_SPECULAR_INTENSITY IRLITE_SHADOW_QUALITY IRLITE_SHADOW_SIZE IRLITE_SHADOW_BIAS IRLITE_VL_INTENSITY IRLITE_VL_STEPS IRLITE_VL_TIP_BOOST IRLITE_VL_TIP_RADIUS IRLITE_VL_MAX_DIST IRLITE_VL_SHADOW_STRIDE IRLITE_VL_NOISE_AMOUNT IRLITE_VL_NOISE_SCALE IRLITE_VL_NOISE_SPEED IRLITE_VL_NOISE_STRIDE IRLITE_TOON_BANDS IRLITE_TOON_SMOOTH IRLITE_OUTLINE_TARGET IRLITE_OUTLINE_PIXEL_SIZE IRLITE_OUTLINE_STRENGTH IRLITE_OUTLINE_FRESNEL_POWER IRLITE_OUTLINE_BACK IRLITE_OUTLINE_FRONT_STRENGTH IRLITE_OUTLINE_GLOW_STRENGTH
+DH_OVERDRAW_FADE_LENGTH SHADOW_SSRT_STEPS IRLITE_INTENSITY IRLITE_SPECULAR_INTENSITY IRLITE_SHADOW_QUALITY IRLITE_SHADOW_SIZE IRLITE_SHADOW_BIAS IRLITE_SHADOW_NORMAL_OFFSET IRLITE_VL_INTENSITY IRLITE_VL_STEPS IRLITE_VL_TIP_BOOST IRLITE_VL_TIP_RADIUS IRLITE_VL_MAX_DIST IRLITE_VL_SHADOW_STRIDE IRLITE_VL_NOISE_AMOUNT IRLITE_VL_NOISE_SCALE IRLITE_VL_NOISE_SPEED IRLITE_VL_NOISE_STRIDE IRLITE_TOON_BANDS IRLITE_TOON_SMOOTH IRLITE_OUTLINE_TARGET IRLITE_OUTLINE_PIXEL_SIZE IRLITE_OUTLINE_STRENGTH IRLITE_OUTLINE_FRESNEL_POWER IRLITE_OUTLINE_BACK IRLITE_OUTLINE_FRONT_STRENGTH IRLITE_OUTLINE_GLOW_STRENGTH
 >>>
 
 replace "iris.features.optional = CUSTOM_IMAGES ENTITY_TRANSLUCENT"
@@ -1467,6 +1467,9 @@ option.IRLITE_SHADOW_SIZE.comment = Default light source size in blocks, control
 
 option.IRLITE_SHADOW_BIAS = §3Shadow Bias
 option.IRLITE_SHADOW_BIAS.comment = Depth bias in blocks. Raise if you see shadow acne, lower if shadows detach from objects.
+
+option.IRLITE_SHADOW_NORMAL_OFFSET = §3Normal Offset
+option.IRLITE_SHADOW_NORMAL_OFFSET.comment = Receiver offset along the surface normal in blocks. Removes the staircase acne pattern without peter-panning. 0.0 disables it.
 
 option.IRLITE_VOLUMETRIC = §dVolumetric Light
 option.IRLITE_VOLUMETRIC.comment = Per-light volumetric beams (spotlights) and glow (point lights).
@@ -1603,6 +1606,9 @@ option.IRLITE_SHADOW_SIZE.comment = Размер источника света �
 
 option.IRLITE_SHADOW_BIAS = §3Сдвиг глубины
 option.IRLITE_SHADOW_BIAS.comment = Сдвиг глубины в блоках. Поднимите при «акне» теней, опустите, если тень отрывается от объекта.
+
+option.IRLITE_SHADOW_NORMAL_OFFSET = §3Сдвиг по нормали
+option.IRLITE_SHADOW_NORMAL_OFFSET.comment = Смещение приёмника вдоль нормали в блоках. Убирает лесенку-акне без отрыва теней. 0.0 — выключено.
 
 option.IRLITE_VOLUMETRIC = §dОбъёмный свет
 option.IRLITE_VOLUMETRIC.comment = Объёмные лучи (прожекторы) и свечение (точечные источники).

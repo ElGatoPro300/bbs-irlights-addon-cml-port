@@ -14,7 +14,7 @@
 #define IRLITE_SHADOW_QUALITY 2 // [0 1 2 3 4]
 #define IRLITE_SHADOW_SIZE 0.10 // [0.0 0.02 0.05 0.10 0.20 0.40 0.80]
 #define IRLITE_SHADOW_BIAS 0.05 // [0.0 0.01 0.02 0.05 0.10 0.20 0.40]
-#define IRLITE_SHADOW_NORMAL_OFFSET 0.05   // receiver normal-offset bias (world units); internal, not on the settings screen
+#define IRLITE_SHADOW_NORMAL_OFFSET 0.05 // [0.0 0.02 0.05 0.10 0.15 0.25 0.40]
 
 // F0 sampling-refactor toggles (compile-time, not in the settings screen; comment one out to A/B against the legacy path)
 //#define IRLITE_SHADOW_IGN               // interleaved gradient noise rotation; OFF by user preference — the sin-hash "film grain" look reads better than IGN's ordered weave (2026-07-02)
