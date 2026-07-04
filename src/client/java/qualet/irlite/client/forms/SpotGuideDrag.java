@@ -415,14 +415,25 @@ public final class SpotGuideDrag
 
     public static boolean isFilmSelected(Form form)
     {
+        /* Guides only in the replay editor — hide them the instant the user
+         * switches to the camera editor or the replay actions timeline, even
+         * while the mark is still fresh. */
+        if (!isReplayEditorActive())
+        {
+            return false;
+        }
+
         Form root = FormUtils.getRoot(form);
         Long mark = root == null ? null : FILM_SELECTED.get(root);
 
         return mark != null && System.currentTimeMillis() - mark < FILM_MARK_TTL_MS;
     }
 
-    /** The replay currently selected in the film editor's replays panel, if any. */
-    private static Replay selectedReplay()
+    /**
+     * The open film panel, or null when the film editor isn't the current screen.
+     * Weakly cached so the per-frame lookups don't walk the dashboard panels.
+     */
+    private static UIFilmPanel filmPanel()
     {
         UIDashboard dashboard = BBSModClient.getDashboardIfCreated();
 
@@ -439,7 +450,32 @@ public final class SpotGuideDrag
             filmPanelCache = new WeakReference<>(film);
         }
 
+        return film;
+    }
+
+    /** The replay currently selected in the film editor's replays panel, if any. */
+    private static Replay selectedReplay()
+    {
+        UIFilmPanel film = filmPanel();
+
         return film == null ? null : film.replayEditor.getReplay();
+    }
+
+    /**
+     * True only while the REPLAY editor is the active film editor and it isn't in
+     * actions mode — the sole film context where the spotlight guides and grab
+     * handles are allowed. In the camera editor, or the replay editor's actions
+     * timeline, the same replay stays selected (so BBS keeps picking it), but the
+     * guides must stay hidden and non-grabbable there.
+     */
+    public static boolean isReplayEditorActive()
+    {
+        UIFilmPanel film = filmPanel();
+
+        return film != null
+            && film.replayEditor != null
+            && film.replayEditor.isVisible()
+            && !film.replayEditor.isActionsMode();
     }
 
     public static boolean isHandle(String bone)

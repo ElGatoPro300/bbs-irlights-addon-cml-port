@@ -105,12 +105,20 @@ public abstract class AbstractLightFormRenderer<T extends Form> extends FormRend
          * its guides. */
         boolean entityPick = context.type == FormRenderType.ENTITY;
 
-        if (entityPick && context.stencilMap.increment)
+        /* Film picking — marking the selected replay and registering the grab
+         * handles — is confined to the replay editor. In the camera editor or the
+         * replay editor's actions timeline the same replay stays selected (BBS
+         * keeps rendering it with increment on), but the spotlight guides must
+         * neither show nor be grabbable there. The form-editor preview path
+         * (context.modelRenderer) is unaffected. */
+        boolean filmPick = entityPick && context.stencilMap.increment && SpotGuideDrag.isReplayEditorActive();
+
+        if (filmPick)
         {
             SpotGuideDrag.markFilmSelected(this.form);
         }
 
-        if (context.stencilMap.increment && (context.modelRenderer || entityPick))
+        if (filmPick || (context.modelRenderer && context.stencilMap.increment))
         {
             this.renderStencilHandles(context);
         }
