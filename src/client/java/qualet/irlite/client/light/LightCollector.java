@@ -30,6 +30,7 @@ import qualet.irlite.forms.PointLightForm;
 import qualet.irlite.forms.SpotlightForm;
 import qualet.irlite.mixin.client.bbs.WorldBlockEntityTickersAccessor;
 
+import org.qualet.irl.light.LightMath;
 import org.qualet.irl.light.LightRegistry;
 
 import java.util.List;
@@ -367,19 +368,12 @@ public final class LightCollector
         // Local +Z = the direction the spotlight points (matches the editor gizmo).
         Vector4f forward = new Vector4f(0F, 0F, 1F, 0F);
         matrix.transform(forward);
-        float len = (float) Math.sqrt(forward.x * forward.x + forward.y * forward.y + forward.z * forward.z);
-        float dx = 0F, dy = 0F, dz = 1F;
-        if (len > 1e-4F)
-        {
-            dx = forward.x / len;
-            dy = forward.y / len;
-            dz = forward.z / len;
-        }
+        LightMath.normalizeDir(forward.x, forward.y, forward.z, 0F, 0F, 1F, forward);
+        float dx = forward.x, dy = forward.y, dz = forward.z;
 
-        float outer = form.radius.get();
-        float inner = Math.min(form.innerRadius.get(), outer);
-        float cosOuter = (float) Math.cos(Math.toRadians(outer * 0.5F));
-        float cosInner = (float) Math.cos(Math.toRadians(inner * 0.5F));
+        LightMath.Cone cone = LightMath.cone(form.radius.get(), form.innerRadius.get());
+        float cosOuter = cone.cosOuter();
+        float cosInner = cone.cosInner();
 
         // Resolve the gobo texture (BBS Link) to its texture-array layer (loads on
         // first use, cached after); -1 = no mask, so the cookie is OFF unless a

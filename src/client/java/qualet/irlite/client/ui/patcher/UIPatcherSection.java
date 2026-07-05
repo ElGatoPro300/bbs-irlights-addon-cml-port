@@ -25,7 +25,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /** The IRLite shader patcher, rendered as controls inside the IRLite settings section. */
 public final class UIPatcherSection
@@ -170,7 +169,7 @@ public final class UIPatcherSection
             List<String> matching = new ArrayList<>();
             for (String pack : Shaderpacks.list())
             {
-                if (packMatchesTarget(pack, parsed.target))
+                if (Shaderpacks.packMatchesTarget(pack, parsed.target))
                 {
                     matching.add(pack);
                 }
@@ -194,7 +193,7 @@ public final class UIPatcherSection
                 ? "This patch is for the " + parsed.target + " shaderpack. Select it above."
                 : "Select a shaderpack above to continue.", META_COLOR);
         }
-        else if (hasTarget && !packMatchesTarget(selectedPack, parsed.target))
+        else if (hasTarget && !Shaderpacks.packMatchesTarget(selectedPack, parsed.target))
         {
             setMeta("This patch is for a different shaderpack (" + parsed.target + ").", WARN_COLOR);
         }
@@ -203,24 +202,6 @@ public final class UIPatcherSection
             setMeta("This patch is made for the " + (hasTarget ? parsed.target : selectedPack)
                 + " shaderpack.", OK_COLOR);
         }
-    }
-
-    /** "Photon_v1.2.zip" matches target "Photon": lowercase, alphanumerics only, substring. */
-    private static boolean packMatchesTarget(String pack, String target)
-    {
-        String p = norm(pack);
-        String t = norm(target);
-        return t.isEmpty() || p.contains(t);
-    }
-
-    private static String norm(String s)
-    {
-        String lower = s.toLowerCase();
-        if (lower.endsWith(".zip"))
-        {
-            lower = lower.substring(0, lower.length() - 4);
-        }
-        return lower.replaceAll("[^a-z0-9]", "");
     }
 
     /** Shared head of Validate/Patch: both need a pack, a patch and a successful parse. */
@@ -273,7 +254,7 @@ public final class UIPatcherSection
             return;
         }
 
-        String outName = outputName(selectedPack, parsed);
+        String outName = Shaderpacks.outputName(parsed, selectedPack, createNew);
         Path source = Shaderpacks.packPath(selectedPack);
         Path output = Shaderpacks.dir().resolve(outName);
         PatchResult result = IrlPatchApplier.apply(source, output, parsed);
@@ -291,35 +272,6 @@ public final class UIPatcherSection
         }
     }
 
-    private static String outputName(String packName, IrlPatch patch)
-    {
-        String base = packName;
-        if (base.toLowerCase().endsWith(".zip"))
-        {
-            base = base.substring(0, base.length() - 4);
-        }
-        base = base + "_IRLights" + (patch.dof ? "+DOF" : "");
-
-        if (!createNew)
-        {
-            return base;
-        }
-
-        if (!Files.exists(Shaderpacks.dir().resolve(base)))
-        {
-            return base;
-        }
-        for (int i = 2; i < 1000; i++)
-        {
-            String candidate = base + "_" + i;
-            if (!Files.exists(Shaderpacks.dir().resolve(candidate)))
-            {
-                return candidate;
-            }
-        }
-        return base;
-    }
-
     /** Maps the shared irl-core {@link PatchResult} into one friendly status line.
      *  The full per-op detail still goes to the {@code irlite} log; this keeps the
      *  shared engine text untouched (the user never sees the raw English summary). */
@@ -333,27 +285,25 @@ public final class UIPatcherSection
             return;
         }
 
-        String s = result.summary == null ? "" : result.summary.toLowerCase(Locale.ROOT);
         String message;
-        if (s.contains("already patched") || s.contains("already exists"))
+        switch (result.outcome)
         {
-            message = "This shaderpack already has the light. Pick the original (clean) pack.";
-        }
-        else if (s.contains("contract"))
-        {
-            message = "Patch isn't compatible with this mod version. Update the mod or the patch.";
-        }
-        else if (s.contains("not a folder or .zip") || s.contains("no shaders/"))
-        {
-            message = "Couldn't open the shaderpack. Make sure a valid pack is selected.";
-        }
-        else if (s.contains("io error"))
-        {
-            message = "File error. Close the pack in other programs and try again.";
-        }
-        else
-        {
-            message = "This patch didn't fit the selected pack, maybe it's a different version.";
+            case ALREADY_PATCHED:
+            case ADD_FILE_EXISTS:
+                message = "This shaderpack already has the light. Pick the original (clean) pack.";
+                break;
+            case CONTRACT_MISMATCH:
+                message = "Patch isn't compatible with this mod version. Update the mod or the patch.";
+                break;
+            case BAD_SOURCE:
+                message = "Couldn't open the shaderpack. Make sure a valid pack is selected.";
+                break;
+            case IO_ERROR:
+                message = "File error. Close the pack in other programs and try again.";
+                break;
+            default:
+                message = "This patch didn't fit the selected pack, maybe it's a different version.";
+                break;
         }
         setStatus(false, message);
     }

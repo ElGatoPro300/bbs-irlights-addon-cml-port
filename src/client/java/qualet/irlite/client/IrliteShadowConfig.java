@@ -14,11 +14,16 @@ import qualet.irlite.IrliteConfig;
  * where {@link ShadowConfig} is visible, and reads {@code IrliteConfig}'s static
  * getters (visible from client).
  */
-public final class IrliteShadowConfig implements ShadowConfig
+public final class IrliteShadowConfig
 {
-    @Override public int shadowQuality()     { return IrliteConfig.shadowQuality(); }
-    @Override public boolean shadowCache()   { return IrliteConfig.shadowCache(); }
-    @Override public int shadowBakeBudget()  { return IrliteConfig.shadowBakeBudget(); }
-    @Override public boolean shadowBlocks()  { return IrliteConfig.shadowBlocks(); }
-    @Override public int shadowBlockRadius() { return IrliteConfig.shadowBlockRadius(); }
+    public static final ShadowConfig INSTANCE = ShadowConfig.builder()
+            .shadowQuality(IrliteConfig::shadowQuality)
+            .shadowCache(IrliteConfig::shadowCache)
+            .shadowBakeBudget(IrliteConfig::shadowBakeBudget)
+            .shadowBlocks(IrliteConfig::shadowBlocks)
+            .shadowBlockRadius(IrliteConfig::shadowBlockRadius)
+            .build();
+
+    private IrliteShadowConfig()
+    {}
 }

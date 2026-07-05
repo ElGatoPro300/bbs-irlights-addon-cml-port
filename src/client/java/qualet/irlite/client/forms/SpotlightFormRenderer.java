@@ -11,6 +11,7 @@ import org.joml.Matrix4f;
 import org.joml.Vector3d;
 import org.joml.Vector4f;
 import qualet.irlite.client.light.IRLightPositionResolver;
+import org.qualet.irl.light.LightMath;
 import org.qualet.irl.light.LightRegistry;
 import qualet.irlite.forms.SpotlightForm;
 
@@ -78,19 +79,12 @@ public class SpotlightFormRenderer extends AbstractLightFormRenderer<SpotlightFo
         matrix.mul(context.stack.peek().getPositionMatrix());
         Vector4f forward = new Vector4f(0F, 0F, 1F, 0F);
         matrix.transform(forward);
-        float len = (float) Math.sqrt(forward.x * forward.x + forward.y * forward.y + forward.z * forward.z);
-        float dx = 0F, dy = 0F, dz = 1F;
-        if (len > 1e-4F)
-        {
-            dx = forward.x / len;
-            dy = forward.y / len;
-            dz = forward.z / len;
-        }
+        LightMath.normalizeDir(forward.x, forward.y, forward.z, 0F, 0F, 1F, forward);
+        float dx = forward.x, dy = forward.y, dz = forward.z;
 
-        float outer = this.form.radius.get();
-        float inner = Math.min(this.form.innerRadius.get(), outer);
-        float cosOuter = (float) Math.cos(Math.toRadians(outer * 0.5F));
-        float cosInner = (float) Math.cos(Math.toRadians(inner * 0.5F));
+        LightMath.Cone cone = LightMath.cone(this.form.radius.get(), this.form.innerRadius.get());
+        float cosOuter = cone.cosOuter();
+        float cosInner = cone.cosInner();
 
         Color c = this.form.color.get();
         LightRegistry.registerSpot(

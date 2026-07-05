@@ -2,23 +2,14 @@ package qualet.irlite.client.light.cookie;
 
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.resources.Link;
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL12;
-import org.lwjgl.opengl.GL13;
-import org.lwjgl.opengl.GL15;
-import org.lwjgl.opengl.GL21;
-import org.lwjgl.opengl.GL30;
 import org.lwjgl.stb.STBImage;
-import org.lwjgl.stb.STBImageResize;
-import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
+import org.qualet.irl.light.CookieArrayBase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
 import java.nio.ByteBuffer;
-import java.nio.FloatBuffer;
-import java.nio.IntBuffer;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -36,40 +27,41 @@ import java.util.Set;
  * <p>Unlike the standalone editor (which reads a config folder), the addon sources
  * pixels from BBS-managed textures: a spotlight's cookie field is a
  * {@link Link} picked with BBS's native texture picker, and {@link #resolve(Link)}
- * pulls the asset bytes via {@link BBSMod#getProvider()}. Images are resampled to
- * a fixed {@link #RES} square, single channel (R8), {@code CLAMP_TO_BORDER} black
- * so everything outside the image area is blocked (the "slide projector" look).</p>
+ * pulls the asset bytes via {@link BBSMod#getProvider()}. The array texture, the
+ * guarded upload and the STB decode/resample live in {@link CookieArrayBase}; this
+ * subclass keeps the BBS asset source plus the LRU cache.</p>
  */
-public final class CookieArray
+public final class CookieArray extends CookieArrayBase
 {
     private static final Logger LOG = LoggerFactory.getLogger("irlite");
 
     /** Per-layer square resolution; loaded images are resampled to this. */
-    public static final int RES = 512;
+    public static final int RES = CookieArrayBase.RES;
     /** Array depth: distinct cookies resident at once. When full, the least-recently-
      *  used layer is evicted and reused, so long keyframe flipbooks (image_1..image_N
      *  animated by the film's LINK interpolation) keep loading past the cap. */
     public static final int MAX_LAYERS = 32;
 
-    private static int glTextureId = 0;
-    private static boolean initialized = false;
+    private static final CookieArray INSTANCE = new CookieArray();
 
     /** link string -> array layer (successfully loaded cookies only). */
-    private static final Map<String, Integer> layerByKey = new HashMap<>();
+    private final Map<String, Integer> layerByKey = new HashMap<>();
     /** link string -> last resolve() stamp, drives LRU eviction when the array is full. */
-    private static final Map<String, Long> lastUse = new HashMap<>();
+    private final Map<String, Long> lastUse = new HashMap<>();
     /** links whose asset failed to read/decode, so a broken image isn't re-decoded every frame. */
-    private static final Set<String> failed = new HashSet<>();
-    private static long useCounter = 0;
-    private static int nextLayer = 0;
+    private final Set<String> failed = new HashSet<>();
+    private long useCounter = 0;
+    private int nextLayer = 0;
 
     private CookieArray()
-    {}
+    {
+        super(MAX_LAYERS);
+    }
 
     /** Lazy — 0 until the first cookie is uploaded (no VRAM if unused). */
     public static int getGlTextureId()
     {
-        return glTextureId;
+        return INSTANCE.textureId();
     }
 
     /** Resolve a cookie texture link to its array layer, loading on first use.
@@ -78,6 +70,11 @@ public final class CookieArray
      *  least-recently-used cookie instead of refusing, so keyframe flipbook
      *  sequences longer than {@link #MAX_LAYERS} keep animating. */
     public static int resolve(Link link)
+    {
+        return INSTANCE.resolve0(link);
+    }
+
+    private int resolve0(Link link)
     {
         if (link == null)
         {
@@ -108,7 +105,7 @@ public final class CookieArray
         try
         {
             int layer = (nextLayer < MAX_LAYERS) ? nextLayer++ : evictLru();
-            upload(pixels, layer);
+            uploadLayer(pixels, layer);
             layerByKey.put(key, layer);
             lastUse.put(key, ++useCounter);
             LOG.info("Cookie loaded '{}' -> layer {}", key, layer);
@@ -123,7 +120,7 @@ public final class CookieArray
     /** Drop the least-recently-used cookie and hand its layer to the caller. Only
      *  called with a full array, which always has (way) more layers than there are
      *  cookies used in a single frame — the evicted key is never in active use. */
-    private static int evictLru()
+    private int evictLru()
     {
         String lruKey = null;
         long lruStamp = Long.MAX_VALUE;
@@ -143,7 +140,7 @@ public final class CookieArray
 
     /** Read + decode + resample the asset to a RES*RES single-channel buffer.
      *  Returns null (and logs) on failure; the caller owns/frees the buffer. */
-    private static ByteBuffer decode(Link link, String key)
+    private ByteBuffer decode(Link link, String key)
     {
         byte[] raw;
         try (InputStream in = BBSMod.getProvider().getAsset(link))
@@ -156,127 +153,33 @@ public final class CookieArray
             return null;
         }
 
-        ByteBuffer rawBuf = MemoryUtil.memAlloc(raw.length);
-        rawBuf.put(raw).flip();
-
-        ByteBuffer img = null;
-        try (MemoryStack stack = MemoryStack.stackPush())
+        ByteBuffer pixels = CookieArrayBase.decode(raw);
+        if (pixels == null)
         {
-            IntBuffer w = stack.mallocInt(1);
-            IntBuffer h = stack.mallocInt(1);
-            IntBuffer c = stack.mallocInt(1);
-
-            img = STBImage.stbi_load_from_memory(rawBuf, w, h, c, 1);   // force 1 channel (grayscale)
-            if (img == null)
-            {
-                LOG.warn("Cookie decode failed: {} ({})", key, STBImage.stbi_failure_reason());
-                return null;
-            }
-
-            ByteBuffer resized = MemoryUtil.memAlloc(RES * RES);
-            STBImageResize.stbir_resize_uint8(img, w.get(0), h.get(0), 0, resized, RES, RES, 0, 1);
-            return resized;
+            LOG.warn("Cookie decode failed: {} ({})", key, STBImage.stbi_failure_reason());
         }
-        finally
-        {
-            if (img != null)
-            {
-                STBImage.stbi_image_free(img);
-            }
-            MemoryUtil.memFree(rawBuf);
-        }
-    }
-
-    /** Upload one RES*RES grayscale buffer into the given layer, allocating the
-     *  array on first use. Saves and restores the GL state it touches.
-     *
-     *  <p>Unlike the standalone editor, we run inside BBS / Sodium / Minecraft, which
-     *  routinely leave a {@code GL_PIXEL_UNPACK_BUFFER} (PBO) bound and the pixel-store
-     *  unpack params non-default. With a PBO bound, our client {@link ByteBuffer}
-     *  pointer is reinterpreted by the driver as an offset INTO that PBO and it reads
-     *  out of bounds — a native {@code EXCEPTION_ACCESS_VIOLATION} crash. So force a
-     *  clean, tightly-packed client-memory upload (no PBO, alignment 1, no row/skip),
-     *  then restore the prior state.</p> */
-    private static void upload(ByteBuffer pixels, int layer)
-    {
-        int prevTex = GL11.glGetInteger(GL30.GL_TEXTURE_BINDING_2D_ARRAY);
-        int prevPbo = GL11.glGetInteger(GL21.GL_PIXEL_UNPACK_BUFFER_BINDING);
-        int prevAlign = GL11.glGetInteger(GL11.GL_UNPACK_ALIGNMENT);
-        int prevRowLen = GL11.glGetInteger(GL11.GL_UNPACK_ROW_LENGTH);
-        int prevSkipRows = GL11.glGetInteger(GL11.GL_UNPACK_SKIP_ROWS);
-        int prevSkipPixels = GL11.glGetInteger(GL11.GL_UNPACK_SKIP_PIXELS);
-        int prevImgHeight = GL11.glGetInteger(GL12.GL_UNPACK_IMAGE_HEIGHT);
-        int prevSkipImages = GL11.glGetInteger(GL12.GL_UNPACK_SKIP_IMAGES);
-
-        GL15.glBindBuffer(GL21.GL_PIXEL_UNPACK_BUFFER, 0);
-        GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
-        GL11.glPixelStorei(GL11.GL_UNPACK_ROW_LENGTH, 0);
-        GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_ROWS, 0);
-        GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_PIXELS, 0);
-        GL11.glPixelStorei(GL12.GL_UNPACK_IMAGE_HEIGHT, 0);
-        GL11.glPixelStorei(GL12.GL_UNPACK_SKIP_IMAGES, 0);
-
-        if (!initialized)
-        {
-            init();
-        }
-        GL11.glBindTexture(GL30.GL_TEXTURE_2D_ARRAY, glTextureId);
-
-        GL12.glTexSubImage3D(GL30.GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, RES, RES, 1,
-            GL11.GL_RED, GL11.GL_UNSIGNED_BYTE, pixels);
-
-        GL11.glBindTexture(GL30.GL_TEXTURE_2D_ARRAY, prevTex);
-        GL15.glBindBuffer(GL21.GL_PIXEL_UNPACK_BUFFER, prevPbo);
-        GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, prevAlign);
-        GL11.glPixelStorei(GL11.GL_UNPACK_ROW_LENGTH, prevRowLen);
-        GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_ROWS, prevSkipRows);
-        GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_PIXELS, prevSkipPixels);
-        GL11.glPixelStorei(GL12.GL_UNPACK_IMAGE_HEIGHT, prevImgHeight);
-        GL11.glPixelStorei(GL12.GL_UNPACK_SKIP_IMAGES, prevSkipImages);
-    }
-
-    private static void init()
-    {
-        int prev = GL11.glGetInteger(GL30.GL_TEXTURE_BINDING_2D_ARRAY);
-        glTextureId = GL11.glGenTextures();
-        GL11.glBindTexture(GL30.GL_TEXTURE_2D_ARRAY, glTextureId);
-
-        GL12.glTexImage3D(GL30.GL_TEXTURE_2D_ARRAY, 0, GL30.GL_R8, RES, RES, MAX_LAYERS, 0,
-            GL11.GL_RED, GL11.GL_UNSIGNED_BYTE, (ByteBuffer) null);
-
-        GL11.glTexParameteri(GL30.GL_TEXTURE_2D_ARRAY, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
-        GL11.glTexParameteri(GL30.GL_TEXTURE_2D_ARRAY, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
-        GL11.glTexParameteri(GL30.GL_TEXTURE_2D_ARRAY, GL11.GL_TEXTURE_WRAP_S, GL13.GL_CLAMP_TO_BORDER);
-        GL11.glTexParameteri(GL30.GL_TEXTURE_2D_ARRAY, GL11.GL_TEXTURE_WRAP_T, GL13.GL_CLAMP_TO_BORDER);
-        try (MemoryStack stack = MemoryStack.stackPush())
-        {
-            FloatBuffer border = stack.floats(0f, 0f, 0f, 0f);   // outside the image = black = blocked
-            GL11.glTexParameterfv(GL30.GL_TEXTURE_2D_ARRAY, GL11.GL_TEXTURE_BORDER_COLOR, border);
-        }
-
-        GL11.glBindTexture(GL30.GL_TEXTURE_2D_ARRAY, prev);
-        initialized = true;
+        return pixels;
     }
 
     /** Forget all loaded cookies and free the GL texture, so a next {@link #resolve}
      *  reloads from the BBS assets (picks up an edited texture). */
     public static void reload()
     {
+        INSTANCE.reload0();
+    }
+
+    private void reload0()
+    {
         layerByKey.clear();
         lastUse.clear();
         failed.clear();
         useCounter = 0;
         nextLayer = 0;
-        delete();
+        deleteTexture();
     }
 
     public static void delete()
     {
-        if (initialized)
-        {
-            GL11.glDeleteTextures(glTextureId);
-            glTextureId = 0;
-            initialized = false;
-        }
+        INSTANCE.deleteTexture();
     }
 }
