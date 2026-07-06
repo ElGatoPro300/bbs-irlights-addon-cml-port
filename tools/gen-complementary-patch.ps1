@@ -8,7 +8,7 @@
 # Phase 5 + the VL perf-rework FOLLOW-UP (the added deferred2 pass ops).
 
 $ErrorActionPreference = "Stop"
-$repo = "C:\Users\Qualet\Documents\Project\Minecraft\BBS\IRLite"
+$repo = "C:\Users\Qualet\Documents\Project\Minecraft\BBS\bbs-irlights-addon"
 $mod  = "$repo\Shadres\Modification\ComplementaryReimagined\shaders"
 $out  = "$repo\patches\complementaryreimagined.irlights"
 
@@ -76,7 +76,7 @@ if (@($slLine).Count -ne 1) { throw "sliders line not unique" }
 $slIdx = $slLine.IndexOf('END_STAR_INTENSITY GENERATED_NORMAL_RES')
 if ($slIdx -lt 0) { throw "sliders tail anchor not found" }
 $slBody = $slLine.Substring($slIdx)
-if (-not $slBody.EndsWith('IRLITE_OUTLINE_DEPTH_THRESHOLD')) { throw "sliders body tail unexpected" }
+if (-not $slBody.EndsWith('IRLITE_OUTLINE_GLOW_STRENGTH')) { throw "sliders body tail unexpected" }
 if ($slBody -notmatch 'IRLITE_VL_SHADOW_STRIDE') { throw "sliders body missing IRLITE_VL_SHADOW_STRIDE" }
 
 $lg = Lines "$mod\lang\en_US.lang"
@@ -148,7 +148,7 @@ EmitBody $prToggles
 Emit 'after "        size.buffer.colortex7 = REFLECTION_RES REFLECTION_RES"'
 EmitBody $prSize
 Emit 'replace "VANILLAAO_I PLAYER_SHADOW"'
-EmitBody @('VANILLAAO_I PLAYER_SHADOW [IRLITE_SETTINGS]')
+EmitBody @('VANILLAAO_I PLAYER_SHADOW [IRLIGHTS]')
 Emit 'after "        screen.PIXELATED_LIGHTING_SETTINGS=<empty> <empty> PIXELATED_SHADOWS PIXELATED_BLOCKLIGHT PIXELATED_AO PIXEL_SCALE"'
 EmitBody $propsScreens
 Emit 'replace "END_STAR_INTENSITY GENERATED_NORMAL_RES"'

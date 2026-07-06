@@ -10,7 +10,7 @@
 # must be empty. See memory bliss-port-plan Phase 5.
 
 $ErrorActionPreference = "Stop"
-$repo = "C:\Users\Qualet\Documents\Project\Minecraft\BBS\IRLite"
+$repo = "C:\Users\Qualet\Documents\Project\Minecraft\BBS\bbs-irlights-addon"
 $mod  = "$repo\Shadres\Modification\Bliss\shaders"
 $pris = "$repo\Shadres\Original\Bliss\shaders"
 $out  = "$repo\patches\bliss.irlights"
@@ -102,6 +102,13 @@ $c3Body = $c3[$S3..($V - 1)]
 if ($c3Body[-1] -cne '') { throw "expected trailing blank in c3Body" }
 if ($c3Body[-2] -cne '  #endif') { throw "c3Body tail unexpected" }
 
+# ---- all_solid.vsh: unconditional entity tag (line added right after the native SSS-entity tag) ----
+$as = Lines "$mod\dimensions\all_solid.vsh"
+$asAnchor = "`tif(entityId == ENTITY_SSS_MEDIUM || entityId == ENTITY_SSS_WEAK || entityId == ENTITY_PLAYER || entityId == 2468) normalMat.a = 0.45;"
+$asIdx = IndexOfLine $as $asAnchor
+$asBody = $as[$asIdx + 1]
+if ($asBody -notmatch 'IRLite: tag default entities') { throw "all_solid entity-tag body missing after anchor" }
+
 # ---- shaders.properties: features, main-screen row, screens block, sliders ----
 $pr = Lines "$mod\shaders.properties"
 $prP = Lines "$pris\shaders.properties"
@@ -113,18 +120,18 @@ $featAnchor = $prP[$featAnchorIdx]
 if ($featAnchor + ' SSBO' -cne $featLine) { throw "features anchor/body mismatch" }
 $M = IndexOfLine $pr '[Misc_Settings] [Mod_support] \'
 $miscBody = $pr[$M..($M + 2)]
-if ($miscBody[2] -cne '[IRLITE_SETTINGS] <empty> \') { throw "main-screen row unexpected" }
+if ($miscBody[2] -cne '[IRLIGHTS] <empty> \') { throw "main-screen row unexpected" }
 $SB = IndexOfLine $pr '        screen.selection_box_outline = SELECT_BOX SELECT_BOX_COL_R SELECT_BOX_COL_G SELECT_BOX_COL_B'
-$endS = IndexOfLineStarting $pr '        screen.IRLITE_OUTLINE_SCREEN = '
+$endS = IndexOfLineStarting $pr '        screen.IRLIGHTS_OUTLINE = '
 $scrBody = $pr[($SB + 1)..$endS]
 if ($scrBody[0] -cne '' -or $scrBody[1] -cne '') { throw "expected 2 leading blanks in screens body" }
-if (-not $scrBody[2].StartsWith('######## IRLITE')) { throw "screens banner unexpected" }
+if (-not $scrBody[2].StartsWith('######## IRLIGHTS')) { throw "screens banner unexpected" }
 $slIdx2 = IndexOfLineStarting $pr 'sliders = '
 $slTriple = 'LPV_SATURATION LPV_TINT_SATURATION LPV_NORMAL_STRENGTH'
 $slPos = $pr[$slIdx2].IndexOf($slTriple)
 if ($slPos -lt 0) { throw "sliders tail anchor not found" }
 $slBody = $pr[$slIdx2].Substring($slPos)
-if (-not $slBody.EndsWith('IRLITE_OUTLINE_DEPTH_THRESHOLD')) { throw "sliders body tail unexpected" }
+if (-not $slBody.EndsWith('IRLITE_OUTLINE_GLOW_STRENGTH')) { throw "sliders body tail unexpected" }
 
 # ---- lang: anchors and bodies read from the files (no cyrillic/section-sign
 # literals in this script - PS 5.1 source encoding dodge) ----
@@ -133,13 +140,13 @@ $YenIdx = IndexOfLineStarting $lgEn 'option.TRANSLUCENT_COLORED_SHADOWS.comment 
 $enAnchor = $lgEn[$YenIdx]
 $enTail = $lgEn[($YenIdx + 1)..($lgEn.Count - 1)]
 while ($enTail[-1] -eq '') { $enTail = $enTail[0..($enTail.Count - 2)] }
-if ($enTail[0] -cne '' -or -not $enTail[1].StartsWith('######## IRLITE')) { throw "enTail head unexpected" }
+if ($enTail[0] -cne '' -or -not $enTail[1].StartsWith('######## IRLIGHTS')) { throw "enTail head unexpected" }
 $lgRu = Lines "$mod\lang\ru_RU.lang"
 $YruIdx = IndexOfLineStarting $lgRu 'option.TRANSLUCENT_COLORED_SHADOWS.comment = '
 $ruAnchor = $lgRu[$YruIdx]
 $ruTail = $lgRu[($YruIdx + 1)..($lgRu.Count - 1)]
 while ($ruTail[-1] -eq '') { $ruTail = $ruTail[0..($ruTail.Count - 2)] }
-if ($ruTail[0] -cne '' -or -not $ruTail[1].StartsWith('######## IRLITE')) { throw "ruTail head unexpected" }
+if ($ruTail[0] -cne '' -or -not $ruTail[1].StartsWith('######## IRLIGHTS')) { throw "ruTail head unexpected" }
 
 # ---- assemble the patch ----
 $sb = New-Object System.Text.StringBuilder
@@ -196,6 +203,11 @@ Emit ('after "' + (EscAnchor '#include "/lib/DistantHorizons_projections.glsl"')
 EmitBody @('', '#define IRLITE_COMPOSITE_PASS', '#include "/lib/irlite/irlite_lights.glsl"')
 Emit ('before "' + (EscAnchor '  color *= vl.a*cloudAlpha ;') + '"')
 EmitBody $c3Body
+Emit ''
+Emit '# --- tag every entity (incl. BBS morphs) so Outline Target can isolate them ---'
+Emit '@file shaders/dimensions/all_solid.vsh'
+Emit ('after "' + (EscAnchor $asAnchor) + '"')
+EmitBody @($asBody)
 Emit ''
 Emit '# --- SSBO feature flag, main-screen entry, screens + sliders ---'
 Emit '@file shaders/shaders.properties'

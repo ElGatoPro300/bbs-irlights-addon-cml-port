@@ -8,7 +8,7 @@
 # <out> <Modification>` must be empty. See memory bsl-port-plan Phase 5.
 
 $ErrorActionPreference = "Stop"
-$repo = "C:\Users\Qualet\Documents\Project\Minecraft\BBS\IRLite"
+$repo = "C:\Users\Qualet\Documents\Project\Minecraft\BBS\bbs-irlights-addon"
 $mod  = "$repo\Shadres\Modification\BSL\shaders"
 $out  = "$repo\patches\bsl.irlights"
 
@@ -48,29 +48,29 @@ if ($cp[$M - 1] -ne '') { throw "expected blank before #ifdef MCBL_SS" }
 if ($cpBlock[-1] -ne "`t#endif") { throw "cpBlock tail unexpected" }
 
 $pr = Lines "$mod\shaders.properties"
-$S5 = IndexOfLine $pr '#IRLite SSBO Prerequisite (binding 7 is created and bound by the IRLite mod)'
+$S5 = IndexOfLine $pr '#IRLite reduced-resolution volumetric pass (added deferred2 -> colortex10)'
 $M5 = IndexOfLine $pr '#Multi-Colored Blocklight Prerequisites'
-$prPrereq = $pr[$S5..($M5 - 1)]             # SSBO block + deferred2/size block + trailing blank (before-op)
+$prPrereq = $pr[$S5..($M5 - 1)]             # deferred2/size block + trailing blank (before-op); SSBO flag rides the iris.features replace op (raw-parse, last-in-file wins)
 if ($prPrereq[-1] -ne '') { throw "prPrereq must end with a blank line" }
 $SAO = IndexOfLine $pr 'screen.AO=<empty> <empty> AO_METHOD <empty> <empty> <empty> AO_STRENGTH ambientOcclusionLevel'
 $prScreens = $pr[($SAO + 1)..($SAO + 7)]    # blank + the 6 IRLITE screen lines (after-op)
 if ($prScreens[0] -ne '') { throw "prScreens must start with a blank line" }
-if (-not $prScreens[1].StartsWith('screen.IRLITE_SETTINGS=')) { throw "prScreens head unexpected" }
-if (-not $prScreens[6].StartsWith('screen.IRLITE_OUTLINE_SETTINGS=')) { throw "prScreens tail unexpected" }
+if (-not $prScreens[1].StartsWith('screen.IRLIGHTS=')) { throw "prScreens head unexpected" }
+if (-not $prScreens[6].StartsWith('screen.IRLIGHTS_OUTLINE=')) { throw "prScreens tail unexpected" }
 if ($pr[$SAO + 8] -ne '') { throw "expected blank after the IRLITE screens" }
 $slLine = $pr | Where-Object { $_.StartsWith('sliders=') }
 if (@($slLine).Count -ne 1) { throw "sliders line not unique" }
 $slIdx = $slLine.IndexOf('RETRO_FILTER_DEPTH WORLD_CURVATURE_SIZE')
 if ($slIdx -lt 0) { throw "sliders tail anchor not found" }
 $slBody = $slLine.Substring($slIdx)
-if (-not $slBody.EndsWith('IRLITE_OUTLINE_DEPTH_THRESHOLD')) { throw "sliders body tail unexpected" }
+if (-not $slBody.EndsWith('IRLITE_OUTLINE_GLOW_STRENGTH')) { throw "sliders body tail unexpected" }
 
 $lg = Lines "$mod\lang\en_US.lang"
 $Y = IndexOfLine $lg 'option.WHITE_WORLD.comment=Replaces textures with flat white color.'
 $langTail = $lg[($Y + 1)..($lg.Count - 1)]  # leading blank + the whole IRLite block
 while ($langTail[-1] -eq '') { $langTail = $langTail[0..($langTail.Count - 2)] }
 if ($langTail[0] -ne '') { throw "langTail must start with a blank line" }
-if ($langTail[1] -ne '#IRLite') { throw "langTail head unexpected" }
+if ($langTail[1] -ne '#IRLights') { throw "langTail head unexpected" }
 
 # ---- assemble the patch ----
 $sb = New-Object System.Text.StringBuilder
@@ -115,6 +115,10 @@ Emit '# --- per-program flags: entity/hand/block lightMask gate + distant-LOD sk
 Emit '@file shaders/program/gbuffers_entities.glsl'
 Emit 'after "#ifdef FSH"'
 EmitBody @('#define IRLITE_NONTERRAIN // IRLite: entity/hand/block program (lightMask gate)')
+Emit 'replace "/* DRAWBUFFERS:01 */"'
+EmitBody @('/* DRAWBUFFERS:013 */')
+Emit 'after "    gl_FragData[1] = vec4(vlAlbedo, 1.0);"'
+EmitBody @('    gl_FragData[2] = vec4(0.0, 0.0, entityMask, 1.0); // colortex3.z: IRLite entity flag for outline target (MCBL/PBR branches below re-pin their own layout)')
 Emit '@file shaders/program/gbuffers_entities_glowing.glsl'
 Emit 'after "#ifdef FSH"'
 EmitBody @('#define IRLITE_NONTERRAIN // IRLite: entity/hand/block program (lightMask gate)')
@@ -133,6 +137,8 @@ EmitBody @('#define IRLITE_SKIP // IRLite: distant-LOD pass, IRLite lights stay 
 Emit ''
 Emit '# --- rim outline + volumetric upsample in composite ---'
 Emit '@file shaders/program/composite.glsl'
+Emit 'after "uniform sampler2D colortex1;"'
+EmitBody @('uniform sampler2D colortex3;')
 Emit 'after "#include \"/lib/atmospherics/waterFog.glsl\""'
 EmitBody @('', '#define IRLITE_COMPOSITE_PASS', '#include "/lib/irlite/irlite_lights.glsl"')
 Emit 'after "vec3 reflectionColor = pow(color.rgb, vec3(0.125)) * 0.5;"'
@@ -150,7 +156,7 @@ EmitBody @('iris.features.optional=CUSTOM_IMAGES FADE_VARIABLE SSBO')
 Emit 'before "#Multi-Colored Blocklight Prerequisites"'
 EmitBody $prPrereq
 Emit 'replace "DYNAMIC_HANDLIGHT HALF_LAMBERT"'
-EmitBody @('DYNAMIC_HANDLIGHT HALF_LAMBERT [IRLITE_SETTINGS]')
+EmitBody @('DYNAMIC_HANDLIGHT HALF_LAMBERT [IRLIGHTS]')
 Emit 'after "screen.AO=<empty> <empty> AO_METHOD <empty> <empty> <empty> AO_STRENGTH ambientOcclusionLevel"'
 EmitBody $prScreens
 Emit 'replace "RETRO_FILTER_DEPTH WORLD_CURVATURE_SIZE"'

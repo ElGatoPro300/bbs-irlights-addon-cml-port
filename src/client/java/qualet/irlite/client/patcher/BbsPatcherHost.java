@@ -27,6 +27,7 @@ public final class BbsPatcherHost implements PatcherHost
         "complementaryreimagined.irlights",
         "iterationrp.irlights",
         "photon.irlights",
+        "rethinkingvoxels.irlights",
         "solas.irlights"
     );
 

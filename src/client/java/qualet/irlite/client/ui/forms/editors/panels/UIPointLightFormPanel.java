@@ -28,12 +28,12 @@ public class UIPointLightFormPanel extends UIFormPanel<PointLightForm>
         super(editor);
 
         this.color = new UIColor((c) -> this.form.color.set(Color.rgba(c))).withAlpha();
-        this.intensity = new UITrackpad((v) -> this.form.intensity.set(v.floatValue())).limit(0, 20);
-        this.radius = new UITrackpad((v) -> this.form.radius.set(v.floatValue())).limit(0.1, 64);
-        this.beamStrength = new UITrackpad((v) -> this.form.beamStrength.set(v.floatValue())).limit(0, 5);
-        this.anisotropy = new UITrackpad((v) -> this.form.anisotropy.set(v.floatValue())).limit(-0.95, 0.95);
-        this.vlDensity = new UITrackpad((v) -> this.form.vlDensity.set(v.floatValue())).limit(0.005, 0.5);
-        this.bulbSize = new UITrackpad((v) -> this.form.bulbSize.set(v.floatValue())).limit(0, 2);
+        this.intensity = IrliteTrackpads.create((v) -> this.form.intensity.set(v.floatValue())).limit(0, 20);
+        this.radius = IrliteTrackpads.create((v) -> this.form.radius.set(v.floatValue())).limit(0.1, 64);
+        this.beamStrength = IrliteTrackpads.create((v) -> this.form.beamStrength.set(v.floatValue())).limit(0, 50);
+        this.anisotropy = IrliteTrackpads.create((v) -> this.form.anisotropy.set(v.floatValue())).limit(-0.95, 0.95);
+        this.vlDensity = IrliteTrackpads.create((v) -> this.form.vlDensity.set(v.floatValue())).limit(0.005, 0.5);
+        this.bulbSize = IrliteTrackpads.create((v) -> this.form.bulbSize.set(v.floatValue())).limit(0, 2);
         // "Entities only" and "Blocks only" are mutually exclusive (both on = light lights nothing).
         this.entitiesOnly = new UIToggle(IKey.constant("Entities only"), (b) -> {
             this.form.entitiesOnly.set(b.getValue());
@@ -53,6 +53,8 @@ public class UIPointLightFormPanel extends UIFormPanel<PointLightForm>
         });
         this.shadows = new UIToggle(IKey.constant("Shadows"), (b) -> this.form.shadows.set(b.getValue()));
 
+        // 1.21.1: BBS 2.2.1-1.21.1 has no UISection (a BBS 2.3.1 addition), so the
+        // controls are laid out flat rather than in collapsible sections.
         this.options.add(UI.label(IKey.constant("Color")), this.color);
         this.options.add(UI.label(IKey.constant("Intensity")), this.intensity);
         this.options.add(UI.label(IKey.constant("Radius")), this.radius);

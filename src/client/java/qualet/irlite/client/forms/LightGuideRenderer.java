@@ -41,9 +41,19 @@ final class LightGuideRenderer
         });
     }
 
+    /**
+     * Z of the spotlight cap plane — the single source of truth shared by the
+     * visible rings ({@link #renderSpotlight}), the pick handles and the drag
+     * math in {@link SpotGuideDrag}. Flip the sign here and everything follows.
+     */
+    static float spotRingZ(float range)
+    {
+        return Math.max(range, 0.05F);
+    }
+
     public static void renderSpotlight(MatrixStack stack, Color color, float range, float outerAngle, float innerAngle)
     {
-        float r = Math.max(range, 0.05F);
+        float r = spotRingZ(range);
         float outer = Math.max(outerAngle, 1F);
         float inner = clamp(innerAngle, 1F, outer);
         float outerR = coneRadius(r, outer);
@@ -170,6 +180,88 @@ final class LightGuideRenderer
     private static float coneRadius(float range, float angle)
     {
         return (float) (Math.tan(Math.toRadians(angle * 0.5F)) * range);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Pick handles: fat grab zones drawn into BBS's stencil picking pass. */
+    /* The stencil framebuffer stores IDs as plain vertex COLOR            */
+    /* (r | g<<8 | b<<16, alpha = 1) rendered with the ordinary            */
+    /* position-color program — the exact pattern Gizmo.renderStencil      */
+    /* uses for its own handles. Geometry mirrors the visible wires above  */
+    /* so hover/click zones match the drawn guide pixel-for-pixel.         */
+    /* ------------------------------------------------------------------ */
+
+    /** Ring band around the cap circle of the given cone angle — grab zone for radius/inner radius. */
+    static void renderSpotlightGrabRing(MatrixStack stack, float range, float angleDeg, int stencilIndex)
+    {
+        float r = spotRingZ(range);
+        float ringR = coneRadius(r, Math.max(angleDeg, 1F));
+
+        renderStencilTriangles((builder) ->
+        {
+            stack.push();
+            stack.translate(0, 0, r);
+            renderCircle(builder, stack, Axis.Z, ringR, grabThickness(r), stencilColor(stencilIndex), 1F);
+            stack.pop();
+        });
+    }
+
+    /** Filled disc at the cap center — grab zone for range (slides along the axis). */
+    static void renderSpotlightGrabCap(MatrixStack stack, float range, int stencilIndex)
+    {
+        float r = spotRingZ(range);
+        float discR = Math.max(r * 0.10F, 0.05F);
+
+        renderStencilTriangles((builder) ->
+        {
+            stack.push();
+            stack.translate(0, 0, r);
+            /* renderCircle with thickness == diameter degenerates into a full disc (rIn = 0). */
+            renderCircle(builder, stack, Axis.Z, discR * 0.5F, discR, stencilColor(stencilIndex), 1F);
+            stack.pop();
+        });
+    }
+
+    private static float grabThickness(float r)
+    {
+        return Math.max(clamp(r * 0.0020F, 0.002F, 0.009F) * 6F, r * 0.015F);
+    }
+
+    /** Stencil ID encoded the way StencilFormFramebuffer.pick() decodes it: r | g<<8 | b<<16. */
+    private static Color stencilColor(int index)
+    {
+        return new Color(
+            (index & 0xFF) / 255F,
+            ((index >> 8) & 0xFF) / 255F,
+            ((index >> 16) & 0xFF) / 255F
+        );
+    }
+
+    /**
+     * Like {@link #renderTriangles} but without blending (the fragment color IS
+     * the stencil ID) and with depth off so the zones stay grabbable over the
+     * model, mirroring the visible guide which also draws through geometry.
+     * The gizmo's own stencil renders after us and keeps priority on overlap.
+     */
+    private static void renderStencilTriangles(Consumer<BufferBuilder> consumer)
+    {
+        RenderSystem.disableBlend();
+        RenderSystem.disableCull();
+        RenderSystem.depthMask(false);
+        RenderSystem.disableDepthTest();
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+
+        // 1.21: begin() moved to Tessellator and returns the builder.
+        BufferBuilder builder = Tessellator.getInstance()
+            .begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+        consumer.accept(builder);
+
+        BufferRenderer.drawWithGlobalProgram(builder.end());
+
+        RenderSystem.enableDepthTest();
+        RenderSystem.depthMask(true);
+        RenderSystem.enableCull();
+        RenderSystem.enableBlend();
     }
 
     private static float clamp(float value, float min, float max)
