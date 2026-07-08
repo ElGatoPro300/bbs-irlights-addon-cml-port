@@ -45,7 +45,7 @@ if (!mcVersions.containsKey(mcTarget)) {
 def V = mcVersions[mcTarget]
 logger.lifecycle("IRLite build target: Minecraft ${V.minecraft} (yarn ${V.yarn})")
 
-version = project.mod_version
+version = "${project.mod_version}+mc${V.minecraft}"
 group = project.maven_group
 
 base {
