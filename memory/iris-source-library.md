@@ -12,9 +12,9 @@ metadata:
 
 Локальные исходники Iris для чтения при вопросах о внутренностях Iris (как Iris строит программы, биндит сэмплеры, гоняет shadow-пасс, кормит юниформы). Миксины IRLite таргетят эти классы remap=false — это авторитетный референс символов, которые хукает [[addon-iris-integration]].
 
-Две копии, обе полные Gradle-проекты (build.gradle.kts, settings.gradle.kts, README.md, docs/, gradle/, DHApi.jar) под старым деревом IRLEngine (см. [[project-refactor-origin]]):
-- PRIMARY (точное соответствие Fabric 1.20.1-рантайму IRLite): C:\Users\Qualet\Documents\Project\Minecraft\BBS\IRLEngine\Source-libary\Iris-1.20.1
-- Fallback (Iris 1.7.2 для MC 1.20.4 — близко, не точно): C:\Users\Qualet\Documents\Project\Minecraft\BBS\IRLEngine\Source-libary\Iris-1.7.2-1.20.4
+Две копии, обе полные Gradle-проекты (build.gradle.kts, settings.gradle.kts, README.md, docs/, gradle/, DHApi.jar). ПУТЬ АКТУАЛИЗИРОВАН 2026-07-09: старое дерево IRLEngine\Source-libary НЕ существует, копии живут под bbs-dof-addon:
+- PRIMARY (точное соответствие Fabric 1.20.1-рантайму IRLite): C:\Users\Qualet\Documents\Project\Minecraft\BBS\bbs-dof-addon\Source-libary\Iris-1.20.1
+- Fallback (Iris 1.7.2 для MC 1.20.4 — близко, не точно; CameraUniforms байт-идентичен 1.20.1): C:\Users\Qualet\Documents\Project\Minecraft\BBS\bbs-dof-addon\Source-libary\Iris-1.7.2-1.20.4
 
 Предпочитать копию 1.20.1 для всего, что касается работающей игры; копию 1.20.4 смотреть только чтобы сверить более новую форму API. Раскладка идентична:
 - Корень Java-исходников: src\main\java\net\irisshaders\iris\

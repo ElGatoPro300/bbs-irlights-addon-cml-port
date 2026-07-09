@@ -27,7 +27,7 @@ THREE HOOKED PROGRAMS (only these are touched):
 2. Lib/Programs/Composite/Volumetric_FS.glsl — the fog / volumetric pass (RENDERTARGETS 6).
    - Locals at inject point: cameraPosition (uniform, absolute), rayWorldPos = worldDir * clamped view distance (camera-relative end of the view ray to the opaque/water hit), worldDir = normalized camera-relative view direction. color = scene radiance so far.
    - Anchor is the pack's own fog call:
-       if (fogTimeFactor > 0.01 && isEyeInWater == 0) VolumetricFog(color, vec3(0.0), rayWorldPos, worldDir, globalCloudShadow, fogTimeFactor);
+       if (fogTimeFactor > 0.01 && isEyeInWater == 0) VolumetricFog(color, vec3(0.0), rayWorldPos, worldDir, globalCloudShadow, fogTimeFactor, fogTransmittance);
      IRLite volumetric is added AFTER it (additive inscatter). See [[shader-volumetric]].
 
 3. Lib/Programs/Gbuffers/Entities_FS.glsl — entity/model-block gbuffer (shared by Entities/Spidereyes/Block/Hand programs).
@@ -55,6 +55,7 @@ HOOK ANCHOR INVENTORY (exact, from the .irlpatch — keep in sync with [[patcher
 Порт — выполнено (лог в _archive):
 - TAKE-3 reintegration phases 0–5 done from 2026-06-12, gate-verified in-game; #version 430 -> SSBO + samplerCubeArray native.
 - Lessons: view-bobbing worldPos fix (Phase 2); outline excised then re-added.
-- AE-crater pitfall: unbounded additive HDR outline term after albedo-multiply -> Exposure_CS tile-mean AE craters -> scene darkens. Fix = OLD fresnel outline integrated PRE-albedo (pre-multiply diffuse). Outline done 2026-06-29, LOCAL-ONLY (not in git; author Tahnass permission given, commit deferred). NOTE: IterationRP VL still UNSHADOWED (known-open). Cross-pack record = [[project-photon-outline-switch-to-old]].
+- AE-crater pitfall: unbounded additive HDR outline term after albedo-multiply -> Exposure_CS tile-mean AE craters -> scene darkens. Fix = OLD fresnel outline integrated PRE-albedo (pre-multiply diffuse). Outline done 2026-06-29. PERMISSION 2026-07-09: автор Tahnass согласовал ПУБЛИЧНЫЙ патч -> патч+генератор расижнорены (блок .gitignore убран), коммитабельны; больше НЕ local-only (см. [[project-github-repos]]). NOTE: IterationRP VL still UNSHADOWED (known-open). Cross-pack record = [[project-photon-outline-switch-to-old]].
+- ВЕРСИЯ АКТУАЛИЗИРОВАНА 2026-07-09: пак обновлён до новой версии (промоутнута в Shadres/Original/IterationRP; старая в scratchpad-бэкапе). Из 12 ops уехал ровно 1 якорь — вызов VolumetricFog в Volumetric_FS: пак добавил хвостовой арг fogTransmittance (сигнатура ...globalCloudShadow, fogTimeFactor, fogTransmittance)). Остальной contract-surface байт-стабилен: GbufferData получил поле albedoAlpha (доступ по имени безвреден), Material/SpecularGGX/FBTEX_GSOLID_DATA=colortex1/LinearDepth_From_ScreenDepth без изменений, materialID &127u маска цела (бит-7 non-terrain флаг свободен), DH/VX-LOD +128 семантика та же что в старой. Генератор-ассерт fog обновлён (gen-iterationrp-patch.ps1:49); патч регенерён, round-trip PatchHarness diff-clean (12 ops).
 
 Связь: shader-inject (инжектируемый GLSL + .irlights, авторинг в IRLite, синк в redactor через copy-patches.ps1; redactor только потребляет). Дополняет [[project-port-1211]] (iterationrp как непокрытый пак ~12 ops) и [[reference-edit-routing-by-area]]. Источник: память IRLite.
