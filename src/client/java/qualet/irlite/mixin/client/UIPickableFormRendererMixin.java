@@ -28,15 +28,6 @@ public abstract class UIPickableFormRendererMixin
         }
     }
 
-    @Inject(method = "subMouseReleased", at = @At("HEAD"), cancellable = true)
-    private void irlite$releaseGuideHandle(UIContext context, CallbackInfoReturnable<Boolean> cir)
-    {
-        if (SpotGuideDrag.mouseReleased())
-        {
-            cir.setReturnValue(true);
-        }
-    }
-
     @Inject(method = "renderUserModel", at = @At("TAIL"))
     private void irlite$updateGuideDrag(UIContext context, CallbackInfo ci)
     {

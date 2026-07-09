@@ -1,6 +1,6 @@
 ---
 name: project-imgui-axiom-collision
-description: "Редактор крашил MC (NoSuchMethodError ImGuiImplGl3.init(String)) при открытии оверлея рядом с модом, тащащим UNRELOCATED imgui-java (наблюдалось с Axiom на 1.20.1). Фикс 2026-06-21: ImGuiRuntime не крашит (try/catch+disabled-флаг) + fallback init()+force-close оверлея. На ВСЕХ 5 ветках, запушено. Юзер подтвердил: работает рядом с Axiom."
+description: "Редактор крашил MC (NoSuchMethodError на imgui init) при открытии оверлея рядом с модом с UNRELOCATED imgui-java (Axiom, 1.20.1). Фикс 2026-06-21: ImGuiRuntime не крашит (try/catch+disabled+forceClose). 2026-07-09 PR #2 влит (main+4 порта): init через рефлексию invokeBackend, резолв по имени+параметрам, игнор return-type drift init()Z vs init()V. Юзер подтвердил бой на 1.20.1."
 metadata:
   node_type: memory
   mod_scope: redactor-only
@@ -28,4 +28,6 @@ java.lang.NoSuchMethodError: 'boolean imgui.gl3.ImGuiImplGl3.init(java.lang.Stri
 - ЮЗЕР ПОДТВЕРДИЛ В БОЮ (2026-06-21): «всё работает» — редактор открывается рядом с Axiom на 1.20.1, best-effort сработал (не просто «не крашит», а реально функционирует). Локально агентом не верифицировалось (того инстанса нет), подтверждение = юзер.
 - Глубже: ImGui-контекст в нативе глобален; наш createContext()/destroyContext() теоретически может мешать собственному ImGui Axiom'а (отдельная проблема сосуществования, вне «не крашить»).
 
-Связь: [[reference-edit-routing-by-area]] (UI=только redactor), [[project-irlite-base-ported]], [[project-port-1201]] (где всплыло).
+Обновление 2026-07-09 (PR #2 в quaIett/irl-editor, влито approve+merge как quaIett). Механизм init в ImGuiRuntime.ensureInit переведён с прямого вызова + catch(NoSuchMethodError) на рефлексию. Новый invokeBackend(backend, name, paramTypes, args): getMethod по имени+типам параметров -> invoke, игнорирует return type; true если метод есть и вызван, false если overload отсутствует (тогда fallback на no-arg init); реальную ошибку существующего метода пробрасывает (RuntimeException/Error как есть), не глотает. GLFW-init (implGlfw.init) тоже через invokeBackend. Уточнение диагноза vs 2026-06-21: init(String) в билде Axiom не отсутствует, а дрейфует return type — boolean в нашей imgui-java-lwjgl3 1.89.0 vs void в старом билде Axiom; прямой invokevirtual компилируется в init()Z и падает NoSuchMethodError против загруженного init()V, рефлексия резолвит по имени+параметрам и линкуется против того imgui, что победил на classpath. Внешняя обёртка try/catch(Throwable)->disabled+forceClose из фикса 2026-06-21 сохранена. Влито: main (merge dff7784) и как imgui-часть порт-PR #4 port/1.20.1 / #5 port/1.21.1 / #6 port/1.21.4 / #7 port/1.21.11 (шейдерная camera-relative часть тех же порт-PR — отдельно, PR #3 в main).
+
+Связь: [[reference-edit-routing-by-area]] (UI=только redactor), [[project-irlite-base-ported]], [[project-port-1201]] (где всплыло), [[project-bbs-version-drift-compat]] (та же волна PR 2026-07-09).

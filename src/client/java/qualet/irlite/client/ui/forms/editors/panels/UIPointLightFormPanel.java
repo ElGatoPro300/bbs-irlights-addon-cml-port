@@ -53,18 +53,41 @@ public class UIPointLightFormPanel extends UIFormPanel<PointLightForm>
         });
         this.shadows = new UIToggle(IKey.constant("Shadows"), (b) -> this.form.shadows.set(b.getValue()));
 
-        // 1.21.1: BBS 2.2.1-1.21.1 has no UISection (a BBS 2.3.1 addition), so the
-        // controls are laid out flat rather than in collapsible sections.
-        this.options.add(UI.label(IKey.constant("Color")), this.color);
-        this.options.add(UI.label(IKey.constant("Intensity")), this.intensity);
-        this.options.add(UI.label(IKey.constant("Radius")), this.radius);
-        this.options.add(UI.label(IKey.constant("Beam strength")), this.beamStrength);
-        this.options.add(UI.label(IKey.constant("Anisotropy")), this.anisotropy);
-        this.options.add(UI.label(IKey.constant("VL density")), this.vlDensity);
-        this.options.add(UI.label(IKey.constant("Bulb size (shadow softness)")), this.bulbSize);
-        this.options.add(this.entitiesOnly);
-        this.options.add(this.blocksOnly);
-        this.options.add(this.shadows);
+        // Collapsible sections need BBS's UISection (newer 2.3.x builds only). On older
+        // BBS the class is absent, so fall back to a flat option list — see IrliteBbsCompat.
+        if (IrliteBbsCompat.SECTIONS)
+        {
+            this.options.add(
+                IrliteFormSections.section("Light",
+                    UI.label(IKey.constant("Color")), this.color,
+                    UI.label(IKey.constant("Intensity")), this.intensity,
+                    UI.label(IKey.constant("Radius")), this.radius
+                ),
+                IrliteFormSections.spaced("Volumetric beam",
+                    UI.label(IKey.constant("Beam strength")), this.beamStrength,
+                    UI.label(IKey.constant("Anisotropy")), this.anisotropy,
+                    UI.label(IKey.constant("VL density")), this.vlDensity
+                ),
+                IrliteFormSections.spaced("Shadows",
+                    this.shadows,
+                    UI.label(IKey.constant("Bulb size (shadow softness)")), this.bulbSize
+                ),
+                IrliteFormSections.spaced("Affects", this.entitiesOnly, this.blocksOnly)
+            );
+        }
+        else
+        {
+            this.options.add(UI.label(IKey.constant("Color")), this.color);
+            this.options.add(UI.label(IKey.constant("Intensity")), this.intensity);
+            this.options.add(UI.label(IKey.constant("Radius")), this.radius);
+            this.options.add(UI.label(IKey.constant("Beam strength")), this.beamStrength);
+            this.options.add(UI.label(IKey.constant("Anisotropy")), this.anisotropy);
+            this.options.add(UI.label(IKey.constant("VL density")), this.vlDensity);
+            this.options.add(UI.label(IKey.constant("Bulb size (shadow softness)")), this.bulbSize);
+            this.options.add(this.entitiesOnly);
+            this.options.add(this.blocksOnly);
+            this.options.add(this.shadows);
+        }
     }
 
     @Override

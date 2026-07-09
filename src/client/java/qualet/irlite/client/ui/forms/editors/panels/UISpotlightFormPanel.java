@@ -73,24 +73,55 @@ public class UISpotlightFormPanel extends UIFormPanel<SpotlightForm>
         this.cookieScale = IrliteTrackpads.create((v) -> this.form.cookieScale.set(v.floatValue())).limit(0.1, 4);
         this.cookieInvert = new UIToggle(IKey.constant("Invert gobo"), (b) -> this.form.cookieInvert.set(b.getValue()));
 
-        // 1.21.1: BBS 2.2.1-1.21.1 has no UISection (a BBS 2.3.1 addition), so the
-        // controls are laid out flat rather than in collapsible sections.
-        this.options.add(UI.label(IKey.constant("Color")), this.color);
-        this.options.add(UI.label(IKey.constant("Intensity")), this.intensity);
-        this.options.add(UI.label(IKey.constant("Range")), this.range);
-        this.options.add(UI.label(IKey.constant("Radius")), this.radius);
-        this.options.add(UI.label(IKey.constant("Inner radius")), this.innerRadius);
-        this.options.add(UI.label(IKey.constant("Beam strength")), this.beamStrength);
-        this.options.add(UI.label(IKey.constant("Anisotropy")), this.anisotropy);
-        this.options.add(UI.label(IKey.constant("VL density")), this.vlDensity);
-        this.options.add(UI.label(IKey.constant("Bulb size (shadow softness)")), this.bulbSize);
-        this.options.add(this.entitiesOnly);
-        this.options.add(this.blocksOnly);
-        this.options.add(this.shadows);
-        this.options.add(UI.label(IKey.constant("Cookie / gobo (spot mask)")), this.cookiePick);
-        this.options.add(UI.label(IKey.constant("Cookie rotation")), this.cookieRotation);
-        this.options.add(UI.label(IKey.constant("Cookie scale")), this.cookieScale);
-        this.options.add(this.cookieInvert);
+        // Collapsible sections need BBS's UISection (newer 2.3.x builds only). On older
+        // BBS the class is absent, so fall back to a flat option list — see IrliteBbsCompat.
+        if (IrliteBbsCompat.SECTIONS)
+        {
+            this.options.add(
+                IrliteFormSections.section("Light",
+                    UI.label(IKey.constant("Color")), this.color,
+                    UI.label(IKey.constant("Intensity")), this.intensity,
+                    UI.label(IKey.constant("Range")), this.range,
+                    UI.label(IKey.constant("Radius")), this.radius,
+                    UI.label(IKey.constant("Inner radius")), this.innerRadius
+                ),
+                IrliteFormSections.spaced("Volumetric beam",
+                    UI.label(IKey.constant("Beam strength")), this.beamStrength,
+                    UI.label(IKey.constant("Anisotropy")), this.anisotropy,
+                    UI.label(IKey.constant("VL density")), this.vlDensity
+                ),
+                IrliteFormSections.spaced("Shadows",
+                    this.shadows,
+                    UI.label(IKey.constant("Bulb size (shadow softness)")), this.bulbSize
+                ),
+                IrliteFormSections.spaced("Affects", this.entitiesOnly, this.blocksOnly),
+                IrliteFormSections.spaced("Cookie / gobo (spot mask)",
+                    this.cookiePick,
+                    UI.label(IKey.constant("Cookie rotation")), this.cookieRotation,
+                    UI.label(IKey.constant("Cookie scale")), this.cookieScale,
+                    this.cookieInvert
+                )
+            );
+        }
+        else
+        {
+            this.options.add(UI.label(IKey.constant("Color")), this.color);
+            this.options.add(UI.label(IKey.constant("Intensity")), this.intensity);
+            this.options.add(UI.label(IKey.constant("Range")), this.range);
+            this.options.add(UI.label(IKey.constant("Radius")), this.radius);
+            this.options.add(UI.label(IKey.constant("Inner radius")), this.innerRadius);
+            this.options.add(UI.label(IKey.constant("Beam strength")), this.beamStrength);
+            this.options.add(UI.label(IKey.constant("Anisotropy")), this.anisotropy);
+            this.options.add(UI.label(IKey.constant("VL density")), this.vlDensity);
+            this.options.add(UI.label(IKey.constant("Bulb size (shadow softness)")), this.bulbSize);
+            this.options.add(this.entitiesOnly);
+            this.options.add(this.blocksOnly);
+            this.options.add(this.shadows);
+            this.options.add(UI.label(IKey.constant("Cookie / gobo (spot mask)")), this.cookiePick);
+            this.options.add(UI.label(IKey.constant("Cookie rotation")), this.cookieRotation);
+            this.options.add(UI.label(IKey.constant("Cookie scale")), this.cookieScale);
+            this.options.add(this.cookieInvert);
+        }
     }
 
     /** Live-sync of the shape trackpads while a guide handle is dragged in the viewport. */

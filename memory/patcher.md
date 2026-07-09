@@ -74,7 +74,8 @@ Applier (IrlPatchApplier)
   java.nio/util — no MC/Iris/fabric deps.
 
 VALIDATE A PATCH WITHOUT MINECRAFT (tools/PatchHarness.java)
-- javac the 5 core classes + PatchHarness; `java PatchHarness <patch> <srcPack> <outPack>` applies,
+- Движок-классы живут в irl-core: org.qualet.irl.patcher.{IrlPatch,IrlPatchParser,PatchEngine,IrlPatchApplier,PatchResult} (extract cf4ad94); импорты харнесса перенацелены туда 2026-07-09 (старый пакет qualet.irlite.client.patcher не компилился). Прекомпилированный tools/build/ — СТАРЫЙ движок, не доверять; компилировать 5 core-классов + харнесс свежим javac (JDK21, никакого classpath — pure java.nio/util).
+- `java PatchHarness <patch> <srcPack> <outPack>` applies,
   `java PatchHarness -validate <patch> <srcPack>` dry-runs.
 - Full check: apply to pristine Shadres/Original/<pack>, DELETE irlite_patched.txt from the output (it's new vs
   the hand-edited tree), then `git -c core.autocrlf=false diff --no-index --ignore-cr-at-eol <out> Shadres/Modification/<pack>`

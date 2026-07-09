@@ -19,7 +19,7 @@ LightBuffer (org.qualet.irl.light.LightBuffer), single static GL SSBO. Verified 
 
 std430 LAYOUT (must match in GLSL — 6 × vec4 = 96 bytes):
   struct Light {            // 96 bytes
-    vec4 posRadius;       // xyz = world position, w = radius/range (blocks)
+    vec4 posRadius;       // xyz = position RELATIVE TO CAMERA (eye), w = radius/range (blocks). До 2026-07-09 был absolute world — см. [[project-camera-relative-light-migration]]: LightRegistry.flush(originXYZ) вычитает камеру в double; getX/Y/Z реестра остаются АБСОЛЮТНЫМИ (их читает ShadowBaker).
     vec4 colorIntensity;  // rgb = linear color, a = intensity
     vec4 dirType;         // xyz = spot direction (normalized), w = type (0 point, 1 spot). point: dir=0.
     vec4 cone;            // x = cos(outerAngle/2), y = cos(innerAngle/2), z = lightMask, w = bulbSize (0 = use shader global)

@@ -53,6 +53,10 @@ Apply them once with the in-game patcher — no manual GLSL edits needed.
 | [BSL Shaders](https://modrinth.com/shader/bsl-shaders) | CaptTatsu | `patches/bsl.irlights` |
 | [Solas](https://modrinth.com/shader/solas-shader) | Septonious | `patches/solas.irlights` |
 | [Bliss](https://modrinth.com/shader/bliss-shader) | X0nk | `patches/bliss.irlights` |
+| [Rethinking Voxels](https://modrinth.com/shader/rethinking-voxels) | gri573 | `patches/rethinkingvoxels.irlights` |
+| IterationRP&nbsp;† | Tahnass | `patches/iterationrp.irlights` |
+
+<sub>† **IterationRP** is a paid shaderpack — buy it from the author. Our `.irlights` patch is free and public, but it only applies on top of a copy you already own.</sub>
 
 ---
 

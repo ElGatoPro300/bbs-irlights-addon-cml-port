@@ -4,7 +4,7 @@
 	"version": "${version}",
 	"name": "IRLite",
 	"description": "",
-	"authors": ["wemppy", "qualet"],
+	"authors": ["qualet", "ElGatoPro300"],
 	"contact": {},
 	"license": "CC-BY-ND-4.0",
 	"icon": "assets/irlite/icon.png",
@@ -27,5 +27,10 @@
 		"bbs": "*",
 		"minecraft": "~1.21.1",
 		"irl-core": "*"
-	}
+	},
+	"jars": [
+    {
+      "file": "META-INF/jars/irl-core-1.1.jar"
+    }
+  ]
 }
