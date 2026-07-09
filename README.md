@@ -35,7 +35,7 @@ The result is physically-plausible diffuse + specular lighting, hard/soft shadow
 | **Volumetrics** | Per-light ray-marched shafts with shadow occlusion |
 | **Specular** | GGX BRDF, per-light roughness + intensity |
 | **Shadow quality** | Four presets — Low / Medium / High / Ultra |
-| **SSBO pipeline** | std430 binding 7, up to 64 lights per frame |
+| **SSBO pipeline** | std430 binding 7, up to 2048 lights per frame |
 | **Patcher** | Injects GLSL into any supported shaderpack in one click |
 | **BBS UI** | Light forms in the BBS editor, live preview |
 
@@ -87,9 +87,9 @@ IRLights has three layers that work together:
 
 ## Installation
 
-> **Requirements:** Minecraft 1.20.1–1.20.4 · Fabric Loader ≥ 0.19 · Iris ≥ 1.7 · BBS (latest)
+> **Requirements:** Minecraft 1.20.1 / 1.20.4 · Fabric Loader ≥ 0.19 · Iris ≥ 1.7 · BBS (latest)
 >
-> A single `irlite-*.jar` works on **both 1.20.1 and 1.20.4** — drop the same file into either instance.
+> Jars are per-version — grab the one matching your instance: `irlite-1.1+mc1.20.1.jar` or `irlite-1.1+mc1.20.4.jar`.
 
 1. Drop `irlite-*.jar` into your `mods/` folder alongside BBS and Iris.
 2. Launch the game once to generate config.
@@ -110,21 +110,27 @@ IRLights has three layers that work together:
 
 ## Building from Source
 
-```bash
-./gradlew build
-# output: build/libs/irlite-1.0-obt.jar  (universal — built against 1.20.1, runs on both)
+The addon consumes the shared [irl-core](https://github.com/quaIett/irl-core) engine as a
+**per-version Maven dependency**, so publish the matching core to mavenLocal first:
 
-# dev-test against a specific Minecraft version:
-./gradlew runClient -Pmc=1.20.1   # default
+```bash
+# 1) publish the matching core (from the irl-core repo)
+../irl-core/gradlew publishToMavenLocal
+
+# 2) build the addon for a specific Minecraft version
+./gradlew build --refresh-dependencies -Pmc=1.20.4   # or -Pmc=1.20.1
+# output: build/libs/irlite-1.1+mc1.20.4.jar
+
+# dev-test against a specific version:
 ./gradlew runClient -Pmc=1.20.4
 ```
 
-The same compiled jar runs on both versions: every Minecraft member the mod touches is
-intermediary-stable across 1.20.1–1.20.4, so one build covers the whole range.
+Each Minecraft version produces its own jar (the `+mc<version>` suffix); the old universal
+`1.0-obt` jar is gone. `irl-core` is remapped to the target mappings and JiJ-bundled via Loom's
+`include`, so the shipped jar is self-contained.
 
 > **Minecraft 1.21.1** lives on the [`port/1.21.1`](https://github.com/quaIett/bbs-irlights-addon/tree/port/1.21.1)
-> branch (the final addon line — BBS does not exist past 1.21.1). The shared engine
-> is pulled from [irl-core](https://github.com/quaIett/irl-core) via a Gradle composite build.
+> branch (the final addon line — BBS does not exist past 1.21.1).
 
 ---
 
