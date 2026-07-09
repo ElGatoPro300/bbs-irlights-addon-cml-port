@@ -3,12 +3,10 @@ package qualet.irlite.client.ui.forms.editors.panels;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
 import mchorse.bbs_mod.ui.forms.editors.panels.UIFormPanel;
-import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.utils.UI;
-import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.utils.colors.Color;
 import qualet.irlite.forms.PointLightForm;
 
@@ -55,35 +53,41 @@ public class UIPointLightFormPanel extends UIFormPanel<PointLightForm>
         });
         this.shadows = new UIToggle(IKey.constant("Shadows"), (b) -> this.form.shadows.set(b.getValue()));
 
-        UISection light = new UISection(IKey.constant("Light"));
-        light.fields.add(
-            UI.label(IKey.constant("Color")), this.color,
-            UI.label(IKey.constant("Intensity")), this.intensity,
-            UI.label(IKey.constant("Radius")), this.radius
-        );
-
-        UISection volumetric = new UISection(IKey.constant("Volumetric beam"));
-        volumetric.fields.add(
-            UI.label(IKey.constant("Beam strength")), this.beamStrength,
-            UI.label(IKey.constant("Anisotropy")), this.anisotropy,
-            UI.label(IKey.constant("VL density")), this.vlDensity
-        );
-
-        UISection shadows = new UISection(IKey.constant("Shadows"));
-        shadows.fields.add(
-            this.shadows,
-            UI.label(IKey.constant("Bulb size (shadow softness)")), this.bulbSize
-        );
-
-        UISection affects = new UISection(IKey.constant("Affects"));
-        affects.fields.add(this.entitiesOnly, this.blocksOnly);
-
-        this.options.add(
-            light,
-            volumetric.marginTop(UIConstants.SECTION_GAP),
-            shadows.marginTop(UIConstants.SECTION_GAP),
-            affects.marginTop(UIConstants.SECTION_GAP)
-        );
+        // Collapsible sections need BBS's UISection (newer 2.3.x builds only). On older
+        // BBS the class is absent, so fall back to a flat option list — see IrliteBbsCompat.
+        if (IrliteBbsCompat.SECTIONS)
+        {
+            this.options.add(
+                IrliteFormSections.section("Light",
+                    UI.label(IKey.constant("Color")), this.color,
+                    UI.label(IKey.constant("Intensity")), this.intensity,
+                    UI.label(IKey.constant("Radius")), this.radius
+                ),
+                IrliteFormSections.spaced("Volumetric beam",
+                    UI.label(IKey.constant("Beam strength")), this.beamStrength,
+                    UI.label(IKey.constant("Anisotropy")), this.anisotropy,
+                    UI.label(IKey.constant("VL density")), this.vlDensity
+                ),
+                IrliteFormSections.spaced("Shadows",
+                    this.shadows,
+                    UI.label(IKey.constant("Bulb size (shadow softness)")), this.bulbSize
+                ),
+                IrliteFormSections.spaced("Affects", this.entitiesOnly, this.blocksOnly)
+            );
+        }
+        else
+        {
+            this.options.add(UI.label(IKey.constant("Color")), this.color);
+            this.options.add(UI.label(IKey.constant("Intensity")), this.intensity);
+            this.options.add(UI.label(IKey.constant("Radius")), this.radius);
+            this.options.add(UI.label(IKey.constant("Beam strength")), this.beamStrength);
+            this.options.add(UI.label(IKey.constant("Anisotropy")), this.anisotropy);
+            this.options.add(UI.label(IKey.constant("VL density")), this.vlDensity);
+            this.options.add(UI.label(IKey.constant("Bulb size (shadow softness)")), this.bulbSize);
+            this.options.add(this.entitiesOnly);
+            this.options.add(this.blocksOnly);
+            this.options.add(this.shadows);
+        }
     }
 
     @Override
