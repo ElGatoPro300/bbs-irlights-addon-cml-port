@@ -280,16 +280,16 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
     {
         try
         {
-            // Only when the dashboard is actually open. getDashboardIfCreated
-            // returns the cached instance even after closing to the world, so
-            // without this its film panel keeps reporting the replay stub and
-            // we'd bake a shadow for a replay that's no longer rendered.
+            // Only when the dashboard is actually open. getDashboard returns the
+            // cached instance even after closing to the world, so without this
+            // its film panel keeps reporting the replay stub and we'd bake a
+            // shadow for a replay that's no longer rendered.
             if (MinecraftClient.getInstance().currentScreen == null)
             {
                 return null;
             }
 
-            UIDashboard dashboard = BBSModClient.getDashboardIfCreated();
+            UIDashboard dashboard = BBSModClient.getDashboard();
             if (dashboard == null)
             {
                 return null;

@@ -16,9 +16,9 @@ import qualet.irlite.client.forms.SpotGuideDrag;
  * the selected replay by SpotlightFormRenderer) into {@link SpotGuideDrag}
  * before BBS's gizmo/replay picking, and drives the drag once per frame.
  *
- * <p>The drag update injects at the HEAD of {@code renderPickingPreview} (not
- * TAIL) on purpose: the method early-returns when nothing is picked under the
- * cursor, and mid-drag the cursor often leaves the handle's own pixels.</p>
+ * <p>The drag update injects at the HEAD of {@code renderHUD} (not TAIL) on
+ * purpose: we need a per-frame hook with a live {@link UIContext} while the
+ * film viewport is being drawn.</p>
  */
 @Mixin(UIFilmController.class)
 public abstract class UIFilmControllerMixin
@@ -43,7 +43,7 @@ public abstract class UIFilmControllerMixin
         }
     }
 
-    @Inject(method = "renderPickingPreview", at = @At("HEAD"))
+    @Inject(method = "renderHUD", at = @At("HEAD"))
     private void irlite$updateGuideDrag(UIContext context, Area area, CallbackInfo ci)
     {
         UIFilmController self = (UIFilmController) (Object) this;

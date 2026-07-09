@@ -14,12 +14,11 @@ package qualet.irlite.client.ui.forms.editors.panels;
 public final class IrliteBbsCompat
 {
     /**
-     * Whether {@code mchorse.bbs_mod.ui.framework.elements.UISection} (collapsible form
-     * sections) is present. When {@code false}, the light form panels fall back to a
-     * flat option list instead of grouped sections. See {@link IrliteFormSections}.
+     * Whether titled form sections ({@link IrliteFormSections}) are available.
+     * Falls back to a flat option list when {@code false}.
      */
     public static final boolean SECTIONS =
-        classExists("mchorse.bbs_mod.ui.framework.elements.UISection");
+        classExists("mchorse.bbs_mod.ui.framework.elements.utils.UILabel");
 
     private static boolean classExists(String name)
     {

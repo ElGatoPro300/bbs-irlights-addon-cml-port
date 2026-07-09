@@ -88,7 +88,7 @@ public class SpotlightFormRenderer extends AbstractLightFormRenderer<SpotlightFo
 
         Color c = this.form.color.get();
         LightRegistry.registerSpot(
-            p.x, p.y, p.z,
+            (float) p.x, (float) p.y, (float) p.z,
             dx, dy, dz,
             c.r, c.g, c.b,
             this.form.intensity.get(), this.form.range.get(),
