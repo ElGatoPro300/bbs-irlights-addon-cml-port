@@ -829,7 +829,7 @@ float irlite_outlineFactor()
 void irlite_lightSurface(vec3 worldPos, vec3 normal, vec3 viewDirW, float roughness, vec3 f0,
                          bool nonTerrain, out vec3 diffuseOut, out vec3 specularOut)
 {
-    vec3 fragWorld = cameraPosition + worldPos;
+    vec3 fragWorld = worldPos;
     vec3 n = normalize(normal);
     vec3 v = normalize(viewDirW);
     bool doSpec = roughness <= 0.95;
@@ -1327,9 +1327,9 @@ after "#include \"/Lib/BasicFunctions/Blocklight.glsl\""
 after "\t\t\tif (fogTimeFactor > 0.01 && isEyeInWater == 0) VolumetricFog(color, vec3(0.0), rayWorldPos, worldDir, globalCloudShadow, fogTimeFactor, fogTransmittance);"
 <<<
 			#ifdef IRLITE_VOLUMETRIC
-				// Ray origin = bobbed eye: cameraPosition + MVI[3].
+				// Ray origin = bobbed eye (camera-relative): MVI[3].
 				float irliteDither = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
-				vec3 irliteVLStart = cameraPosition + gbufferModelViewInverse[3].xyz;
+				vec3 irliteVLStart = gbufferModelViewInverse[3].xyz;
 				color += irlite_volumetric(irliteVLStart, irliteVLStart + rayWorldPos, worldDir, irliteDither);
 			#endif
 >>>
