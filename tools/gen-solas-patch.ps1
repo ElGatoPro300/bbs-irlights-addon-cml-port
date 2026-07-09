@@ -84,7 +84,7 @@ if (-not $screens[0].StartsWith('screen.IRLIGHTS=')) { throw "screens block head
 if (-not $screens[5].StartsWith('screen.IRLIGHTS_OUTLINE=')) { throw "screens block tail unexpected" }
 $slLine = $pr | Where-Object { $_.StartsWith('sliders=') }
 if (@($slLine).Count -ne 1) { throw "sliders line not unique" }
-$slIdx = $slLine.IndexOf('WAVING_AMPLITUDE FIREFLIES_BRIGHTNESS')
+$slIdx = $slLine.IndexOf('BLOOM_STRENGTH_END WAVING_AMPLITUDE')
 if ($slIdx -lt 0) { throw "sliders tail anchor not found" }
 $slBody = $slLine.Substring($slIdx)
 if (-not $slBody.EndsWith('IRLITE_OUTLINE_GLOW_STRENGTH')) { throw "sliders body tail unexpected" }
@@ -92,12 +92,12 @@ if (-not $slBody.EndsWith('IRLITE_OUTLINE_GLOW_STRENGTH')) { throw "sliders body
 # lang: everything after the pack's true last line, both locales. The ru anchor
 # line is taken from the file itself (no cyrillic literals in this script).
 $lgEn = Lines "$mod\lang\en_US.lang"
-$Yen = IndexOfLine $lgEn 'option.FIREFLIES_BRIGHTNESS=Fireflies Brightness'
+$Yen = IndexOfLine $lgEn 'option.NORMAL_PLANTS.comment=Adjusts plant shading. Disable this if non-flat plant models or plant normal maps are used.'
 $enTail = $lgEn[($Yen + 1)..($lgEn.Count - 1)]
 while ($enTail[-1] -eq '') { $enTail = $enTail[0..($enTail.Count - 2)] }
 if ($enTail[0] -ne '' -or $enTail[1] -ne '') { throw "expected 2 leading blanks in enTail" }
 $lgRu = Lines "$mod\lang\ru_RU.lang"
-$Yru = IndexOfLineStarting $lgRu 'option.FIREFLIES_BRIGHTNESS='
+$Yru = IndexOfLineStarting $lgRu 'option.NORMAL_PLANTS.comment='
 $ruAnchor = $lgRu[$Yru]
 $ruTail = $lgRu[($Yru + 1)..($lgRu.Count - 1)]
 while ($ruTail[-1] -eq '') { $ruTail = $ruTail[0..($ruTail.Count - 2)] }
@@ -124,6 +124,7 @@ Emit '@name    Solas lights'
 Emit '@target  Solas'
 Emit '@irlite  1'
 Emit '@marker  IRLITE'
+Emit '@packversion V3.7'
 Emit ''
 Emit '# --- light SSBO, options and shading functions (surface + outline + volumetric) ---'
 EmitFile 'shaders/lib/irlite/irlite_lights.glsl' $libText
@@ -153,7 +154,7 @@ EmitBody $c1Body
 Emit ''
 Emit '# --- the reduced-res VL buffer format (inside the pack''s format comment block) ---'
 Emit '@file shaders/programs/final.glsl'
-Emit 'after "const int colortex7Format = RGBA16; //Voxy transparent color"'
+Emit 'after "const int colortex7Format = RGBA16; //fresnel data"'
 EmitBody @('const int colortex10Format = RGB16F; //IRLite reduced-res volumetrics')
 Emit ''
 Emit '# --- SSBO feature flag, deferred2 toggles + buffer size, screens + sliders ---'
@@ -164,12 +165,12 @@ Emit 'after "program.world1/shadowcomp.enabled=VX_SUPPORT"'
 EmitBody $prToggles
 Emit 'replace "VANILLA_AO SSAO AO_STRENGTH"'
 EmitBody (@($screenTail) + $screens)
-Emit 'replace "WAVING_AMPLITUDE FIREFLIES_BRIGHTNESS"'
+Emit 'replace "BLOOM_STRENGTH_END WAVING_AMPLITUDE"'
 EmitBody @($slBody)
 Emit ''
 Emit '# --- option labels + tooltips (English) ---'
 Emit '@file shaders/lang/en_US.lang'
-Emit 'after "option.FIREFLIES_BRIGHTNESS=Fireflies Brightness"'
+Emit 'after "option.NORMAL_PLANTS.comment=Adjusts plant shading. Disable this if non-flat plant models or plant normal maps are used."'
 EmitBody $enTail
 Emit ''
 Emit '# --- option labels + tooltips (Russian — the pack ships ru_RU) ---'
