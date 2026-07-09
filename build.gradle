@@ -14,7 +14,7 @@ def mcVersions = [
         minecraft: '1.21.1',
         yarn     : '1.21.1+build.3',
         fabricApi: '0.116.12+1.21.1',
-        bbsJar   : 'libs/bbs-2.2.1-1.21.1.jar',
+        bbs      : '2.0-beta-1-1.21.1',
         // Iris 1.8.8 keeps the 2-arg addDynamicSampler (4-arg arrives in 1.9+/1.10.7).
         sodium   : 'mc1.21.1-0.6.13-fabric',
         iris     : '1.8.8+1.21.1-fabric',
