@@ -1,8 +1,10 @@
 package qualet.irlite.client.compat;
 
+import mchorse.bbs_mod.resources.Link;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.math.Vec3d;
+import qualet.irlite.client.light.cookie.CookieArray;
 import org.qualet.irl.light.shadow.ShadowCasterSource;
 import org.qualet.irl.patcher.PatcherHost;
 import org.slf4j.Logger;
@@ -12,7 +14,9 @@ import qualet.irlite.client.patcher.BbsPatcherHost;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -35,6 +39,9 @@ public final class IrliteCalCompat
     private static final Method RESET_RAMP;
     private static final Constructor<?> CAL_PATCHER_HOST;
     private static final Constructor<?> CAL_CASTER;
+    private static final Method INSTALL_COOKIE_HOST;
+
+    private static boolean cookiesReady;
 
     static
     {
@@ -42,6 +49,7 @@ public final class IrliteCalCompat
         Method reset = null;
         Constructor<?> patcherHost = null;
         Constructor<?> caster = null;
+        Method installCookieHost = null;
 
         if (LOADED)
         {
@@ -75,12 +83,23 @@ public final class IrliteCalCompat
             {
                 LOG.warn("IRL CAL Editor is present but RedactorEntityCasterSource could not be linked: {}", e.toString());
             }
+
+            try
+            {
+                installCookieHost = Class.forName("elgatopro300.cal_lights.light.cookie.CookieArray")
+                    .getMethod("installHost", Class.forName("elgatopro300.cal_lights.light.cookie.CookieArray$Host"));
+            }
+            catch (ReflectiveOperationException e)
+            {
+                LOG.warn("IRL CAL Editor is present but CookieArray host bridge could not be linked: {}", e.toString());
+            }
         }
 
         COLLECT = collect;
         RESET_RAMP = reset;
         CAL_PATCHER_HOST = patcherHost;
         CAL_CASTER = caster;
+        INSTALL_COOKIE_HOST = installCookieHost;
     }
 
     private IrliteCalCompat()
@@ -90,6 +109,59 @@ public final class IrliteCalCompat
     public static boolean isLoaded()
     {
         return LOADED && COLLECT != null;
+    }
+
+    public static boolean isCalPresent()
+    {
+        return LOADED;
+    }
+
+    /**
+     * Builds the shared gobo texture array and hands it to CAL Editor so both mods
+     * sample the same {@code irl_cookieArray} layers.
+     */
+    public static void ensureCookiesReady()
+    {
+        if (!LOADED || cookiesReady || INSTALL_COOKIE_HOST == null)
+        {
+            return;
+        }
+
+        UnifiedCookieArray unified = UnifiedCookieArray.INSTANCE;
+        unified.init();
+        installCalCookieHost(unified);
+        cookiesReady = true;
+        LOG.info("Unified gobo/cookie array ready for irlite + CAL Editor.");
+    }
+
+    public static int getCookieTextureId()
+    {
+        if (!LOADED)
+        {
+            return CookieArray.getGlTextureId();
+        }
+
+        ensureCookiesReady();
+        if (!cookiesReady)
+        {
+            return CookieArray.getGlTextureId();
+        }
+        return UnifiedCookieArray.INSTANCE.getGlTextureId();
+    }
+
+    public static int resolveBbsCookie(Link link)
+    {
+        if (!LOADED)
+        {
+            return CookieArray.resolve(link);
+        }
+
+        ensureCookiesReady();
+        if (!cookiesReady)
+        {
+            return CookieArray.resolve(link);
+        }
+        return UnifiedCookieArray.INSTANCE.resolveBbs(link);
     }
 
     public static PatcherHost createPatcherHost()
@@ -187,6 +259,37 @@ public final class IrliteCalCompat
         catch (ReflectiveOperationException e)
         {
             LOG.warn("CAL shadow settings sync failed: {}", e.toString());
+        }
+    }
+
+    private static void installCalCookieHost(UnifiedCookieArray unified)
+    {
+        try
+        {
+            Class<?> hostType = Class.forName("elgatopro300.cal_lights.light.cookie.CookieArray$Host");
+            InvocationHandler handler = (proxy, method, args) -> switch (method.getName())
+            {
+                case "init" ->
+                {
+                    unified.init();
+                    yield null;
+                }
+                case "resolveName" -> unified.resolveCal((String) args[0]);
+                case "textureId" -> unified.getGlTextureId();
+                case "catalog" -> unified.available();
+                case "reload" ->
+                {
+                    unified.reload();
+                    yield null;
+                }
+                default -> throw new UnsupportedOperationException(method.getName());
+            };
+            Object host = Proxy.newProxyInstance(hostType.getClassLoader(), new Class<?>[] {hostType}, handler);
+            INSTALL_COOKIE_HOST.invoke(null, host);
+        }
+        catch (ReflectiveOperationException e)
+        {
+            LOG.warn("Could not install unified cookie host into CAL Editor: {}", e.toString());
         }
     }
 
