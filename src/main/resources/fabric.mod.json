@@ -28,6 +28,9 @@
 		"minecraft": ">=1.20.1 <1.20.5",
 		"irl-core": "*"
 	},
+	"suggests": {
+		"irlcal_editor": "*"
+	},
 	"jars": [
     {
       "file": "META-INF/jars/irl-core-1.1.jar"
