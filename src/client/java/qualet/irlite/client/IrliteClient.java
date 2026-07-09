@@ -34,9 +34,16 @@ public class IrliteClient implements ClientModInitializer {
             : bbsCaster;
         ShadowEngine.install(caster, IrliteShadowConfig.INSTANCE);
 
-        // Register the per-mod gobo/cookie mask array into the shared sampler registry;
-        // rebound from its 2D registration to GL_TEXTURE_2D_ARRAY at bind time.
-        IrlSamplers.register("irl_cookieArray", CookieArray::getGlTextureId, GL30.GL_TEXTURE_2D_ARRAY);
+        // When CAL Editor is present, both mods share one gobo texture array.
+        if (IrliteCalCompat.isCalPresent())
+        {
+            IrliteCalCompat.ensureCookiesReady();
+            IrlSamplers.register("irl_cookieArray", IrliteCalCompat::getCookieTextureId, GL30.GL_TEXTURE_2D_ARRAY);
+        }
+        else
+        {
+            IrlSamplers.register("irl_cookieArray", CookieArray::getGlTextureId, GL30.GL_TEXTURE_2D_ARRAY);
+        }
 
         if (IrliteCalCompat.isLoaded()) {
             IrliteCalCompat.syncShadowSettings();

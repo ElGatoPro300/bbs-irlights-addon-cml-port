@@ -25,6 +25,7 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.chunk.BlockEntityTickInvoker;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
+import qualet.irlite.client.compat.IrliteCalCompat;
 import qualet.irlite.client.light.cookie.CookieArray;
 import qualet.irlite.forms.PointLightForm;
 import qualet.irlite.forms.SpotlightForm;
@@ -391,7 +392,9 @@ public final class LightCollector
         // first use, cached after); -1 = no mask, so the cookie is OFF unless a
         // texture is picked. Rotation is stored in degrees on the form (UI/keyframe
         // friendly) -> radians for the SSBO. Cheap per-frame: a link->layer lookup.
-        int cookieLayer = CookieArray.resolve(form.cookie.get());
+        int cookieLayer = IrliteCalCompat.isCalPresent()
+            ? IrliteCalCompat.resolveBbsCookie(form.cookie.get())
+            : CookieArray.resolve(form.cookie.get());
         float cookieRot = (float) Math.toRadians(form.cookieRotation.get());
         float cookieFlags = form.cookieInvert.get() ? 1F : 0F;
 
