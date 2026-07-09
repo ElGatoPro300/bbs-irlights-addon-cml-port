@@ -176,8 +176,12 @@ public final class LightCollector
                 continue;
             }
 
+            // Keep the (potentially huge) world coordinate OUT of the float matrix:
+            // build the form tree RELATIVE to the block cell and carry the block's
+            // world position as a double base, added back only at emit. At X=100000 a
+            // float matrix would quantize the position to ~8 mm; a double base does not.
             Matrix4f root = new Matrix4f().identity();
-            root.translate(pos.getX() + 0.5F, pos.getY(), pos.getZ() + 0.5F);
+            root.translate(0.5F, 0F, 0.5F);
             Transform propsT = props.getTransform();
             if (propsT != null)
             {
@@ -186,11 +190,15 @@ public final class LightCollector
                 root.mul(propsM);
             }
 
-            walk(rootForm, root);
+            walk(rootForm, root, pos.getX(), pos.getY(), pos.getZ());
         }
     }
 
-    private static void walk(Form form, Matrix4f parent)
+    /** {@code base[XYZ]} is the form tree's world origin, carried in double so a far-
+     *  from-origin coordinate never enters the float {@code parent} matrix; it is added
+     *  back to the matrix-local offset at emit. The matrix therefore only ever holds
+     *  small, block-local (or actor-local) values. */
+    private static void walk(Form form, Matrix4f parent, double baseX, double baseY, double baseZ)
     {
         if (form == null || !form.visible.get())
         {
@@ -208,11 +216,11 @@ public final class LightCollector
 
         if (form instanceof PointLightForm point)
         {
-            emitPoint(point, local);
+            emitPoint(point, local, baseX, baseY, baseZ);
         }
         else if (form instanceof SpotlightForm spot)
         {
-            emitSpot(spot, local);
+            emitSpot(spot, local, baseX, baseY, baseZ);
         }
 
         if (form.parts == null)
@@ -254,7 +262,7 @@ public final class LightCollector
                 childM.mul(ptm);
             }
 
-            walk(child, childM);
+            walk(child, childM, baseX, baseY, baseZ);
         }
     }
 
@@ -317,12 +325,14 @@ public final class LightCollector
                 continue;
             }
 
+            // Rotation-only root; the actor's world position rides along as a double base
+            // (kept out of the float matrix so it stays precise far from origin). The base
+            // is added AFTER the rotation at emit, reproducing the old translate*rotate.
             float bodyYaw = MathHelper.lerp(tickDelta, ent.getPrevBodyYaw(), ent.getBodyYaw());
             Matrix4f root = new Matrix4f().identity();
-            root.translate((float) wx, (float) wy, (float) wz);
             root.rotateY((float) Math.toRadians(-bodyYaw));
 
-            walk(rootForm, root);
+            walk(rootForm, root, wx, wy, wz);
         }
     }
 
@@ -351,16 +361,18 @@ public final class LightCollector
         }
     }
 
-    private static void emitPoint(PointLightForm form, Matrix4f matrix)
+    private static void emitPoint(PointLightForm form, Matrix4f matrix, double baseX, double baseY, double baseZ)
     {
         Vector4f origin = new Vector4f(0F, 0F, 0F, 1F);
         matrix.transform(origin);
 
+        // origin is the small matrix-local offset; add the double base back to recover
+        // the absolute world position without the far-from-origin float quantization.
         Color c = form.color.get();
-        LightRegistry.registerPoint(origin.x, origin.y, origin.z, c.r, c.g, c.b, form.intensity.get(), form.radius.get(), form.entitiesOnly.get(), form.blocksOnly.get(), form.anisotropy.get(), form.vlDensity.get(), form.beamStrength.get(), form.bulbSize.get(), form.shadows.get(), System.identityHashCode(form));
+        LightRegistry.registerPoint(baseX + origin.x, baseY + origin.y, baseZ + origin.z, c.r, c.g, c.b, form.intensity.get(), form.radius.get(), form.entitiesOnly.get(), form.blocksOnly.get(), form.anisotropy.get(), form.vlDensity.get(), form.beamStrength.get(), form.bulbSize.get(), form.shadows.get(), System.identityHashCode(form));
     }
 
-    private static void emitSpot(SpotlightForm form, Matrix4f matrix)
+    private static void emitSpot(SpotlightForm form, Matrix4f matrix, double baseX, double baseY, double baseZ)
     {
         Vector4f origin = new Vector4f(0F, 0F, 0F, 1F);
         matrix.transform(origin);
@@ -383,7 +395,9 @@ public final class LightCollector
         float cookieRot = (float) Math.toRadians(form.cookieRotation.get());
         float cookieFlags = form.cookieInvert.get() ? 1F : 0F;
 
+        // Direction (w=0) is translation-invariant; only the origin gets the double base
+        // added back to recover the absolute world position without float quantization.
         Color c = form.color.get();
-        LightRegistry.registerSpot(origin.x, origin.y, origin.z, dx, dy, dz, c.r, c.g, c.b, form.intensity.get(), form.range.get(), cosOuter, cosInner, form.entitiesOnly.get(), form.blocksOnly.get(), form.anisotropy.get(), form.vlDensity.get(), form.beamStrength.get(), form.bulbSize.get(), form.shadows.get(), (float) cookieLayer, cookieRot, form.cookieScale.get(), cookieFlags, System.identityHashCode(form));
+        LightRegistry.registerSpot(baseX + origin.x, baseY + origin.y, baseZ + origin.z, dx, dy, dz, c.r, c.g, c.b, form.intensity.get(), form.range.get(), cosOuter, cosInner, form.entitiesOnly.get(), form.blocksOnly.get(), form.anisotropy.get(), form.vlDensity.get(), form.beamStrength.get(), form.bulbSize.get(), form.shadows.get(), (float) cookieLayer, cookieRot, form.cookieScale.get(), cookieFlags, System.identityHashCode(form));
     }
 }
