@@ -1,7 +1,7 @@
-import qualet.irlite.client.patcher.IrlPatch;
-import qualet.irlite.client.patcher.IrlPatchApplier;
-import qualet.irlite.client.patcher.IrlPatchParser;
-import qualet.irlite.client.patcher.PatchResult;
+import org.qualet.irl.patcher.IrlPatch;
+import org.qualet.irl.patcher.IrlPatchApplier;
+import org.qualet.irl.patcher.IrlPatchParser;
+import org.qualet.irl.patcher.PatchResult;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
