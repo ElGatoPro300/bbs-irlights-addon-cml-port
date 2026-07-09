@@ -18,8 +18,14 @@ metadata:
 
 ТЕНИ НЕ ЛОМАЮТСЯ (аудит): шейдер восстанавливает spot view-proj / point cube-dir per-fragment из SSBO как РАЗНОСТИ (toR/dir/Loff = fragWorld−lp) — инвариантны к общему сдвигу. Java-бейк остаётся АБСОЛЮТНЫМ: ShadowBaker читает LightRegistry.getX/Y/Z (сырые массивы, вычитание только в flush→SSBO). ВАЖНО для будущих рефакторов: getX/Y/Z обязаны оставаться абсолютными.
 
+ЗАКОММИЧЕНО + ПОРТИРОВАНО НА ВСЕ ЛИНИИ 2026-07-09 (вечер, решения юзера: БЕЗ бампа версии; ядро через merge PR-ов zqicev):
+- irl-core: PR#1-4 ВСЕ СМЕРЖЕНЫ + прецизион-фикс cf9cff6 cherry-picked на 1.21.1 (f62dc5b) / 1.21.4 (327cf89) / 1.21.11 (1591051), всё запушено.
+- Аддон: master (b7c57ca патчи, 43e5e93 Java, ac850d0 harness, ea264b0 память) + port/1.21.1 (de4fc2d/2759bb6/d4ee142; миксин адаптирован под renderWorld(RenderTickCounter), дескриптор Camera.update тот же). ГОЧА: сборка port/1.21.1 в свежем worktree требует посева gitignored libs/bbs-2.2.1-1.21.1.jar из основного чекаута.
+- Редактор: main (1bfe1e0 Java + d6d2bd6 ресинк+iterationrp + merge bc488eb; solas-конфликт разрешился нашей v3.7+camrel, все 7 байт-сверены с аддоном) + все 4 port-ветки (1.20.1/1.21.1/1.21.4/1.21.11): байт-синк 7 патчей, iterationrp расижнорен+добавлен, README-релист, Java-порт. НЮАНС: на port-ветках editor/addon висели локальные незапушенные Solas-v3.7-синк коммиты — worktree-лейны сделали reset --hard origin (контент полностью поглощён байт-копией патчей, потерь нет, но старые локальные SHA осиротели).
+- DOF-аддон: локальный коммит 4968042 (remote нет).
+- ФИНАЛЬНЫЙ ГЕЙТ: build-trilogy-parallel 13/13 OK (5 линий: 1.20.4, 1.20.1, 1.21.1, 1.21.4, 1.21.11; jar-ы 1.1.1 в изолированных worktree/m2). mavenLocal-координата irl-core:1.1 в конце возвращена на MAIN-линию (dev runClient 1.20.4 живой).
+
 ОТКРЫТО/наследство:
-- Editor local main ahead 1 / behind 4 origin/main — нужен merge (solas.irlights сконфликтует; наша рабочая копия v3.7+camrel = правильное разрешение).
 - Найдено ревью: VL-шум `irlite_vlNoise(startWorld + pos, ...)` после миграции camera-locked (пуфы плывут с камерой; было world-anchored). ТАК ЖЕ в эталоне 48de059 — оставлено эталон-точно, фикс (`+ cameraPosition` в домен шума) = отдельная задача на 8+7 патчей + редактор.
 - Pre-existing дрейфы (НЕ наши): (1) patches/photon.irlights vs Shadres/Modification/Photon — разные поколения IRLite (VL_NOISE/меню/lang) + застрявший irlite_patched.txt в Modification → photon round-trip не пуст; (2) iterationrp-irl-dof якорь без `, fogTransmittance` (main-патч актуализирован 7423a16, DOF-копия нет — патч вообще не применяется к текущему паку); (3) solas-irl-dof целится в до-v3.7 Solas (4 битых якоря).
 - irl-core PR не бампает версию (остаётся 1.1) — mavenLocal 1.1 теперь camera-relative, а 1.1.1 (от verify-прогона lockstep) АБСОЛЮТНЫЙ. До ребилда через build-trilogy под новым номером не смешивать.
