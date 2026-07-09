@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.qualet.irl.light.FramePipeline;
 import org.qualet.irl.light.iris.IrisShadersState;
-import qualet.irlite.client.light.LightCollector;
+import qualet.irlite.client.light.IrliteLightPipeline;
 
 @Mixin(GameRenderer.class)
 public class GameRendererLightMixin
@@ -21,6 +21,11 @@ public class GameRendererLightMixin
         // (ignoreFreeze=true matches the previous always-advancing behaviour).
         // NB: 1.21.1 still names this getTickDelta(boolean); getTickProgress is later.
         float tickDelta = tickCounter.getTickDelta(true);
-        FramePipeline.frame(tickDelta, IrisShadersState::shadersDisabled, LightCollector::collect, () -> {});
+        FramePipeline.frame(
+            tickDelta,
+            IrisShadersState::shadersDisabled,
+            IrliteLightPipeline::collect,
+            IrliteLightPipeline::afterFrame
+        );
     }
 }
