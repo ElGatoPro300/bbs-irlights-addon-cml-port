@@ -65,7 +65,7 @@ IterationRP публикация 2026-07-09: автор Tahnass согласов
 ## irl-core — общее ядро
 - [patcher](patcher.md) — семантика патчера + DSL .irlights (@target/@packversion/@marker, after/before/replace, ?, |); validate-first, dry-run/rollback. CONTRACT_VERSION=1.
 - [addon-light-buffer-ssbo](addon-light-buffer-ssbo.md) — std430-контракт LightBuffer: SSBO binding7, header 16B + 6×vec4/96б (incl. cookie); MAX_LIGHTS=2048; инжект-GLSL зеркалит байт-в-байт.
-- [project-camera-relative-light-migration](project-camera-relative-light-migration.md) — свет-SSBO -> camera-relative: ЗАВЕРШЁН 2026-07-09 полностью — миграция+прецизион-фикс (отложенный flush после Camera.update + double-позиции) закоммичены и портированы на ВСЕ линии (PR#1-4 смержены, build-trilogy 13/13); in-game verified на X=100000; открыто: VL-noise camera-locked, photon Modification-дрейф, DOF-якоря.
+- [project-camera-relative-light-migration](project-camera-relative-light-migration.md) — свет-SSBO -> camera-relative: ЗАВЕРШЁН — миграция + прецизион-фикс света + anchor-relative БЕЙК ТЕНЕЙ (2026-07-10, тени искажались на ~100k) закоммичены и портированы на все линии; всё in-game verified; открыто: VL-noise camera-locked, photon Modification-дрейф, DOF-якоря.
 
 ## Шейдер-инжект — общие контракты
 - [plan-lens-flare](plan-lens-flare.md) — PLAN-only lens flare для IRL-источников: каркас BSL-композита + тинт цветом лампы + окклюжн/фейд из старого ir_lens_flare.glsl; единый блоб как VL; open: SSBO-слот (реком. 7-й vec4).
