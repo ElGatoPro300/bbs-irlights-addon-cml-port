@@ -46,7 +46,7 @@
 #define IRLITE_MSM_MOMENT_BIAS 1.0e-4   // Hamburger moment bias: up = kills acne rings, down = crisper bimodal overlap
 
 #define IRLITE_VL_SHADOWS                  // per-step shadowing of the VL beams/haze; active only with IRLITE_SHADOWS on
-#define IRLITE_VL_SHADOW_STRIDE 1 // [1 2 3 4]
+#define IRLITE_VL_SHADOW_STRIDE 2 // [1 2 3 4]
 #define IRLITE_VL_RESOLUTION 0.5 // [1.0 0.5 0.25]
 #define IRLITE_VL_INTENSITY 1.0 // [0.1 0.25 0.5 0.75 1.0 1.5 2.0 3.0 4.0 6.0]
 #define IRLITE_VL_STEPS 48 // [8 12 14 16 24 32 48 64]
@@ -57,14 +57,14 @@
 #define IRLITE_VL_NOISE_AMOUNT 0.6 // [0.2 0.4 0.6 0.8 1.0]
 #define IRLITE_VL_NOISE_SCALE 2.0 // [0.5 1.0 1.5 2.0 3.0 4.0 6.0]
 #define IRLITE_VL_NOISE_SPEED 0.25 // [0.0 0.25 0.5 1.0 1.5 2.0 3.0]
-#define IRLITE_VL_NOISE_STRIDE 1 // [1 2 3 4]
+#define IRLITE_VL_NOISE_STRIDE 2 // [1 2 3 4]
 
 //#define IRLITE_TOON
 #define IRLITE_TOON_BANDS 3 // [2 3 4 5 6 8]
 #define IRLITE_TOON_SMOOTH 0.10 // [0.0 0.05 0.10 0.20 0.30 0.50]
 
 #define IRLITE_OUTLINE                    // light-driven rim: depth silhouette + Fresnel halo, back/front + glow (IRLEngine LocalLightOutline)
-#define IRLITE_OUTLINE_TARGET 0 // [0 1 2]
+#define IRLITE_OUTLINE_TARGET 1 // [0 1 2]
 #define IRLITE_OUTLINE_PIXEL_SIZE 2 // [1 2 3 4 5 6]
 #define IRLITE_OUTLINE_STRENGTH 0.65 // [0.0 0.1 0.2 0.35 0.5 0.65 0.8 1.0 1.5 2.0 3.0]
 #define IRLITE_OUTLINE_FRESNEL_POWER 2.2 // [1.0 1.2 1.5 1.8 2.0 2.2 2.5 3.0 4.0]
@@ -132,8 +132,9 @@ float irlite_cookie(vec3 fragWorld, IrliteLight light)
 
     vec3 lp = light.posRadius.xyz;
     vec3 ld = normalize(light.dirType.xyz);
-    float outerDeg = max(degrees(acos(clamp(light.cone.x, -1.0, 1.0)) * 2.0), 1.0);
-    float fY = 1.0 / tan(radians(outerDeg) * 0.5);
+    // fY = 1/tan(halfAngle) via 1/tan(acos(c)) == c/sqrt(1-c^2); 114.58865 cap == the 1-degree minimum cone (parity with the VL shFY hoist).
+    float c = clamp(light.cone.x, -1.0, 1.0);
+    float fY = min(c * inversesqrt(max(1.0 - c * c, 1e-12)), 114.58865);
 
     vec3 up = abs(ld.y) > 0.99 ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 1.0, 0.0);
     vec3 s = normalize(cross(ld, up));
@@ -244,6 +245,15 @@ float irlite_msmHamburger(vec4 b, float zf)
     #define IRLITE_PCF_TAPS 40
     #define IRLITE_PCF_TAPS_NARROW 16
     #define IRLITE_PCF_TAPS_MID 28
+#endif
+
+#ifdef IRLITE_SHADOW_PREFILTER
+// Point blocker taps feed ONLY the MSM lod pick on a matching irl-core build (log2 consumer,
+// PCF below is dead there) - half the tier count suffices. Spot keeps the full count: its
+// search drives the real PCSS penumbra + the EVSM branch threshold.
+#define IRLITE_BLOCKER_TAPS_POINT (IRLITE_BLOCKER_TAPS / 2)
+#else
+#define IRLITE_BLOCKER_TAPS_POINT IRLITE_BLOCKER_TAPS
 #endif
 
 // Vogel/sunflower disk — even areal coverage, golden-angle spiral.
@@ -679,9 +689,9 @@ float irlite_pointShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fa
     float blockerDistSum = 0.0;
     float blockerWSum = 0.0;
     int blockerCount = 0;
-    for (int i = 0; i < IRLITE_BLOCKER_TAPS; i++)
+    for (int i = 0; i < IRLITE_BLOCKER_TAPS_POINT; i++)
     {
-        vec2 off = irlite_vogel(i, IRLITE_BLOCKER_TAPS, phi) * searchRadius;
+        vec2 off = irlite_vogel(i, IRLITE_BLOCKER_TAPS_POINT, phi) * searchRadius;
         vec3 sd = dir + T * off.x + B * off.y;
         float s = texture(irl_pointShadowArray, vec4(sd, float(layer))).r;
         // slope-aware margin: a flat receiver tilted <=45° to the ray dips at most |off| in
@@ -829,6 +839,7 @@ float irlite_outlineFactor()
 // Rim ink: (silhouette + Fresnel halo) x (back/front NdotL) x attenuation, tinted by the light colour.
 vec3 irlite_outlineInk(vec3 playerPos, vec3 flatNormal)
 {
+    if (irlite_lightCount == 0u) return vec3(0.0);   // empty scene: skip the 5-tap depth edge detector + Fresnel before the loop finds count==0
     float fl2 = dot(flatNormal, flatNormal);
     if (fl2 < 1e-12) return vec3(0.0);
     vec3 n = flatNormal * inversesqrt(fl2);
@@ -926,12 +937,14 @@ void irlite_lightSurface(vec3 playerPos, vec3 normalM, vec3 nViewPos, float smoo
     diffuseOut = vec3(0.0);
     specularOut = vec3(0.0);
 
+    uint count = irlite_lightCount;
+    if (count == 0u) return;   // empty scene: skip the matrix work in every gbuffers program
+
     vec3 fragWorld = playerPos;
     mat3 viewToWorld = mat3(gbufferModelViewInverse);
     mat3 worldToView = mat3(gbufferModelView);
     vec3 n = normalize(viewToWorld * normalM);
 
-    uint count = irlite_lightCount;
     for (uint i = 0u; i < count; i++)
     {
         IrliteLight light = irlite_lights[i];
@@ -1164,7 +1177,6 @@ vec3 irlite_volumetric(vec3 startWorld, vec3 endWorld, vec3 worldDir, float dith
     float maxDist = min(length(endWorld - startWorld), IRLITE_VL_MAX_DIST);
     if (maxDist < 0.01) return vec3(0.0);
 
-    int steps = IRLITE_VL_STEPS;
     float tipR2 = max(IRLITE_VL_TIP_RADIUS * IRLITE_VL_TIP_RADIUS, 1e-4);
 
     vec3 result = vec3(0.0);
@@ -1215,6 +1227,11 @@ vec3 irlite_volumetric(vec3 startWorld, vec3 endWorld, vec3 worldDir, float dith
 
         float segLen = tFar - tNear;
         if (segLen <= 0.0) continue;
+
+        // Per-light march density anchored so the cap engages at >=24-block segments (at any
+        // slider value); shorter segments drop proportionally, floor 16 (a bare floor of 8 showed
+        // in-game onion-ring banding on small haze spheres, 2026-07-10).
+        int steps = clamp(int(ceil(segLen * (float(IRLITE_VL_STEPS) / 24.0))), min(16, IRLITE_VL_STEPS), IRLITE_VL_STEPS);
 
         float stepLen = segLen / float(steps);
         vec3 stepV = worldDir * stepLen;
