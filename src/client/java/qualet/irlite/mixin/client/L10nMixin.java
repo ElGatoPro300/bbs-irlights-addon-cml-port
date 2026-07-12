@@ -37,5 +37,8 @@ public class L10nMixin
 
         self.getKey("bbs.config.irlite.max_shader_lights", "Max shader lights");
         self.getKey("bbs.config.irlite.max_shader_lights-comment", "Upper bound on how many lights are uploaded to the shader each frame. The injected shader loops over every uploaded light per pixel, so fewer lights is cheaper. When more lights are in range than this, the nearest (highest-priority) ones win; the rest are skipped for lighting but still cast and receive shadows and stay registered. 0 = no limit. Default 64.");
+
+        self.getKey("bbs.config.irlite.shader_light_clustering", "Shader light clustering");
+        self.getKey("bbs.config.irlite.shader_light_clustering-comment", "Split the screen into tiles and skip lights that cannot touch a pixel: the shader only loops the lights whose on-screen bounds cover a pixel's tile, so the image is identical while the per-pixel light cost drops. Off = the shader runs the plain full loop over every uploaded light. Default on.");
     }
 }

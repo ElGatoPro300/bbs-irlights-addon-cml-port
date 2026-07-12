@@ -29,6 +29,7 @@ public class BBSSettingsMixin
         IrliteConfig.shadowBlockRadius = builder.getInt("shadow_block_radius", 24, 4, 96);
         IrliteConfig.shadowBakeBudget = builder.getInt("shadow_bake_budget", 4, 0, 16);
         IrliteConfig.maxShaderLights = builder.getInt("max_shader_lights", 64, 0, 2048);
+        IrliteConfig.shaderLightClustering = builder.getBoolean("shader_light_clustering", true);
 
         // Separate section for the shader patcher (UI injected by
         // UISettingsOverlayPanelMixin). Empty category — buildSections still

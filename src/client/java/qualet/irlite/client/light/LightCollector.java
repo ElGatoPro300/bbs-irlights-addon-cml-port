@@ -30,6 +30,7 @@ import qualet.irlite.forms.PointLightForm;
 import qualet.irlite.forms.SpotlightForm;
 import qualet.irlite.mixin.client.bbs.WorldBlockEntityTickersAccessor;
 
+import org.qualet.irl.light.ClusterGridBuffer;
 import org.qualet.irl.light.LightMath;
 import org.qualet.irl.light.LightRegistry;
 
@@ -112,6 +113,10 @@ public final class LightCollector
         // Track the "max shader lights" slider each frame: caps how many lights the
         // flush packs into the SSBO (registration + shadow caches still see them all).
         LightRegistry.setUploadCap(IrliteConfig.maxShaderLights());
+        // Track the clustering toggle each frame: off -> flush records no snapshot and
+        // the gbuffer-matrix hook uploads an empty (flags=0) grid, so the shader falls
+        // back to its full per-pixel light loop.
+        ClusterGridBuffer.setEnabled(IrliteConfig.shaderLightClustering());
 
         if (world == null || cameraPos == null)
         {
