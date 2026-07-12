@@ -11,6 +11,7 @@ public final class IrliteConfig
     public static ValueBoolean shadowBlocks;
     public static ValueInt shadowBlockRadius;
     public static ValueInt shadowBakeBudget;
+    public static ValueInt maxShaderLights;
 
     private IrliteConfig()
     {}
@@ -59,5 +60,15 @@ public final class IrliteConfig
     public static int shadowBakeBudget()
     {
         return shadowBakeBudget != null ? shadowBakeBudget.get() : 4;
+    }
+
+    /** Max lights uploaded to the shader SSBO per frame; the injected shader loops
+     *  over every uploaded light per fragment, so fewer = cheaper. When more lights
+     *  are in range than this, the nearest (highest-priority) ones win; the rest are
+     *  skipped for lighting but stay registered and keep casting/receiving shadows.
+     *  0 disables the cap (upload everything). Default 64. */
+    public static int maxShaderLights()
+    {
+        return maxShaderLights != null ? maxShaderLights.get() : 64;
     }
 }

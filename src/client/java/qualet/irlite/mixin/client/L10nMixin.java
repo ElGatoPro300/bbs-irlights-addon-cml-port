@@ -34,5 +34,8 @@ public class L10nMixin
 
         self.getKey("bbs.config.irlite.shadow_block_radius", "Block shadow radius");
         self.getKey("bbs.config.irlite.shadow_block_radius-comment", "How far (in blocks) world blocks are collected as shadow casters around a light. Blocks beyond this cast no shadow even if the light reaches farther. Raise it for large lights; higher values make each re-collection (when a light moves or a nearby block changes) more expensive. Default 24.");
+
+        self.getKey("bbs.config.irlite.max_shader_lights", "Max shader lights");
+        self.getKey("bbs.config.irlite.max_shader_lights-comment", "Upper bound on how many lights are uploaded to the shader each frame. The injected shader loops over every uploaded light per pixel, so fewer lights is cheaper. When more lights are in range than this, the nearest (highest-priority) ones win; the rest are skipped for lighting but still cast and receive shadows and stay registered. 0 = no limit. Default 64.");
     }
 }
