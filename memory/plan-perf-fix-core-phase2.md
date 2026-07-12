@@ -1,6 +1,6 @@
 ---
 name: plan-perf-fix-core-phase2
-description: "Core-фаза перф-фиксов (Phase 2, 2026-07-10): irl-core C1 cap+приоритизация upload (top-K по дистанции, гистерезис 8 бл + beam-бонус 64), C2 троттлинг mustBake (SHADOW_PENDING => омит из SSBO), C3 hashmap slot(); гамма-предрасчёт ОТКЛОНЁН по recon; код+ревью+сборка DONE, ин-гейм проверка/замер/коммит PENDING."
+description: "Core-фаза перф-фиксов (Phase 2, 2026-07-10): irl-core C1 cap+приоритизация upload (top-K по дистанции, гистерезис 8 бл + beam-бонус 64), C2 троттлинг mustBake (SHADOW_PENDING => омит из SSBO), C3 hashmap slot(); гамма-предрасчёт ОТКЛОНЁН по recon; код+ревью+сборка DONE; ин-гейм замер DONE 2026-07-12 (C1-слайдер работает, P0 подтверждён линейным ~0.07мс/лампу => гейт за Phase 3); коммит PENDING."
 metadata:
   node_type: memory
   type: project
@@ -30,10 +30,11 @@ GIT (НИЧЕГО НЕ ЗАКОММИЧЕНО, по [[commit-checkpoints]] жд�
 - irl-core: M FramePipeline.java (+6), LightRegistry.java (+301/-часть), ShadowBaker.java (+169/-51).
 - аддон: M LightCollector.java, L10nMixin.java, IrliteConfig.java, BBSSettingsMixin.java (+21 суммарно). Плюс ДОСЕССИОННАЯ грязь НЕ НАША: M README.md, ?? .github/, irlights-timeline.html, tools/release.ps1 — в перф-коммит НЕ включать.
 
+ИН-ГЕЙМ ЗАМЕР 2026-07-12 (юзер, стресс-сцена 64 point-лампы сеткой ~8x8 шаг ~25 бл, разные зоны, VOLUMETRIC/OUTLINE off в паке, фиксированная точка, sweep капа max_shader_lights): 4=94fps/10.64мс, 8=92/10.87, 16=87/11.49, 32=80/12.50, 64=67/14.93. Маржинальная цена ~0.07 мс/лампу КОНСТАНТНА (линейность <1.5% отклонения) при неизменной локальной плотности => P0 (per-fragment цикл по всем N) подтверждён живьём; d(4->64)=4.29мс=29% кадра. ВЕРДИКТ ГЕЙТА: cap работает как механизм (слайдер реально режет налог), но сам налог линеен по N => Phase 3 кластеризация оправдана и ЗАПУЩЕНА ([[plan-perf-fix-cluster-phase3]]). Заметки сцены: слоты теней 16 point + 16 spot => из 64 ламп тени максимум у ~16 ближних (by design); глобальный кап окклюдеров MAX_OCCLUDERS=32 (72 бл) с произвольной отсечкой (OPEN-2 occluder-32 в [[addon-shadows]]) — ламповые model-block'и тоже едят слоты, у юзера тени отбрасывали только 5 модель-блоков из 64; рекомендация для стресс-сцен = обычные блоки (per-light BlockShadowCache мимо капа 32).
+
 PENDING (следующие шаги):
-1. Ин-гейм проверка юзером: runClient по [[feedback-addon-runclient-command]] (Git Bash, JAVA_HOME=Temurin-21, лог run/runclient-console.log, в фоне). Проверять: стресс-карта FPS до/после (A/B = слайдер max_shader_lights 0 vs 64), cold-start спайк при тогле шейдеров/смене shadow quality (ожидание: прогрев тени за ~4-8 кадров без фриза, тёмный поп-ин ламп вместо засвета), отсутствие мигания света/теней при беге/повороте на границе капа, VL-лучи не пропадают (BEAM_BONUS).
-2. Замер по процедуре Phase 1 (FPS-счётчик + Alt+F3 frametime, без профайлера).
-3. Чекпоинт-коммиты по подтверждению: irl-core (1 коммит, 3 файла) + аддон (1 коммит, 4 файла) РАЗДЕЛЬНО от досессионной грязи. Вопрос тега/бампа версии core (HEAD был v1.1-4-gd5e40ad без тега) — поднять при коммите.
-4. ОТЛОЖЕНО из той же аудит-очереди: кластеризация (если cap недостаточен), C10 per-face block-cull (P2), тираж F1/F2/F3 Phase 1 на 5 паков (см. [[plan-perf-fix-cr-phase1]]).
+1. НЕ РЕПОРТИЛОСЬ юзером (проверить по ходу Phase 3): C2 cold-start без фриза при reload шейдеров (прогрев ~4-8 кадров, тёмный поп-ин), C1-дребезг на границе капа при беге/повороте, BEAM_BONUS (VL-луч не выпадает из top-K).
+2. Чекпоинт-коммиты Phase 2 СДЕЛАНЫ (до сессии 2026-07-12): irl-core 878eb27 (3 файла), аддон e385d18 (слайдер-плумбинг); досессионная грязь отдельно 26d3fc8. Phase 3 коммитится своими коммитами поверх ([[plan-perf-fix-cluster-phase3]]). ОТКРЫТО: тег/бамп версии core (главный тег всё ещё v1.1 на cf4ad94) — поднять при пуше/релизе.
+3. ОТЛОЖЕНО из той же аудит-очереди: C10 per-face block-cull (P2), тираж F1/F2/F3 Phase 1 на 5 паков (см. [[plan-perf-fix-cr-phase1]]).
 
 Связь: [[plan-perf-fix-cr-phase1]] (Phase 1, CR-пилот), [[project-perf-audit-irlite-2026-07-10]] (источник), [[addon-light-buffer-ssbo]] (контракт SSBO цел — layout не менялся), [[commit-checkpoints]], [[feedback-addon-runclient-command]] (процедура запуска + канон подхвата свежего core).
