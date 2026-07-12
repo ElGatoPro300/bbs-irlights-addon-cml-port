@@ -84,6 +84,7 @@
 ## irl-core — общее ядро
 - [patcher](patcher.md) — семантика патчера + DSL .irlights (@target/@packversion/@marker, after/before/replace, ?, |); validate-first, dry-run/rollback. CONTRACT_VERSION=1.
 - [addon-light-buffer-ssbo](addon-light-buffer-ssbo.md) — std430-контракт LightBuffer: SSBO binding7, header 16B + 6×vec4/96б (incl. cookie); MAX_LIGHTS=2048; инжект-GLSL зеркалит байт-в-байт.
+- [plan-perf-fix-cluster-phase3](plan-perf-fix-cluster-phase3.md) — PLAN-only (не начато 2026-07-12): Phase 3 = кластеризация света (Forward+ tiled uvec2-битмаска -> опц 3D froxel) против P0 per-fragment цикла по всем N; ГЕЙТ = сперва закрыть Phase 2 ин-гейм+замер (кластер только «если cap недостаточен»); пилот CR потом тираж 6 паков; главный риск = матчинг view/proj мод<->шейдер.
 
 ## Шейдер-инжект — общие контракты
 - [plan-lens-flare](plan-lens-flare.md) — PLAN-only lens flare для IRL-источников: каркас BSL-композита + тинт цветом лампы + окклюжн/фейд из старого ir_lens_flare.glsl; единый блоб как VL; open: SSBO-слот (реком. 7-й vec4).
