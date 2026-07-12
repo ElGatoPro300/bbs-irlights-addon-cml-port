@@ -75,6 +75,9 @@
 //#define IRLITE_OUTLINE_GLOW                   // soft inner Fresnel halo, feeds bloom (on/off)
 #define IRLITE_OUTLINE_GLOW_STRENGTH 0.12 // [0.0 0.05 0.12 0.2 0.35 0.5 0.75]
 
+// Phase 3 light clustering (compile-time internal, not in the settings screen): the per-fragment light loop is culled by a screen-tile mask uploaded to SSBO binding 6.
+#define IRLITE_CLUSTER                    // always-on; runtime-gated by the buffer header (flags=0 -> full loop)
+
 // DH/Voxy LOD passes draw distant geometry only and lack the needed uniforms - gate the whole body out; the option defines above stay visible to Iris.
 #if !defined DH_TERRAIN && !defined DH_WATER && !defined VOXY_PATCH
     #define IRLITE_ACTIVE
@@ -104,6 +107,15 @@ layout(std430, binding = 7) buffer IrliteLights
     uint irlite_pad2;
     IrliteLight irlite_lights[];
 };
+
+// ---- cluster grid (binding 6) — std430 mirror of ClusterGridBuffer.java; per-fragment screen-tile light mask ----
+// Second SSBO in this unit: the binding-7 #extension above already enables SSBOs for the whole program, so nothing extra is needed here.
+#if defined IRLITE_CLUSTER && defined IRLITE_SURFACE_PASS
+layout(std430, binding = 6) readonly buffer IrliteCluster {
+    uvec4 irlite_clusterHeader;   // x=gridX, y=gridY, z=flags (1=active, 0=full-loop fallback), w=0
+    uvec2 irlite_clusterMasks[];  // row-major ty*gridX+tx, bottom-left origin; bit i (i<64) = packed light index i
+};
+#endif
 
 const float IRLITE_PI = 3.14159265;
 
@@ -930,6 +942,20 @@ float irlite_toon(float x)
     #endif
 }
 
+#ifdef IRLITE_CLUSTER
+// Phase 3: map gl_FragCoord to its cluster tile and return the packed 64-light mask for this fragment.
+// Header flags==0 (disabled or no fresh snapshot this frame) -> all-ones, so every light passes: exact full-loop parity.
+uvec2 irlite_clusterMaskFetch()
+{
+    if (irlite_clusterHeader.z == 0u) return uvec2(0xFFFFFFFFu);
+    uint gridX = irlite_clusterHeader.x;
+    uint gridY = irlite_clusterHeader.y;
+    uint tx = min(uint(gl_FragCoord.x) * gridX / uint(viewWidth),  gridX - 1u);
+    uint ty = min(uint(gl_FragCoord.y) * gridY / uint(viewHeight), gridY - 1u);
+    return irlite_clusterMasks[ty * gridX + tx];
+}
+#endif
+
 // Diffuse + specular in one SSBO pass; per-light geometry + shadow computed once.
 void irlite_lightSurface(vec3 playerPos, vec3 normalM, vec3 nViewPos, float smoothnessG,
                          bool nonTerrain, out vec3 diffuseOut, out vec3 specularOut)
@@ -945,8 +971,15 @@ void irlite_lightSurface(vec3 playerPos, vec3 normalM, vec3 nViewPos, float smoo
     mat3 worldToView = mat3(gbufferModelView);
     vec3 n = normalize(viewToWorld * normalM);
 
+    #ifdef IRLITE_CLUSTER
+        uvec2 irliteClusterMask = irlite_clusterMaskFetch();
+    #endif
+
     for (uint i = 0u; i < count; i++)
     {
+        #ifdef IRLITE_CLUSTER
+            if (i < 64u && (irliteClusterMask[i >> 5u] & (1u << (i & 31u))) == 0u) continue;
+        #endif
         IrliteLight light = irlite_lights[i];
         int irlMask = int(light.cone.z + 0.5);             // 0 all, 1 entities only, 2 blocks only
         if (irlMask == 1 && !nonTerrain) continue;         // entities only: skip terrain
