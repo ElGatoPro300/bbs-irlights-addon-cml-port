@@ -1,12 +1,12 @@
 ---
 name: plan-shadow-lod-tiers
-description: "PLAN+RECON-DONE (кода нет, 2026-07-12): importance-based shadow resolution — тиры разрешения карт теней по C1-приоритету (ближним выше, дальним ниже) => рост числа теней при том же VRAM + бесплатный фикс D1 (зернистый квадрат = point 512 -> tier0 1024). Spot = статичное квадродерево в том же атласе (0 доп. VRAM, 0 новых бит SSBO); point = N инстанс-массивов (дорогая половина). Recon wf_b562c5da-9ce, 4 агента. Промпт следующей сессии в конце файла."
+description: "CHECKPOINT 2026-07-13: LOD-тиры I1-I4 + caster fix закоммичены (core 2e57f8d, addon 700b60c, editor 08df3f6); spot 64, point 18, caster pool nearest-128; I4 adversarial PASS, I5 визуальные гейты pending. Тираж на другие шейдеры/версии только по отдельной команде пользователя."
 metadata:
   node_type: memory
   type: project
 ---
 
-Importance-based shadow resolution (LOD-тиры карт теней). Выбор юзера 2026-07-12 после закрытия Phase 3 кластеризации ([[plan-perf-fix-cluster-phase3]]). Статус: PLAN + RECON DONE, КОД НЕ НАЧАТ.
+Importance-based shadow resolution (LOD-тиры карт теней). Выбор юзера 2026-07-12 после закрытия Phase 3 кластеризации ([[plan-perf-fix-cluster-phase3]]). Актуальный статус — checkpoint-блок в конце файла; ранний recon ниже сохранён как история.
 
 ЦЕЛЬ: поднять число одновременных теней (сегодня жёстко 16 point + 16 spot) без взрыва VRAM/бейка: ближние лампы (по уже существующему C1-приоритету) получают высокое разрешение, дальние — низкое. Синергия: tier0=1024 для ближних point ЗАКРЫВАЕТ D1 «зернистый квадрат» ([[project-point-shadow-square-root-cause]]) — единственный вариант, дающий и количество, и качество одновременно.
 
@@ -67,3 +67,13 @@ I5 ин-гейм: D1-проверка (зернистый квадрат ушё�
 ---
 
 Связь: [[plan-perf-fix-cluster-phase3]] (предыдущая фаза + процедуры), [[addon-shadows]] (движок; поправить там VRAM-строку пресетов при консолидации — реальный MEDIUM live = 288 MiB), [[project-point-shadow-square-root-cause]] (D1 закрывается tier0), [[project-shadow-bake-perf-audit]] (бейк-перф канон), [[shader-shadow-sampling]] (декод-идиома vlParams.w), [[plan-shadow-filtering-refactor]] (MSM/EVSM стек + Photon-дрейф для тиража), [[addon-light-buffer-ssbo]] (binding7 не трогаем).
+
+CHECKPOINT 2026-07-13 (АКТУАЛЬНЫЙ):
+- I1-I4 DONE; I4 adversarial review PASS по mirror-parity, GLSL semantics/frozen anchors и pipeline/PatchHarness. GLSL в review/fix-round не менялся. Modification == run-пак MD5 `e2f95a6bd05b6bdcf9775b54c152b58f`; binding7/binding6 и Phase 1/2/3 целы.
+- Раскладки: spot 8/24/32 = 64 тайла; point 2/8/8 = 18 слотов; MEDIUM point tier0=1024. Это лимиты shadow maps, отдельно от caster pool.
+- I5 runtime root cause для наблюдаемых 10–17 теней: общий caster pool 32 плюс pure-light ghost ModelBlock. Targeted fix: bounded nearest-128 с cached argmax + finite guard, pure Point/Spot tree filtering, caster horizon 72->256. nearest-harness/adversarial/build/byte-proof PASS.
+- Коммиты: core `2e57f8d`, addon code/shader `700b60c`, editor `08df3f6`; push нет. mavenLocal соответствует core checkpoint; addon/editor clean build PASS.
+- I5 визуально не закрыт: pending повторный shadow-count на 64 spot после fix, отлёт 20–30 блоков, D1, tier-flicker, flip <=1 кадр, FPS >=112, cold-start и image-gen EXPECTED/REGRESSION.
+- Разнос на другие шейдеры и версии — отдельный этап ТОЛЬКО по новой прямой команде пользователя. До неё не трогать остальные паки/port-ветки/release-раскладки.
+
+ВОЗОБНОВЛЕНИЕ: сверить clean git core `2e57f8d`, addon `700b60c` плюс memory-коммит, editor `08df3f6`; сначала завершить I5 визуальный ретест на CR-пилоте либо ждать отдельной команды на тираж. Не смешивать эти этапы.
