@@ -183,13 +183,19 @@ float irlite_cookie(vec3 fragWorld, IrliteLight light)
 // ---- baked shadow samplers, bound by the mod by exact name; tile/layer = int(vlParams.w + 0.5), -1 = no baked map ----
 uniform sampler2D        irl_spotShadowAtlas;    // 4x4 atlas of perspective depth tiles, one per spot
 uniform samplerCubeArray irl_pointShadowArray;   // Iris has no cube-array type: registered as 2D, the mod rebinds the GL target at runtime
+uniform samplerCubeArray irl_pointShadowArray1;  // LOD tier 1 (half-res cubes) — PointShadowTiers.java; tier-0 names stay unsuffixed
+uniform samplerCubeArray irl_pointShadowArray2;  // LOD tier 2 (quarter-res cubes)
 #ifdef IRLITE_SHADOW_PYRAMID
 uniform sampler2D        irl_spotShadowPyramid;  // RG32F min/max mips of the atlas (base = atlas/2), rebuilt on every tile bake
 uniform sampler2DArray   irl_pointShadowPyramid; // RG32F min/max mips of the cube, face-major (layer = slot*6+face, base = face/2)
+uniform sampler2DArray   irl_pointShadowPyramid1; // tier-1 pyramid (base = tier-1 face/2)
+uniform sampler2DArray   irl_pointShadowPyramid2; // tier-2 pyramid
 #endif
 #ifdef IRLITE_SHADOW_PREFILTER
 uniform sampler2D        irl_spotEvsm;           // EVSM4 half-res atlas + Gaussian mips; warp contract CP=42/CN=8 (SpotShadowEvsm.java)
 uniform samplerCubeArray irl_pointEvsm;          // MSM4 moments (z, z2, -z3, z4) of linear depth, CUBE_MAP_ARRAY view (seamless edges); PointShadowEvsm.java
+uniform samplerCubeArray irl_pointEvsm1;         // tier-1 MSM moments
+uniform samplerCubeArray irl_pointEvsm2;         // tier-2 MSM moments
 
 // one-sided Chebyshev upper bound; minVar guards degenerate variance
 float irlite_chebyshev(vec2 m, float w, float minVar)
@@ -228,6 +234,74 @@ float irlite_msmHamburger(vec4 b, float zf)
             : ((z1 < zf) ? vec4(zf, z1, 0.0, 1.0) : vec4(0.0));
     float quot = (sw.x * z2 - b.x * (sw.x + z2) + b.y) / ((z2 - sw.y) * (zf - z1));
     return 1.0 - clamp(sw.z + sw.w * quot, 0.0, 1.0);
+}
+#endif
+
+// ---- shadow LOD-tier layout (phase I4) — FROZEN MIRRORS of the Java contracts; transcribed, not invented ----
+const int IRL_PT_END0    = 2;  // mirror of PointShadowTiers.java javadoc: TIER_SLOTS {2,8,8} -> tier 0 = global slots [0,2)
+const int IRL_PT_END1    = 10; // mirror of PointShadowTiers.java javadoc: tier 1 = [2,10), tier 2 = [10,18)
+const int IRL_SPOT_END0  = 8;  // mirror of SpotlightDepthAtlas.java javadoc: TIER_CELLS {8,6,2} -> tier 0 = flat tiles [0,8)
+const int IRL_SPOT_END1  = 32; // mirror of SpotlightDepthAtlas.java javadoc: tier 1 = [8,32) (6 cells x 4 half tiles), tier 2 = [32,64)
+const int IRL_SPOT_CELL1 = 8;  // mirror of SpotlightDepthAtlas.java javadoc: first tier-1 (2x2 split) cell — cell = 8 + j/4
+const int IRL_SPOT_CELL2 = 14; // mirror of SpotlightDepthAtlas.java javadoc: first tier-2 (4x4 split) cell — cell = 14 + j/16
+
+// ---- point LOD-tier dispatch (phase I4) ----
+// Explicit if-chains, NOT an array of samplers: dynamic indexing of opaque-sampler arrays is
+// undefined-behaviour territory in GLSL. The tier comes from the per-light SSBO slot, so it is
+// dynamically uniform within one light's loop iteration — each chain resolves to a single
+// sampler per light, no divergence cost.
+float irlPtFaceRes(int tier)   // depth cube face size of the tier
+{
+    if (tier == 0)      return float(textureSize(irl_pointShadowArray,  0).x);
+    else if (tier == 1) return float(textureSize(irl_pointShadowArray1, 0).x);
+    else                return float(textureSize(irl_pointShadowArray2, 0).x);
+}
+
+float irlPtDepthFetch(int tier, vec4 dirLayer)   // depth texture() fetch; layer component is the LOCAL slot
+{
+    if (tier == 0)      return texture(irl_pointShadowArray,  dirLayer).r;
+    else if (tier == 1) return texture(irl_pointShadowArray1, dirLayer).r;
+    else                return texture(irl_pointShadowArray2, dirLayer).r;
+}
+
+#ifdef IRLITE_POINT_GATHER
+vec4 irlPtDepthGather(int tier, vec4 dirLayer)   // depth textureGather, comp 0; layer = LOCAL slot
+{
+    if (tier == 0)      return textureGather(irl_pointShadowArray,  dirLayer, 0);
+    else if (tier == 1) return textureGather(irl_pointShadowArray1, dirLayer, 0);
+    else                return textureGather(irl_pointShadowArray2, dirLayer, 0);
+}
+#endif
+
+#ifdef IRLITE_SHADOW_PYRAMID
+int irlPtPyrSize(int tier)   // pyramid base width (= tier face/2 on a matching irl-core build)
+{
+    if (tier == 0)      return textureSize(irl_pointShadowPyramid,  0).x;
+    else if (tier == 1) return textureSize(irl_pointShadowPyramid1, 0).x;
+    else                return textureSize(irl_pointShadowPyramid2, 0).x;
+}
+
+vec2 irlPtPyrFetch(int tier, ivec3 p, int lod)   // min/max texelFetch; p.z = LOCAL layer*6+face
+{
+    if (tier == 0)      return texelFetch(irl_pointShadowPyramid,  p, lod).rg;
+    else if (tier == 1) return texelFetch(irl_pointShadowPyramid1, p, lod).rg;
+    else                return texelFetch(irl_pointShadowPyramid2, p, lod).rg;
+}
+#endif
+
+#ifdef IRLITE_SHADOW_PREFILTER
+float irlPtEvsmRes(int tier)   // MSM cube face size of the tier
+{
+    if (tier == 0)      return float(textureSize(irl_pointEvsm,  0).x);
+    else if (tier == 1) return float(textureSize(irl_pointEvsm1, 0).x);
+    else                return float(textureSize(irl_pointEvsm2, 0).x);
+}
+
+vec4 irlPtEvsmLod(int tier, vec4 dirLayer, float lod)   // trilinear MSM moments; layer = LOCAL slot
+{
+    if (tier == 0)      return textureLod(irl_pointEvsm,  dirLayer, lod);
+    else if (tier == 1) return textureLod(irl_pointEvsm1, dirLayer, lod);
+    else                return textureLod(irl_pointEvsm2, dirLayer, lod);
 }
 #endif
 
@@ -331,9 +405,10 @@ int irlite_cubeFaceUV(vec3 dir, out vec2 uv)
 // Filter-after-compare for the point cube: gather the 2x2 face footprint, compare, bilinear-blend the four binary
 // results — parity with irlite_spotGatherTap. Bilinear weights come from the GL cube face-selection UV (spec table);
 // at face edges the seamless-filtering gather crosses the seam while the weights stay face-local (acceptable error).
-float irlite_pointGatherTap(vec3 dir, float layer, float faceRes, float cmpDepth)
+// tier routes to the LOD-tier cube array; layer is the LOCAL slot within that tier.
+float irlite_pointGatherTap(int tier, vec3 dir, float layer, float faceRes, float cmpDepth)
 {
-    vec4 g = textureGather(irl_pointShadowArray, vec4(dir, layer), 0);
+    vec4 g = irlPtDepthGather(tier, vec4(dir, layer));
     vec4 lit = step(vec4(cmpDepth), g);                  // stored >= ref-bias -> lit
     vec2 uv;
     irlite_cubeFaceUV(dir, uv);
@@ -348,6 +423,16 @@ float irlite_spotShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fas
     if (light.vlParams.w < 0.0) return 1.0;   // no baked map (-1 sentinel; int(w+0.5) rounds -1 to 0)
     int tile = int(light.vlParams.w + 0.5);
 
+    // Quadtree rect decode, once per light — FROZEN MIRROR of the SpotlightDepthAtlas.java
+    // flat-index->rect formula (tier 0 full cells, tier 1 cells split 2x2, tier 2 cells split 4x4).
+    int irlCell, irlSub, irlDiv;
+    if (tile < IRL_SPOT_END0)      { irlCell = tile;                 irlSub = 0;        irlDiv = 1; }
+    else if (tile < IRL_SPOT_END1) { int j = tile - IRL_SPOT_END0;   irlCell = IRL_SPOT_CELL1 + j / 4;  irlSub = j % 4;  irlDiv = 2; }
+    else                           { int j = tile - IRL_SPOT_END1;   irlCell = IRL_SPOT_CELL2 + j / 16; irlSub = j % 16; irlDiv = 4; }
+    float tileUvSize = 0.25 / float(irlDiv);
+    vec2 tileUvMin = vec2(float(irlCell % 4), float(irlCell / 4)) * 0.25
+                   + vec2(float(irlSub % irlDiv), float(irlSub / irlDiv)) * tileUvSize;
+
     vec3 lp = light.posRadius.xyz;
     vec3 ld = normalize(light.dirType.xyz);
     float range = max(light.posRadius.w, 0.001);
@@ -358,7 +443,8 @@ float irlite_spotShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fas
     float fY = 1.0 / tan(radians(outerDeg) * 0.5);
 
     // Texel floor: angular resolution makes the texel's world size grow with distance, so floor the normal offset and PCSS radii at ~1.5 texels at the receiver.
-    float tileRes = float(textureSize(irl_spotShadowAtlas, 0).x) * 0.25;   // atlas is a 4x4 tile grid
+    vec2 atlasSize = vec2(textureSize(irl_spotShadowAtlas, 0));            // physical atlas size first; tiles are quadtree fractions of it
+    float tileRes = atlasSize.x * tileUvSize;                              // THIS tile's texel resolution (tier 1 = /2, tier 2 = /4)
     float texelNdc = 2.0 / tileRes;
     float texelWorld = length(fragWorld - lp) / fY * texelNdc;
 
@@ -391,14 +477,10 @@ float irlite_spotShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fas
 
     float bias = irlite_depthBias(IRLITE_SHADOW_BIAS, dist, near, far);
 
-    int tx = tile - (tile / 4) * 4;
-    int ty = tile / 4;
-
     // Gather-tap setup shared by the hard path and the PCF loop; taps clamp half a texel inside this light's tile.
-    vec2 atlasSize = vec2(tileRes * 4.0);
     vec2 halfTexel = 0.5 / atlasSize;
-    vec2 tileMin = vec2(float(tx), float(ty)) * 0.25 + halfTexel;
-    vec2 tileMax = vec2(float(tx) + 1.0, float(ty) + 1.0) * 0.25 - halfTexel;
+    vec2 tileMin = tileUvMin + halfTexel;
+    vec2 tileMax = tileUvMin + vec2(tileUvSize) - halfTexel;
     float cmpDepth = refDepth - bias;
 
     bool hard = fast;
@@ -408,7 +490,7 @@ float irlite_spotShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fas
     if (hard)
     {
         vec2 lightUV = vec2(ndcX, ndcY) * 0.5 + 0.5;
-        vec2 atlasUV = vec2((float(tx) + lightUV.x) / 4.0, (float(ty) + lightUV.y) / 4.0);
+        vec2 atlasUV = tileUvMin + lightUV * tileUvSize;
         return irlite_spotGatherTap(atlasUV, atlasSize, tileMin, tileMax, cmpDepth);
     }
 
@@ -428,7 +510,10 @@ float irlite_spotShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fas
         // lod with pyramid texel >= 2x footprint: a clamped 2x2 window is guaranteed coverage
         int pyrLod = int(clamp(ceil(log2(max(footTex, 1.0))), 0.0, float(findMSB(int(tileRes)) - 1)));
         int regionW = (int(tileRes) / 2) >> pyrLod;             // this tile's region width at that lod (tileRes/2 = pyramid base)
-        ivec2 rOrig = ivec2(tx, ty) * regionW;
+        // exact: every quadtree tile origin is a multiple of its own pow2 tile size, so the
+        // pixel origin shifts right in lockstep with the mip sizes (no rounding drift)
+        ivec2 pixOrig = ivec2(round(tileUvMin * atlasSize));
+        ivec2 rOrig = (pixOrig >> 1) >> pyrLod;
         vec2 pf = (vec2(ndcX, ndcY) * 0.5 + 0.5) * float(regionW) - 0.5;
         ivec2 p0 = ivec2(floor(pf));
         ivec2 lo = clamp(p0,     ivec2(0), ivec2(regionW - 1));
@@ -456,7 +541,7 @@ float irlite_spotShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fas
     {
         vec2 off = irlite_vogel(i, IRLITE_BLOCKER_TAPS, phi) * searchNdc;
         vec2 lightUV = clamp(vec2(ndcX, ndcY) + off, -1.0, 1.0) * 0.5 + 0.5;
-        vec2 atlasUV = clamp(vec2((float(tx) + lightUV.x) / 4.0, (float(ty) + lightUV.y) / 4.0), tileMin, tileMax);
+        vec2 atlasUV = clamp(tileUvMin + lightUV * tileUvSize, tileMin, tileMax);
         float st = texture(irl_spotShadowAtlas, atlasUV).r;
         if (refDepth - bias > st)
         {
@@ -488,12 +573,12 @@ float irlite_spotShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fas
             // on bake, so the width genuinely doubles per lod (contract with SpotShadowEvsm.flushDirty)
             float lod = clamp(log2(penDepthTex * 0.25), 0.0, float(findMSB(int(tileRes)) - 1));
             vec2 lightUV = vec2(ndcX, ndcY) * 0.5 + 0.5;
-            vec2 uvE = vec2((float(tx) + lightUV.x) * 0.25, (float(ty) + lightUV.y) * 0.25);
+            vec2 uvE = tileUvMin + lightUV * tileUvSize;
             // clamp half a COARSE-mip texel inside the tile (trilinear reads floor(lod) and ceil(lod));
-            // min(0.125) keeps tMin <= tMax at the deepest lods (1 texel = the whole tile)
-            vec2 halfT = vec2(min(0.5 * exp2(ceil(lod)) / evsmRes, 0.125));
-            vec2 tMinE = vec2(float(tx), float(ty)) * 0.25 + halfT;
-            vec2 tMaxE = vec2(float(tx) + 1.0, float(ty) + 1.0) * 0.25 - halfT;
+            // min(tileUvSize*0.5) keeps tMin <= tMax at the deepest lods (1 texel = the whole tile)
+            vec2 halfT = vec2(min(0.5 * exp2(ceil(lod)) / evsmRes, tileUvSize * 0.5));
+            vec2 tMinE = tileUvMin + halfT;
+            vec2 tMaxE = tileUvMin + vec2(tileUvSize) - halfT;
             vec4 mm = textureLod(irl_spotEvsm, clamp(uvE, tMinE, tMaxE), lod);
             if (mm.z < 0.0)   // validity: E[wn] is strictly negative for real EVSM data (a pyramid/cookie on the unit reads .z = 0)
             {
@@ -541,7 +626,7 @@ float irlite_spotShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fas
         int t = (i * perm) % pcfN;   // permutation spreads the 4 probe taps across the disk radius; full-loop sum unchanged (bijection)
         vec2 off = irlite_vogel(t, pcfN, phiPcf) * penumbraNdc;
         vec2 lightUV = clamp(vec2(ndcX, ndcY) + off, -1.0, 1.0) * 0.5 + 0.5;
-        vec2 atlasUV = vec2((float(tx) + lightUV.x) / 4.0, (float(ty) + lightUV.y) / 4.0);
+        vec2 atlasUV = tileUvMin + lightUV * tileUvSize;
         sum += irlite_spotGatherTap(atlasUV, atlasSize, tileMin, tileMax, cmpDepth);
     }
     float shadow = sum / float(pcfN);
@@ -563,13 +648,18 @@ float irlite_spotShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fas
 float irlite_pointShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fast)
 {
     if (light.vlParams.w < 0.0) return 1.0;   // no baked map (-1 sentinel; int(w+0.5) rounds -1 to 0)
-    int layer = int(light.vlParams.w + 0.5);
+    int gslot = int(light.vlParams.w + 0.5);
+    // Tier decode, once per light — FROZEN MIRROR of the PointShadowTiers.java global-slot ranges:
+    // tier 0 = [0, IRL_PT_END0), tier 1 = [IRL_PT_END0, IRL_PT_END1), tier 2 = the rest.
+    // layer below is the LOCAL slot inside the tier's own cube array.
+    int tier = gslot < IRL_PT_END0 ? 0 : (gslot < IRL_PT_END1 ? 1 : 2);
+    int layer = gslot - (tier == 0 ? 0 : (tier == 1 ? IRL_PT_END0 : IRL_PT_END1));
 
     vec3 lp = light.posRadius.xyz;
     float radius = max(light.posRadius.w, 0.001);
 
     // Texel floor (see irlite_spotShadow): one cube texel covers ~2*d/faceRes world units; floors the PCSS offsets and the normal offset.
-    float faceRes = float(textureSize(irl_pointShadowArray, 0).x);
+    float faceRes = irlPtFaceRes(tier);
     float texelWorld = 2.0 * length(fragWorld - lp) / faceRes;
 
     // Normal-offset bias (see irlite_spotShadow); 0.0 disables it and the texel floor.
@@ -613,7 +703,7 @@ float irlite_pointShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fa
         // search — a binary tap here draws a visible soft->sharp ring at the LOD isoline,
         // cutting the blur off before the light's actual radius
         {
-            float evsmResF = float(textureSize(irl_pointEvsm, 0).x);
+            float evsmResF = irlPtEvsmRes(tier);
             if (evsmResF * 2.0 == faceRes)
             {
                 float bulbF = light.cone.w;
@@ -621,7 +711,7 @@ float irlite_pointShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fa
                 float ftexW = 2.0 * refDist / faceRes;
                 float penF = max(0.5 * sizeF, 1.5 * ftexW);
                 float lodF = clamp(log2(penF / ftexW * 0.25), 0.0, float(findMSB(int(faceRes)) - 1));
-                vec4 mmF = textureLod(irl_pointEvsm, vec4(dir, float(layer)), lodF);
+                vec4 mmF = irlPtEvsmLod(tier, vec4(dir, float(layer)), lodF);
                 if (mmF.z < 0.0)
                 {
                     float linZF = clamp((zPersp - near) / (far - near), 0.0, 1.0);
@@ -633,9 +723,9 @@ float irlite_pointShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fa
         }
 #endif
 #ifdef IRLITE_POINT_GATHER
-        return irlite_pointGatherTap(dir, float(layer), faceRes, refDepth - bias);   // 1-texel-antialiased edge, parity with the spot hard path
+        return irlite_pointGatherTap(tier, dir, float(layer), faceRes, refDepth - bias);   // 1-texel-antialiased edge, parity with the spot hard path
 #else
-        float stored = texture(irl_pointShadowArray, vec4(dir, float(layer))).r;
+        float stored = irlPtDepthFetch(tier, vec4(dir, float(layer)));
         return (refDepth - bias > stored) ? 0.0 : 1.0;
 #endif
     }
@@ -658,7 +748,8 @@ float irlite_pointShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fa
         float uvHalf = footWorld / max(zPersp - footWorld, 1e-4) + 1.5 / faceRes;
         // size check: unlike the spot 2D sampler, an unbound array sampler can read whatever
         // 2D_ARRAY sits on the unit (e.g. the cookie array) — validate base = face/2 first
-        if (textureSize(irl_pointShadowPyramid, 0).x * 2 == int(faceRes)
+        // (SAME tier's pyramid vs the SAME tier's faceRes)
+        if (irlPtPyrSize(tier) * 2 == int(faceRes)
             && uvC.x - uvHalf > 0.0 && uvC.x + uvHalf < 1.0 && uvC.y - uvHalf > 0.0 && uvC.y + uvHalf < 1.0)
         {
             // half-width in DEPTH texels (spot parity: pyramid texel at lod L spans 2^(L+1)
@@ -666,15 +757,15 @@ float irlite_pointShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fa
             float footTex = uvHalf * faceRes;
             int pyrLod = int(clamp(ceil(log2(max(footTex, 1.0))), 0.0, float(findMSB(int(faceRes)) - 1)));
             int regionW = (int(faceRes) / 2) >> pyrLod;
-            int pyrLayer = layer * 6 + face;
+            int pyrLayer = layer * 6 + face;   // layer is the LOCAL slot — face-major within THIS tier's pyramid
             vec2 pf = uvC * float(regionW) - 0.5;
             ivec2 p0 = ivec2(floor(pf));
             ivec2 lo = clamp(p0,     ivec2(0), ivec2(regionW - 1));
             ivec2 hi = clamp(p0 + 1, ivec2(0), ivec2(regionW - 1));
-            vec2 m00 = texelFetch(irl_pointShadowPyramid, ivec3(lo,           pyrLayer), pyrLod).rg;
-            vec2 m10 = texelFetch(irl_pointShadowPyramid, ivec3(hi.x, lo.y,   pyrLayer), pyrLod).rg;
-            vec2 m01 = texelFetch(irl_pointShadowPyramid, ivec3(lo.x, hi.y,   pyrLayer), pyrLod).rg;
-            vec2 m11 = texelFetch(irl_pointShadowPyramid, ivec3(hi,           pyrLayer), pyrLod).rg;
+            vec2 m00 = irlPtPyrFetch(tier, ivec3(lo,           pyrLayer), pyrLod);
+            vec2 m10 = irlPtPyrFetch(tier, ivec3(hi.x, lo.y,   pyrLayer), pyrLod);
+            vec2 m01 = irlPtPyrFetch(tier, ivec3(lo.x, hi.y,   pyrLayer), pyrLod);
+            vec2 m11 = irlPtPyrFetch(tier, ivec3(hi,           pyrLayer), pyrLod);
             float pyrMin = min(min(m00.x, m10.x), min(m01.x, m11.x));
             float pyrMax = max(max(m00.y, m10.y), max(m01.y, m11.y));
             float cmpP = refDepth - bias;
@@ -705,7 +796,7 @@ float irlite_pointShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fa
     {
         vec2 off = irlite_vogel(i, IRLITE_BLOCKER_TAPS_POINT, phi) * searchRadius;
         vec3 sd = dir + T * off.x + B * off.y;
-        float s = texture(irl_pointShadowArray, vec4(sd, float(layer))).r;
+        float s = irlPtDepthFetch(tier, vec4(sd, float(layer)));
         // slope-aware margin: a flat receiver tilted <=45° to the ray dips at most |off| in
         // depth across the tap offset — without this, wide searches on grazing side faces
         // count the wall itself as blocker (fake penumbra square at the frontal-face border)
@@ -741,7 +832,7 @@ float irlite_pointShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fa
     // face-uv math, clamp margins or neighbour blending is needed on the sampling side.
     {
         float penTexP = penumbra / texelWorld;
-        float evsmResP = float(textureSize(irl_pointEvsm, 0).x);
+        float evsmResP = irlPtEvsmRes(tier);
         // NO penumbra threshold for points (unlike spot): the binary depth test self-shadows
         // ("grainy square" = acne on the side cube faces at grazing angles) — Chebyshev has no
         // binary test and eats the acne by construction, so EVSM serves ALL point penumbras;
@@ -750,7 +841,7 @@ float irlite_pointShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fa
         {
             float lodP = clamp(log2(penTexP * 0.25), 0.0, float(findMSB(int(faceRes)) - 1));
             {
-                vec4 mm = textureLod(irl_pointEvsm, vec4(dir, float(layer)), lodP);
+                vec4 mm = irlPtEvsmLod(tier, vec4(dir, float(layer)), lodP);
                 if (mm.z < 0.0)   // validity: the third MSM moment is stored NEGATED (the point pyramid/foreign textures read back >= 0 — size gate alone is blind to them)
                 {
                 // moment contract with PointShadowEvsm.java: (z, z2, -z3, z4) of LINEAR dominant-axis depth
@@ -789,9 +880,9 @@ float irlite_pointShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fa
         vec2 off = irlite_vogel(t, pcfN, phiPcf) * penumbra;
         vec3 sd = dir + T * off.x + B * off.y;
         #ifdef IRLITE_POINT_GATHER
-            sum += irlite_pointGatherTap(sd, float(layer), faceRes, refDepth - bias);
+            sum += irlite_pointGatherTap(tier, sd, float(layer), faceRes, refDepth - bias);
         #else
-            float s = texture(irl_pointShadowArray, vec4(sd, float(layer))).r;
+            float s = irlPtDepthFetch(tier, vec4(sd, float(layer)));
             sum += (refDepth - bias > s) ? 0.0 : 1.0;
         #endif
     }
@@ -1156,8 +1247,9 @@ vec2 irlite_rayCone(vec3 rO, vec3 rD, vec3 apex, vec3 axis, float cosHalfAngle, 
 // Fast per-step shadow taps; per-light constants hoisted, mirrors irlite_*Shadow hard paths.
 
 // toR = offset-nudged receiver relative to the light (light -> receiver).
+// tileUvMin/tileUvSize = the light's quadtree rect in atlas UV (hoisted per light).
 float irlite_vlSpotStep(vec3 toR, vec3 sAxis, vec3 uAxis, vec3 axis, float fY,
-                        float range, int tx, int ty)
+                        float range, vec2 tileUvMin, float tileUvSize)
 {
     float eyeX =  dot(sAxis, toR);
     float eyeY =  dot(uAxis, toR);
@@ -1176,13 +1268,14 @@ float irlite_vlSpotStep(vec3 toR, vec3 sAxis, vec3 uAxis, vec3 axis, float fY,
 
     float bias = irlite_depthBias(IRLITE_SHADOW_BIAS, dist, near, range);
     vec2 lightUV = vec2(ndcX, ndcY) * 0.5 + 0.5;
-    vec2 atlasUV = vec2((float(tx) + lightUV.x) * 0.25, (float(ty) + lightUV.y) * 0.25);
+    vec2 atlasUV = tileUvMin + lightUV * tileUvSize;
     float stored = texture(irl_spotShadowAtlas, atlasUV).r;
     return (refDepth - bias > stored) ? 0.0 : 1.0;
 }
 
 // toLight = step->light (unnormalized); dist already computed by the march.
-float irlite_vlPointStep(vec3 toLight, float dist, float radius, float layer)
+// tier + LOCAL layer are hoisted per light (PointShadowTiers decode).
+float irlite_vlPointStep(vec3 toLight, float dist, float radius, int tier, float layer)
 {
     float refDist = dist - 2.0 * IRLITE_SHADOW_NORMAL_OFFSET;   // normal-offset with normal = L
     if (refDist < 0.001 || refDist > radius) return 1.0;
@@ -1195,7 +1288,7 @@ float irlite_vlPointStep(vec3 toLight, float dist, float radius, float layer)
     if (refDepth < 0.0 || refDepth > 1.0) return 1.0;
 
     float bias = irlite_depthBias(IRLITE_SHADOW_BIAS, refDist, near, radius);
-    float stored = texture(irl_pointShadowArray, vec4(dir, layer)).r;
+    float stored = irlPtDepthFetch(tier, vec4(dir, layer));
     return (refDepth - bias > stored) ? 0.0 : 1.0;
 }
 #endif // IRLITE_COMPILE_SHADOWS
@@ -1283,9 +1376,17 @@ vec3 irlite_volumetric(vec3 startWorld, vec3 endWorld, vec3 worldDir, float dith
             // Per-light shadow constants hoisted out of the march.
             bool shHas = light.vlParams.w >= 0.0;
             int shTile = int(light.vlParams.w + 0.5);
-            int shTx = shTile - (shTile / 4) * 4;
-            int shTy = shTile / 4;
-            float shLayer = float(shTile);
+            // spot: quadtree rect decode — FROZEN MIRROR of SpotlightDepthAtlas.java (same piecewise formula as irlite_spotShadow)
+            int shCell, shSub, shDiv;
+            if (shTile < IRL_SPOT_END0)      { shCell = shTile;                 shSub = 0;         shDiv = 1; }
+            else if (shTile < IRL_SPOT_END1) { int j = shTile - IRL_SPOT_END0;  shCell = IRL_SPOT_CELL1 + j / 4;  shSub = j % 4;  shDiv = 2; }
+            else                             { int j = shTile - IRL_SPOT_END1;  shCell = IRL_SPOT_CELL2 + j / 16; shSub = j % 16; shDiv = 4; }
+            float shTileUvSize = 0.25 / float(shDiv);
+            vec2 shTileUvMin = vec2(float(shCell % 4), float(shCell / 4)) * 0.25
+                             + vec2(float(shSub % shDiv), float(shSub / shDiv)) * shTileUvSize;
+            // point: tier decode — FROZEN MIRROR of PointShadowTiers.java (global slot -> tier + LOCAL layer)
+            int shTier = shTile < IRL_PT_END0 ? 0 : (shTile < IRL_PT_END1 ? 1 : 2);
+            float shLayer = float(shTile - (shTier == 0 ? 0 : (shTier == 1 ? IRL_PT_END0 : IRL_PT_END1)));
             vec3 shS = vec3(0.0);
             vec3 shU = vec3(0.0);
             float shFY = 0.0;
@@ -1353,8 +1454,8 @@ vec3 irlite_volumetric(vec3 startWorld, vec3 endWorld, vec3 worldDir, float dith
                     {
                         shadowVis = isSpot
                             ? irlite_vlSpotStep(2.0 * IRLITE_SHADOW_NORMAL_OFFSET * L - toLight,
-                                                shS, shU, axis, shFY, range, shTx, shTy)
-                            : irlite_vlPointStep(toLight, dist, range, shLayer);
+                                                shS, shU, axis, shFY, range, shTileUvMin, shTileUvSize)
+                            : irlite_vlPointStep(toLight, dist, range, shTier, shLayer);
                     }
                     visibility = shadowVis;
                 }

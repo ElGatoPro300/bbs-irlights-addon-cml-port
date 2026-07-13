@@ -10,6 +10,7 @@ import mchorse.bbs_mod.film.Films;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
+import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.renderers.FormRenderer;
 import mchorse.bbs_mod.forms.renderers.FormRenderType;
@@ -41,6 +42,9 @@ import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.chunk.BlockEntityTickInvoker;
 import org.joml.Matrix3f;
+import qualet.irlite.client.light.LightCollector;
+import qualet.irlite.forms.PointLightForm;
+import qualet.irlite.forms.SpotlightForm;
 import qualet.irlite.mixin.client.bbs.FilmsAccessor;
 import qualet.irlite.mixin.client.bbs.WorldBlockEntityTickersAccessor;
 
@@ -72,8 +76,10 @@ import java.util.List;
  */
 public final class IRLiteBbsCasterSource implements ShadowCasterSource
 {
-    /** Max distance (from the camera) at which a caster is considered. */
-    private static final double COLLECT_DIST = 72.0;
+    /** Match the light collector's camera horizon. This removes the old 72-block
+     *  mismatch for co-located lamp/caster scenes; the global bounded pool remains
+     *  intentionally camera-prioritized for casters beyond this horizon. */
+    private static final double COLLECT_DIST = LightCollector.MAX_DIST;
     private static final double COLLECT_DIST_SQ = COLLECT_DIST * COLLECT_DIST;
     private static final int FULL_LIGHT = LightmapTextureManager.pack(15, 15);
 
@@ -87,8 +93,8 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
     private static final float OVERLAP_MARGIN = 0.5f;
 
     // ===================================================================== //
-    //  collect — WHAT casts (entity -> model-block -> replay; arm order is    //
-    //  load-bearing for deterministic over-cap drops, INVARIANT 6).          //
+    //  collect — WHAT casts (entity -> model-block -> replay; stable arm      //
+    //  order preserves deterministic equal-distance ties in the bounded set).//
     // ===================================================================== //
 
     @Override
@@ -114,8 +120,8 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
             }
 
             // emitFromBox raises the center to mid-height and derives the
-            // circumscribing box-diagonal radius (INVARIANT 5); over-cap casters
-            // are dropped by the sink. Entities are always dynamic -> isStatic
+            // circumscribing box-diagonal radius (INVARIANT 5); the sink retains
+            // the bounded nearest set. Entities are always dynamic -> isStatic
             // false, staticHash 0 (INVARIANT 2).
             sink.emitFromBox(entity, CasterType.ENTITY, false, ex, ey, ez, entity.getBoundingBox(), 1f, 0L);
         }
@@ -183,7 +189,7 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
                 continue;
             }
             Form form = props.getForm();
-            if (form == null)
+            if (!hasShadowGeometry(form))
             {
                 continue;
             }
@@ -246,7 +252,7 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
                     continue;
                 }
                 Form form = ent.getForm();
-                if (form == null)
+                if (!hasShadowGeometry(form))
                 {
                     continue;
                 }
@@ -274,6 +280,40 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
                 sink.emitFromBox(ent, CasterType.REPLAY, false, wx, wy, wz, box, 1f, 0L);
             }
         }
+    }
+
+    /**
+     * Light forms deliberately emit no depth during a custom shadow bake, but
+     * their body parts are still rendered by BBS after render3D returns. Drop a
+     * form only when its structure consists entirely of Point/Spot lights. A
+     * non-light descendant is conservatively retained, while pure light hosts no
+     * longer consume bounded-pool slots.
+     */
+    private static boolean hasShadowGeometry(Form form)
+    {
+        if (form == null)
+        {
+            return false;
+        }
+        if (!(form instanceof PointLightForm) && !(form instanceof SpotlightForm))
+        {
+            return true;
+        }
+
+        List<BodyPart> parts = form.parts.getAllTyped();
+        if (parts == null)
+        {
+            return false;
+        }
+        for (int i = 0, n = parts.size(); i < n; i++)
+        {
+            BodyPart part = parts.get(i);
+            if (part != null && hasShadowGeometry(part.getForm()))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static FilmEditorController getActiveEditorController()

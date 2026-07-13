@@ -47,7 +47,8 @@ import java.util.List;
  */
 public final class LightCollector
 {
-    private static final double MAX_DIST = 256.0;
+    /** Shared camera-space horizon for lights and the casters that may shadow them. */
+    public static final double MAX_DIST = 256.0;
     private static final double MAX_DIST_SQ = MAX_DIST * MAX_DIST;
 
     private LightCollector()
