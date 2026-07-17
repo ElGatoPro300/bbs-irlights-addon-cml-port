@@ -102,7 +102,7 @@ struct IrliteLight
 layout(std430, binding = 7) buffer IrliteLights
 {
     uint irlite_lightCount;
-    uint irlite_pad0;
+    float irlite_vlIntensityRt;
     uint irlite_pad1;
     uint irlite_pad2;
     IrliteLight irlite_lights[];
@@ -1510,7 +1510,9 @@ vec3 irlite_volumetric(vec3 startWorld, vec3 endWorld, vec3 worldDir, float dith
         result += acc;
     }
 
-    return result * IRLITE_VL_INTENSITY;
+    float rt = irlite_vlIntensityRt;
+    if (!(rt > 0.0)) rt = IRLITE_VL_INTENSITY;
+    return result * rt;
 }
 
 #endif // IRLITE_VOLUMETRIC

@@ -40,5 +40,14 @@ public class L10nMixin
 
         self.getKey("bbs.config.irlite.shader_light_clustering", "Shader light clustering");
         self.getKey("bbs.config.irlite.shader_light_clustering-comment", "Split the screen into tiles and skip lights that cannot touch a pixel: the shader only loops the lights whose on-screen bounds cover a pixel's tile, so the image is identical while the per-pixel light cost drops. Off = the shader runs the plain full loop over every uploaded light. Default on.");
+
+        self.getKey("bbs.config.irlite.vl_intensity", "VL intensity (live)");
+        self.getKey("bbs.config.irlite.vl_intensity-comment", "Global multiplier on the volumetric light (fog beams) from IRLite lights. Applies instantly every frame without reloading the shaderpack. 1.0 = the pack's default, 0 = IRLite volumetrics off. Shaderpacks patched before this option keep using their compiled VL intensity setting.");
+
+        self.getKey("bbs.config.irlite.vl_shadows_live", "VL shadows (live)");
+        self.getKey("bbs.config.irlite.vl_shadows_live-comment", "Runtime toggle for shadowed volumetric light from IRLite lights. Applies instantly every frame without reloading the shaderpack. Off skips all volumetric shadow taps (beams pass through geometry). Only affects shaderpacks patched with runtime VL flags; older patches ignore it.");
+
+        self.getKey("bbs.config.irlite.vl_noise_live", "VL noise (live)");
+        self.getKey("bbs.config.irlite.vl_noise_live-comment", "Runtime toggle for the animated noise in IRLite volumetric light. Applies instantly every frame without reloading the shaderpack. Off skips the noise taps and renders uniform beams. Only affects shaderpacks patched with runtime VL flags; older patches ignore it.");
     }
 }

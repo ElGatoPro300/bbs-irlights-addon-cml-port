@@ -31,6 +31,7 @@ import qualet.irlite.forms.SpotlightForm;
 import qualet.irlite.mixin.client.bbs.WorldBlockEntityTickersAccessor;
 
 import org.qualet.irl.light.ClusterGridBuffer;
+import org.qualet.irl.light.LightBuffer;
 import org.qualet.irl.light.LightMath;
 import org.qualet.irl.light.LightRegistry;
 
@@ -118,6 +119,12 @@ public final class LightCollector
         // the gbuffer-matrix hook uploads an empty (flags=0) grid, so the shader falls
         // back to its full per-pixel light loop.
         ClusterGridBuffer.setEnabled(IrliteConfig.shaderLightClustering());
+        // Track the VL intensity slider each frame: lands in the SSBO header on
+        // upload, so patched shaders read it live without a recompile.
+        LightBuffer.setVlGlobalIntensity(IrliteConfig.vlIntensity());
+        // Track the live VL toggles each frame: packed as header bit flags
+        // (bit0 = VL shadows, bit1 = VL noise) read by runtime-flag patches.
+        LightBuffer.setVlFlags((IrliteConfig.vlShadowsLive() ? 1 : 0) | (IrliteConfig.vlNoiseLive() ? 2 : 0));
 
         if (world == null || cameraPos == null)
         {

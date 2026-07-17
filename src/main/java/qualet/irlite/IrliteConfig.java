@@ -1,6 +1,7 @@
 package qualet.irlite;
 
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
+import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
 import mchorse.bbs_mod.settings.values.numeric.ValueInt;
 
 public final class IrliteConfig
@@ -13,6 +14,9 @@ public final class IrliteConfig
     public static ValueInt shadowBakeBudget;
     public static ValueInt maxShaderLights;
     public static ValueBoolean shaderLightClustering;
+    public static ValueFloat vlIntensity;
+    public static ValueBoolean vlShadowsLive;
+    public static ValueBoolean vlNoiseLive;
 
     private IrliteConfig()
     {}
@@ -80,5 +84,27 @@ public final class IrliteConfig
     public static boolean shaderLightClustering()
     {
         return shaderLightClustering == null || shaderLightClustering.get();
+    }
+
+    /** Global multiplier on IRLite volumetric light brightness, applied live
+     *  through the SSBO header each frame — no shader reload. 1.0 = pack
+     *  default, 0 = IRLite volumetrics off. Default 1.0. */
+    public static float vlIntensity()
+    {
+        return vlIntensity != null ? vlIntensity.get() : 1F;
+    }
+
+    /** Runtime toggle for VL shadows, applied live through the SSBO header
+     *  flags each frame — no shader reload. Default on. */
+    public static boolean vlShadowsLive()
+    {
+        return vlShadowsLive == null || vlShadowsLive.get();
+    }
+
+    /** Runtime toggle for VL noise, applied live through the SSBO header
+     *  flags each frame — no shader reload. Default on. */
+    public static boolean vlNoiseLive()
+    {
+        return vlNoiseLive == null || vlNoiseLive.get();
     }
 }
