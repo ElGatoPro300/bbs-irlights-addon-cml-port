@@ -26,6 +26,8 @@ public final class IrliteConfig
     public static ValueFloat vlNoiseScale;
     public static ValueFloat vlNoiseSpeed;
     public static ValueInt vlNoiseStride;
+    public static ValueBoolean vlBlueNoise;
+    public static ValueBoolean vlDitherTemporal;
 
     private IrliteConfig()
     {}
@@ -189,5 +191,24 @@ public final class IrliteConfig
     public static int vlNoiseStride()
     {
         return vlNoiseStride != null ? vlNoiseStride.get() : 2;
+    }
+
+    /** Runtime toggle for the blue-noise VL march dither, applied live through
+     *  the globals UBO flags each frame — no shader reload. On replaces the
+     *  pack's hash dither with the mod's blue-noise texture (banding pushed
+     *  into fine grain the eye discards); off falls back to the pack's own
+     *  dither. Default on. */
+    public static boolean vlBlueNoise()
+    {
+        return vlBlueNoise == null || vlBlueNoise.get();
+    }
+
+    /** Runtime toggle for per-frame rotation of the VL blue-noise dither,
+     *  applied live through the globals UBO flags each frame — no shader
+     *  reload. Without TAA it can shimmer/boil on moving lamps, so it
+     *  defaults off. */
+    public static boolean vlDitherTemporal()
+    {
+        return vlDitherTemporal == null || vlDitherTemporal.get();
     }
 }

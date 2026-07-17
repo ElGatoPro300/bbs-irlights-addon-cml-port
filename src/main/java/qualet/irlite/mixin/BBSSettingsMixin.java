@@ -42,6 +42,8 @@ public class BBSSettingsMixin
         IrliteConfig.vlNoiseScale = builder.getFloat("vl_noise_scale", 2F, 0.5F, 6F);
         IrliteConfig.vlNoiseSpeed = builder.getFloat("vl_noise_speed", 0.25F, 0F, 3F);
         IrliteConfig.vlNoiseStride = builder.getInt("vl_noise_stride", 2, 1, 4);
+        IrliteConfig.vlBlueNoise = builder.getBoolean("vl_blue_noise", true);
+        IrliteConfig.vlDitherTemporal = builder.getBoolean("vl_dither_temporal", true);
 
         // Separate section for the shader patcher (UI injected by
         // UISettingsOverlayPanelMixin). Empty category — buildSections still

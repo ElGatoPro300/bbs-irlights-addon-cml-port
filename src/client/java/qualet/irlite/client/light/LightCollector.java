@@ -128,8 +128,10 @@ public final class LightCollector
         LightBuffer.setVlFlags((IrliteConfig.vlShadowsLive() ? 1 : 0) | (IrliteConfig.vlNoiseLive() ? 2 : 0));
         // Track the full VL knob set each frame: lands in the globals UBO
         // (binding 7) on upload, so UBO-era patches read every VL number and
-        // flag live without a recompile. The two header pushes above stay for
-        // pre-UBO patches until the fleet is regenerated.
+        // flag live without a recompile (bit0 = VL shadows, bit1 = VL noise,
+        // bit2 = blue-noise dither, bit3 = temporal dither rotation). The two
+        // header pushes above stay for pre-UBO patches until the fleet is
+        // regenerated.
         VlGlobalsBuffer.set(
             IrliteConfig.vlIntensity(),
             IrliteConfig.vlMaxDist(),
@@ -142,6 +144,7 @@ public final class LightCollector
             IrliteConfig.vlShadowStride(),
             IrliteConfig.vlNoiseStride(),
             (IrliteConfig.vlShadowsLive() ? 1 : 0) | (IrliteConfig.vlNoiseLive() ? 2 : 0)
+                | (IrliteConfig.vlBlueNoise() ? 4 : 0) | (IrliteConfig.vlDitherTemporal() ? 8 : 0)
         );
 
         if (world == null || cameraPos == null)

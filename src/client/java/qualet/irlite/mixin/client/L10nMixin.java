@@ -76,5 +76,11 @@ public class L10nMixin
 
         self.getKey("bbs.config.irlite.vl_noise_stride", "VL noise tap stride (live)");
         self.getKey("bbs.config.irlite.vl_noise_stride-comment", "Sample the density noise every Nth march step and reuse the value in between. Cheaper at high step counts; may band along the beam. 1 = every step. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime VL globals.");
+
+        self.getKey("bbs.config.irlite.vl_blue_noise", "VL blue-noise dither (live)");
+        self.getKey("bbs.config.irlite.vl_blue_noise-comment", "Use the mod's blue-noise texture to dither the volumetric march start instead of the pack's own hash noise. Pushes banding into fine even grain the eye discards — smoother beams at the same step count. Off falls back to the pack's dither. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime VL globals.");
+
+        self.getKey("bbs.config.irlite.vl_dither_temporal", "VL dither temporal rotation (live)");
+        self.getKey("bbs.config.irlite.vl_dither_temporal-comment", "Rotate the blue-noise dither pattern every frame so the grain averages out over time. If recorded footage shimmers/boils on moving lamps without temporal anti-aliasing, switch this off for that shot. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime VL globals.");
     }
 }
