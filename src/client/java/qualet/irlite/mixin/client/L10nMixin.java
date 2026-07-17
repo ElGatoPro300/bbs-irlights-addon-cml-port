@@ -82,5 +82,8 @@ public class L10nMixin
 
         self.getKey("bbs.config.irlite.vl_dither_temporal", "VL dither temporal rotation (live)");
         self.getKey("bbs.config.irlite.vl_dither_temporal-comment", "Rotate the blue-noise dither pattern every frame so the grain averages out over time. If recorded footage shimmers/boils on moving lamps without temporal anti-aliasing, switch this off for that shot. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime VL globals.");
+
+        self.getKey("bbs.config.irlite.vl_cluster_cull", "VL cluster culling (live)");
+        self.getKey("bbs.config.irlite.vl_cluster_cull-comment", "Reuse the per-frame screen-tile light grid inside the volumetric march: each pixel skips lights whose on-screen bounds miss its tile. Visually identical, pure performance. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime VL globals.");
     }
 }

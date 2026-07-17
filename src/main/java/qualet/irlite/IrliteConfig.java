@@ -28,6 +28,7 @@ public final class IrliteConfig
     public static ValueInt vlNoiseStride;
     public static ValueBoolean vlBlueNoise;
     public static ValueBoolean vlDitherTemporal;
+    public static ValueBoolean vlClusterCull;
 
     private IrliteConfig()
     {}
@@ -210,5 +211,15 @@ public final class IrliteConfig
     public static boolean vlDitherTemporal()
     {
         return vlDitherTemporal == null || vlDitherTemporal.get();
+    }
+
+    /** Runtime toggle for cluster culling in the VL march, applied live through
+     *  the globals UBO flags each frame — no shader reload. On reuses the
+     *  per-frame screen-tile light grid so each pixel's volumetric march skips
+     *  lights whose on-screen bounds miss its tile — the image is identical,
+     *  only the cost drops. Default on. */
+    public static boolean vlClusterCull()
+    {
+        return vlClusterCull == null || vlClusterCull.get();
     }
 }
