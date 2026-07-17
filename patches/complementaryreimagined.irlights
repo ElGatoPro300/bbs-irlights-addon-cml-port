@@ -102,10 +102,23 @@ struct IrliteLight
 layout(std430, binding = 7) buffer IrliteLights
 {
     uint irlite_lightCount;
-    float irlite_vlIntensityRt;
-    uint irlite_pad1;
+    float irlite_vlIntensityRt;   // legacy mirror of irlite_vlA.x (transition; unread here)
+    uint irlite_vlFlagsRt;        // legacy mirror of irlite_vlC.w (transition; unread here)
     uint irlite_pad2;
     IrliteLight irlite_lights[];
+};
+
+// ---- VL runtime globals (std140 UBO, binding 7) — mirror of VlGlobalsBuffer.java ----
+// UNIFORM binding 7 is its own namespace, independent of the SSBO binding 7 above. The numeric
+// IRLITE_VL_* #defines stay registered in the settings screen but are inert (except the
+// IRLITE_VL_INTENSITY unbound-UBO fallback) — the live values come from here, no recompile.
+#extension GL_ARB_uniform_buffer_object : enable      // uniform blocks below GLSL 1.40
+#extension GL_ARB_shading_language_420pack : enable   // layout(binding=N) on a uniform block at #version 130
+layout(std140, binding = 7) uniform IrliteVlGlobals
+{
+    vec4 irlite_vlA;   // x intensity, y maxDist, z tipBoost, w tipRadius
+    vec4 irlite_vlB;   // x noiseAmount, y noiseScale, z noiseSpeed, w reserved0
+    uvec4 irlite_vlC;  // x stepMax, y shadowStride, z noiseStride, w flags (bit0 shadows, bit1 noise)
 };
 
 // ---- cluster grid (binding 6) — std430 mirror of ClusterGridBuffer.java; per-fragment screen-tile light mask ----
@@ -1184,10 +1197,11 @@ float irlite_phaseHG(float cosTheta, float g)
 // w2 = octave-2 weight, faded per light when the march step undersamples it (anti-shimmer).
 float irlite_vlNoise(vec3 worldP, float w2)
 {
-    // wind in WHOLE noise periods per frameTimeCounter wrap (3600 s): SPEED slider is a multiple of
-    // 0.25 and the period vectors are multiples of 4 (x2 below), so the hourly reset lands seamlessly.
-    vec3 wind = frameTimeCounter * (IRLITE_VL_NOISE_SPEED / 3600.0) * vec3(12.0, 4.0, 8.0);
-    vec3 p = worldP / (128.0 * IRLITE_VL_NOISE_SCALE);
+    // wind in WHOLE noise periods per frameTimeCounter wrap (3600 s): the runtime speed is quantized
+    // to 0.25 steps (VlGlobalsBuffer) and the period vectors are multiples of 4 (x2 below), so the
+    // hourly reset lands seamlessly.
+    vec3 wind = frameTimeCounter * (irlite_vlB.z / 3600.0) * vec3(12.0, 4.0, 8.0);
+    vec3 p = worldP / (128.0 * irlite_vlB.y);
     return (1.0 - w2) * Noise3D(p + wind)
          + w2 * Noise3D(p * 2.53 + wind * 2.0 + vec3(0.31, 0.53, 0.47));
 }
@@ -1327,10 +1341,24 @@ vec3 irlite_volumetric(vec3 startWorld, vec3 endWorld, vec3 worldDir, float dith
     uint count = irlite_lightCount;
     if (count == 0u) return vec3(0.0);
 
-    float maxDist = min(length(endWorld - startWorld), IRLITE_VL_MAX_DIST);
+    float maxDist = min(length(endWorld - startWorld), irlite_vlA.y);
     if (maxDist < 0.01) return vec3(0.0);
 
-    float tipR2 = max(IRLITE_VL_TIP_RADIUS * IRLITE_VL_TIP_RADIUS, 1e-4);
+    float tipR2 = max(irlite_vlA.w * irlite_vlA.w, 1e-4);
+
+    // Runtime march bounds (UBO): the clamps keep a garbage upload from unrolling the loops.
+    int vlStepMax = clamp(int(irlite_vlC.x), 1, 96);
+
+    // Runtime toggles (UBO flags): uniform branches keep the feature code resident but
+    // skip every per-step tap when off — off must render identically to the #undef build.
+    #ifdef IRLITE_COMPILE_SHADOWS
+        int vlShadowStride = clamp(int(irlite_vlC.y), 1, 8);
+        bool irlite_vlShadowsOn = (irlite_vlC.w & 1u) != 0u;
+    #endif
+    #ifdef IRLITE_VL_NOISE
+        int vlNoiseStride = clamp(int(irlite_vlC.z), 1, 8);
+        bool irlite_vlNoiseOn = (irlite_vlC.w & 2u) != 0u;
+    #endif
 
     vec3 result = vec3(0.0);
 
@@ -1384,7 +1412,7 @@ vec3 irlite_volumetric(vec3 startWorld, vec3 endWorld, vec3 worldDir, float dith
         // Per-light march density anchored so the cap engages at >=24-block segments (at any
         // slider value); shorter segments drop proportionally, floor 16 (a bare floor of 8 showed
         // in-game onion-ring banding on small haze spheres, 2026-07-10).
-        int steps = clamp(int(ceil(segLen * (float(IRLITE_VL_STEPS) / 24.0))), min(16, IRLITE_VL_STEPS), IRLITE_VL_STEPS);
+        int steps = clamp(int(ceil(segLen * (float(vlStepMax) / 24.0))), min(16, vlStepMax), vlStepMax);
 
         float stepLen = segLen / float(steps);
         vec3 stepV = worldDir * stepLen;
@@ -1396,12 +1424,13 @@ vec3 irlite_volumetric(vec3 startWorld, vec3 endWorld, vec3 worldDir, float dith
         float oneMinusAbsorption = 1.0 - absorption;
         #ifdef IRLITE_VL_NOISE
             // octave-2 feature is SCALE/2.53 blocks; fade it out once stepLen can no longer resolve it.
-            float noiseW2 = 0.35 * clamp(IRLITE_VL_NOISE_SCALE / (2.53 * stepLen), 0.0, 1.0);
+            float noiseW2 = 0.35 * clamp(irlite_vlB.y / (2.53 * stepLen), 0.0, 1.0);
         #endif
 
         #ifdef IRLITE_COMPILE_SHADOWS
-            // Per-light shadow constants hoisted out of the march.
-            bool shHas = light.vlParams.w >= 0.0;
+            // Per-light shadow constants hoisted out of the march; runtime-off folds into shHas
+            // so no per-step tap executes and visibility stays 1.0 (== the #undef IRLITE_VL_SHADOWS march).
+            bool shHas = irlite_vlShadowsOn && light.vlParams.w >= 0.0;
             int shTile = int(light.vlParams.w + 0.5);
             // spot: quadtree rect decode — FROZEN MIRROR of SpotlightDepthAtlas.java (same piecewise formula as irlite_spotShadow)
             int shCell, shSub, shDiv;
@@ -1465,17 +1494,15 @@ vec3 irlite_volumetric(vec3 startWorld, vec3 endWorld, vec3 worldDir, float dith
             }
 
             float lightT = exp(-extinction * dist);
-            float tipGlow = 1.0 + IRLITE_VL_TIP_BOOST * exp(-(dist * dist) / tipR2);
+            float tipGlow = 1.0 + irlite_vlA.z * exp(-(dist * dist) / tipR2);
 
             // Per-step occlusion: hard depth tap for god-rays; skipped if no baked map.
             float visibility = 1.0;
             #ifdef IRLITE_COMPILE_SHADOWS
                 if (shHas && atten > 0.01)
                 {
-                    // Tap every IRLITE_VL_SHADOW_STRIDE steps, reuse cached visibility between.
-                    #if IRLITE_VL_SHADOW_STRIDE > 1
-                    if (s % IRLITE_VL_SHADOW_STRIDE == 0)
-                    #endif
+                    // Tap every vlShadowStride steps, reuse cached visibility between (1 = every step).
+                    if (s % vlShadowStride == 0)
                     {
                         shadowVis = isSpot
                             ? irlite_vlSpotStep(2.0 * IRLITE_SHADOW_NORMAL_OFFSET * L - toLight,
@@ -1489,16 +1516,15 @@ vec3 irlite_volumetric(vec3 startWorld, vec3 endWorld, vec3 worldDir, float dith
             float inscatter = atten * visibility * phase * lightT * tipGlow;
             #ifdef IRLITE_VL_NOISE
                 // world-anchored puffs; 2*mean(fBm)~1 keeps the average beam brightness, skipped on dead steps.
-                if (inscatter > 1e-5)
+                // Runtime-off skips the whole block: no taps, no modulation — exactly the #undef IRLITE_VL_NOISE march.
+                if (irlite_vlNoiseOn && inscatter > 1e-5)
                 {
-                    // Tap every IRLITE_VL_NOISE_STRIDE steps, reuse the cached value between.
-                    #if IRLITE_VL_NOISE_STRIDE > 1
-                    if (s % IRLITE_VL_NOISE_STRIDE == 0)
-                    #endif
+                    // Tap every vlNoiseStride steps, reuse the cached value between (1 = every step).
+                    if (s % vlNoiseStride == 0)
                     {
                         noiseVal = irlite_vlNoise(startWorld + pos, noiseW2);
                     }
-                    inscatter *= mix(1.0, 2.0 * noiseVal, IRLITE_VL_NOISE_AMOUNT);
+                    inscatter *= mix(1.0, 2.0 * noiseVal, irlite_vlB.x);
                 }
             #endif
 
@@ -1510,7 +1536,7 @@ vec3 irlite_volumetric(vec3 startWorld, vec3 endWorld, vec3 worldDir, float dith
         result += acc;
     }
 
-    float rt = irlite_vlIntensityRt;
+    float rt = irlite_vlA.x;
     if (!(rt > 0.0)) rt = IRLITE_VL_INTENSITY;
     return result * rt;
 }

@@ -15,8 +15,17 @@ public final class IrliteConfig
     public static ValueInt maxShaderLights;
     public static ValueBoolean shaderLightClustering;
     public static ValueFloat vlIntensity;
+    public static ValueInt vlSteps;
+    public static ValueFloat vlMaxDist;
     public static ValueBoolean vlShadowsLive;
+    public static ValueInt vlShadowStride;
+    public static ValueFloat vlTipBoost;
+    public static ValueFloat vlTipRadius;
     public static ValueBoolean vlNoiseLive;
+    public static ValueFloat vlNoiseAmount;
+    public static ValueFloat vlNoiseScale;
+    public static ValueFloat vlNoiseSpeed;
+    public static ValueInt vlNoiseStride;
 
     private IrliteConfig()
     {}
@@ -106,5 +115,79 @@ public final class IrliteConfig
     public static boolean vlNoiseLive()
     {
         return vlNoiseLive == null || vlNoiseLive.get();
+    }
+
+    /** Ray-march steps per light in the VL pass, applied live through the
+     *  globals UBO each frame — no shader reload. Default 48 (pack's
+     *  IRLITE_VL_STEPS default). */
+    public static int vlSteps()
+    {
+        return vlSteps != null ? vlSteps.get() : 48;
+    }
+
+    /** Maximum VL ray distance in blocks, applied live through the globals
+     *  UBO each frame — no shader reload. Default 96 (pack's
+     *  IRLITE_VL_MAX_DIST default). */
+    public static float vlMaxDist()
+    {
+        return vlMaxDist != null ? vlMaxDist.get() : 96F;
+    }
+
+    /** Tap the shadow maps every Nth VL march step, applied live through the
+     *  globals UBO each frame — no shader reload. Default 2 (pack's
+     *  IRLITE_VL_SHADOW_STRIDE default). */
+    public static int vlShadowStride()
+    {
+        return vlShadowStride != null ? vlShadowStride.get() : 2;
+    }
+
+    /** Extra VL glow near the light source itself, applied live through the
+     *  globals UBO each frame — no shader reload. Default 1.5 (pack's
+     *  IRLITE_VL_TIP_BOOST default). */
+    public static float vlTipBoost()
+    {
+        return vlTipBoost != null ? vlTipBoost.get() : 1.5F;
+    }
+
+    /** Radius of the tip glow in blocks, applied live through the globals
+     *  UBO each frame — no shader reload. Default 1.5 (pack's
+     *  IRLITE_VL_TIP_RADIUS default). */
+    public static float vlTipRadius()
+    {
+        return vlTipRadius != null ? vlTipRadius.get() : 1.5F;
+    }
+
+    /** How strongly the noise modulates the VL beam, applied live through the
+     *  globals UBO each frame — no shader reload. Default 0.6 (pack's
+     *  IRLITE_VL_NOISE_AMOUNT default). */
+    public static float vlNoiseAmount()
+    {
+        return vlNoiseAmount != null ? vlNoiseAmount.get() : 0.6F;
+    }
+
+    /** Approximate size of the VL noise puffs in blocks, applied live through
+     *  the globals UBO each frame — no shader reload. Default 2 (pack's
+     *  IRLITE_VL_NOISE_SCALE default). */
+    public static float vlNoiseScale()
+    {
+        return vlNoiseScale != null ? vlNoiseScale.get() : 2F;
+    }
+
+    /** How fast the VL noise puffs drift, applied live through the globals
+     *  UBO each frame — no shader reload. The core quantizes it to 0.25 steps
+     *  (whole field-periods per wind wrap cycle) so the fog never pops when
+     *  the shader's time counter wraps. Default 0.25 (pack's
+     *  IRLITE_VL_NOISE_SPEED default). */
+    public static float vlNoiseSpeed()
+    {
+        return vlNoiseSpeed != null ? vlNoiseSpeed.get() : 0.25F;
+    }
+
+    /** Sample the VL density noise every Nth march step, applied live through
+     *  the globals UBO each frame — no shader reload. Default 2 (pack's
+     *  IRLITE_VL_NOISE_STRIDE default). */
+    public static int vlNoiseStride()
+    {
+        return vlNoiseStride != null ? vlNoiseStride.get() : 2;
     }
 }

@@ -49,5 +49,32 @@ public class L10nMixin
 
         self.getKey("bbs.config.irlite.vl_noise_live", "VL noise (live)");
         self.getKey("bbs.config.irlite.vl_noise_live-comment", "Runtime toggle for the animated noise in IRLite volumetric light. Applies instantly every frame without reloading the shaderpack. Off skips the noise taps and renders uniform beams. Only affects shaderpacks patched with runtime VL flags; older patches ignore it.");
+
+        self.getKey("bbs.config.irlite.vl_steps", "VL march steps (live)");
+        self.getKey("bbs.config.irlite.vl_steps-comment", "Ray-march steps per light in the volumetric pass. Higher is smoother but costs performance — every pixel covered by a beam pays for all of its steps. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime VL globals, older patches keep their compiled setting.");
+
+        self.getKey("bbs.config.irlite.vl_max_dist", "VL max distance (live)");
+        self.getKey("bbs.config.irlite.vl_max_dist-comment", "Maximum volumetric ray distance in blocks. Longer rays cost more on sky pixels. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime VL globals.");
+
+        self.getKey("bbs.config.irlite.vl_shadow_stride", "VL shadow tap stride (live)");
+        self.getKey("bbs.config.irlite.vl_shadow_stride-comment", "Tap the IRLights shadow maps every Nth march step and reuse the result in between. 2 roughly halves the volumetric shadow cost for slightly softer shadows; 1 = tap every step. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime VL globals.");
+
+        self.getKey("bbs.config.irlite.vl_tip_boost", "VL tip glow (live)");
+        self.getKey("bbs.config.irlite.vl_tip_boost-comment", "Extra volumetric glow near the light source itself. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime VL globals.");
+
+        self.getKey("bbs.config.irlite.vl_tip_radius", "VL tip radius (live)");
+        self.getKey("bbs.config.irlite.vl_tip_radius-comment", "Radius of the extra glow around the light source, in blocks. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime VL globals.");
+
+        self.getKey("bbs.config.irlite.vl_noise_amount", "VL noise amount (live)");
+        self.getKey("bbs.config.irlite.vl_noise_amount-comment", "How strongly the animated noise modulates the beam. Low keeps it mostly uniform, 1 fully breaks it into puffs; average brightness is preserved. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime VL globals.");
+
+        self.getKey("bbs.config.irlite.vl_noise_scale", "VL noise scale (live)");
+        self.getKey("bbs.config.irlite.vl_noise_scale-comment", "Approximate size of the noise puffs, in blocks. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime VL globals.");
+
+        self.getKey("bbs.config.irlite.vl_noise_speed", "VL noise drift speed (live)");
+        self.getKey("bbs.config.irlite.vl_noise_speed-comment", "How fast the noise puffs drift through the beam, like dust in the air. 0 = static. Snaps to 0.25 steps — in-between values would make the fog pop when the shader's wind cycle wraps. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime VL globals.");
+
+        self.getKey("bbs.config.irlite.vl_noise_stride", "VL noise tap stride (live)");
+        self.getKey("bbs.config.irlite.vl_noise_stride-comment", "Sample the density noise every Nth march step and reuse the value in between. Cheaper at high step counts; may band along the beam. 1 = every step. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime VL globals.");
     }
 }

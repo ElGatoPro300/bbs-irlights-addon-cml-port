@@ -34,6 +34,7 @@ import org.qualet.irl.light.ClusterGridBuffer;
 import org.qualet.irl.light.LightBuffer;
 import org.qualet.irl.light.LightMath;
 import org.qualet.irl.light.LightRegistry;
+import org.qualet.irl.light.VlGlobalsBuffer;
 
 import qualet.irlite.IrliteConfig;
 
@@ -125,6 +126,23 @@ public final class LightCollector
         // Track the live VL toggles each frame: packed as header bit flags
         // (bit0 = VL shadows, bit1 = VL noise) read by runtime-flag patches.
         LightBuffer.setVlFlags((IrliteConfig.vlShadowsLive() ? 1 : 0) | (IrliteConfig.vlNoiseLive() ? 2 : 0));
+        // Track the full VL knob set each frame: lands in the globals UBO
+        // (binding 7) on upload, so UBO-era patches read every VL number and
+        // flag live without a recompile. The two header pushes above stay for
+        // pre-UBO patches until the fleet is regenerated.
+        VlGlobalsBuffer.set(
+            IrliteConfig.vlIntensity(),
+            IrliteConfig.vlMaxDist(),
+            IrliteConfig.vlTipBoost(),
+            IrliteConfig.vlTipRadius(),
+            IrliteConfig.vlNoiseAmount(),
+            IrliteConfig.vlNoiseScale(),
+            IrliteConfig.vlNoiseSpeed(),
+            IrliteConfig.vlSteps(),
+            IrliteConfig.vlShadowStride(),
+            IrliteConfig.vlNoiseStride(),
+            (IrliteConfig.vlShadowsLive() ? 1 : 0) | (IrliteConfig.vlNoiseLive() ? 2 : 0)
+        );
 
         if (world == null || cameraPos == null)
         {
