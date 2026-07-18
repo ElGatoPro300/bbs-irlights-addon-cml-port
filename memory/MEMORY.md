@@ -28,7 +28,7 @@
 Объединённая база: 2 мода — IRLite (BBS-аддон), IRL-redactor (ImGui-редактор) — + ядро irl-core. Старт «поменяй X» -> [reference-edit-routing-by-area](reference-edit-routing-by-area.md).
 Done-логи в `_archive/` — не индексируется. Инфра: 3 memory-дира = ОДИН склад через junctions -> [reference-memory-junctions](reference-memory-junctions.md).
 
-АКТИВНО СЕЙЧАС: [plan-partial-tile-filter](plan-partial-tile-filter.md) — partial-tile DONE+ЗАКОММИЧЕН (core 3eaebae; ultra −10-12%, rect-share 36%, мелкие кастеры ×4.5); NEXT SESSION = AABB-проекция вместо cull-сферы (план+промпт внутри; СУБАГЕНТОВ ЭКОНОМИТЬ — лимиты юзера, рекон/имплем инлайн).
+АКТИВНО СЕЙЧАС: [plan-partial-tile-filter](plan-partial-tile-filter.md) — AABB-проекция + крутилка ЗАКОММИЧЕНЫ 2026-07-18 сессия 6 (core 0e236e2 / addon 7ae6626): ultra bake 16.0 → 12.9-13.0 ms, rect-share 36% → ~100%, coversMost → 15/16; клип на дефолте 0.9 РЕАЛЕН → слайдер «Shadow pose margin» (shadow_pose_reach 0..2, live) в BBS→irlite. ТЕМА ОТКРЫТА, ВЕРНЁМСЯ: калибровка дефолта по слайдеру юзера, вертикальная ось при нужде, апроны/lod (6-9 ms не добито), тираж на порт-ветки — список внутри.
 
 ## Маршрутизация и стратегия (читать первой)
 - [reference-edit-routing-by-area](reference-edit-routing-by-area.md) — что-где менять (патчер+свет+тени=irl-core; caster/UI per-mod; .irlights owner IRLite); команды сборки.
