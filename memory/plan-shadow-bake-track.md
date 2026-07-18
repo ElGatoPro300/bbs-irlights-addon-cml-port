@@ -1,18 +1,23 @@
 ---
 name: plan-shadow-bake-track
-description: "ПЛАН на новую сессию (код НЕ начат): bake-трек — Ф0 профайлер-разбивка бейка (steady 3.4-4ms vs спайки ~320ms), затем рычаги по данным: C10 per-face block-cull, per-face гранулярность Point Pyramid/EVSM, BBS-probe статики модел-блоков. Рекон-якоря 2026-07-18 внутри."
+description: "Bake-трек: Ф0 (профайлер-разбивка бейка) РЕАЛИЗОВАНА+ПРОВЕРЕНА 2026-07-18, НЕ ЗАКОММИЧЕНА — ждёт таблицы юзера из реальной сцены; дальше по данным: C10 per-face block-cull, per-face гранулярность Point Pyramid/EVSM, BBS-probe статики. Имплем-детали Ф0 и рекон-якоря внутри."
 metadata: 
   node_type: memory
   type: project
   originSessionId: 1a47d7b9-f46d-49f3-a5ce-79b7f33d8d56
 ---
 
-# Bake-трек: разбивка и оптимизация бейка теней (план новой сессии, код НЕ начат)
+# Bake-трек: разбивка и оптимизация бейка теней
 
-СТАТУС 2026-07-18: план утверждён юзером после закрытия VL cost-блока (3c bilateral: deferred2 3.40→0.97ms). Профайлер намерил bake = **3.4–4.0ms GPU СТАБИЛЬНО каждый кадр** (крупнейший GPU-потребитель IRLite) + известные **спайки ~320ms** на кадрах статик-бейка (C10). Деревья чистые, Fable-агенты разрешены. Трек = Java (core+addon), GLSL и патчи НЕ трогаются (реген не нужен).
+## СТАТУС 2026-07-18 (сессия 4): Ф0 РЕАЛИЗОВАНА + e2e PASS + ЗАКОММИЧЕНА (core 4e4e490 / addon 06d7de9)
+- **Core (irl-core 4e4e490)**: NEW ShadowBakeProbe (интерфейс section/counter); ShadowEngine.installBakeProbe/bakeProbe (volatile, null=off); ShadowBaker: probeSection/probeCount + секции по швам bakeInner (bake-spot → bake-spot-filter → bake-point → bake-point-filter → bake-tail) + счётчики (sp/pt.bake.t0-2 per-tier через tierForIndex, sp.copy, sp.dyn, sp.clear, pt.copy.f, pt.dyn.f, pt.clear.f); 4 фильтр-класса: counter pyr.sp/evsm.sp/pyr.pt/evsm.pt = bitCount(mask) в flushDirty после early-out'ов.
+- **Addon (06d7de9)**: VlProfiler.switchPass (endPass+beginPass — сиблинг-переключение, нестинг GL_TIME_ELAPSED невозможен) + counters-окно (лог-строка "[irlite] bake: k v | … | N frames" + HUD-ряды по 4) + derived "bake X ms" (Σ sumNs bake-* / max samples, печатается при ≥2 сегментах); PASS_BAKE="shadow-bake"→"bake-head" (голова = collect/prioritize/beginBake); IrliteClient ставит probe только при VlProfiler.ENABLED. Редактор probe НЕ ставит → core no-op.
+- Ревью-воркфлоу 13 агентов: 1 подтверждённая (off-by-one кадров первого окна — починена переносом windowFrames++ после flush), 3 рефьюта (в т.ч. «копии неотделимы от дро по GPU-времени внутри bake-spot/point» — рефьют: счётчики дают атрибуцию).
+- Сборки зелёные (core publish → пурж loom → addon → editor). E2E quickplay Testing PASS: все 6 сегментов в "[irlite] gpu:", bake 0.79 ≈ Σ сегментов, счётчики консистентны (sp.copy=sp.dyn=pyr.sp=evsm.sp=frames — оверлей-цепочка), первое окно точное (17=17), stuck-query/GL-ошибок нет. Уже на спавн-сцене: bake-spot-filter 0.69 ms vs дро 0.09 ms — фильтры доминируют.
 
-## NEXT-SESSION PROMPT
-«Делаем по plan-shadow-bake-track: Фаза 0 — разбивка бейка профайлером, таблица из реальной сцены, потом рычаги по данным».
+## NEXT
+1. **Гейт Ф0 = прогон юзера в реальной сцене** (та же, где bake 3.4-4.0 ms): -Dirlite.profileVl=true, снять "[irlite] gpu:"+"[irlite] bake:" → таблица какой из [spot-filter | point-filter | копии | дро] доминирует steady → выбор Ф1/Ф2.
+2. Дальше фазы ниже по данным Ф0.
 
 ## КАРТА ВИНОВНИКОВ (рекон 2026-07-18, актуальный код ПОСЛЕ atlas-merge; аудит-якоря частично устарели)
 **Steady 3.4–4ms — цепочка оверлея, вне таксономии аудита:** все BBS-кастеры динамические (энтити/реплеи by design; модел-блоки ЖЁСТКО isStatic=false — INVARIANT 2 в IRLiteBbsCasterSource ~L424-430, «анимированный модел-блок с isStatic=true заморозил бы тень»; modelBlockHash = мёртвый код с TODO Ф3 Open Q1). Любой актёр в радиусе лампы → overlay КАЖДЫЙ кадр: copyStaticToLive + dyn-дро + **markDirty на ВЕСЬ тайл/блок → Pyramid+EVSM flushDirty каждый бейк**. Цена фильтров: spot-тайл ≈ 30+ compute-дисп. (convert + blur H/V + mip-цепочка ~10-11 lod с ре-блюром, батч по lod); point — гранулярность «весь блок»: PointShadowPyramid.markDirty(block), ВСЕ диспатчи z=6 (все 6 граней), PointShadowEvsm layer=localBlock*6+face тоже z=6 → **одна динамическая грань = полный 6-гранный ребилд MSM+пирамиды каждый кадр**. Бюджеты НЕ покрывают оверлеи/копии/фильтры вообще (ShadowBaker L242-43 «Dynamic overlays and static->live copies are NOT counted»).
