@@ -88,5 +88,8 @@ public class L10nMixin
 
         self.getKey("bbs.config.irlite.vl_cluster_cull", "VL cluster culling (live)");
         self.getKey("bbs.config.irlite.vl_cluster_cull-comment", "Reuse the per-frame screen-tile light grid inside the volumetric march: each pixel skips lights whose on-screen bounds miss its tile. Visually identical, pure performance. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime VL globals.");
+
+        self.getKey("bbs.config.irlite.vl_shadow_hiz", "VL shadow Hi-Z skip (live)");
+        self.getKey("bbs.config.irlite.vl_shadow_hiz-comment", "Classify each beam chunk once against a coarse min/max summary of the spot shadow map and skip the per-step shadow-map taps for chunks provably fully lit or fully in shadow. Spot lights only. Visually identical, pure performance. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime VL globals.");
     }
 }

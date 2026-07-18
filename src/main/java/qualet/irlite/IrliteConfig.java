@@ -30,6 +30,7 @@ public final class IrliteConfig
     public static ValueBoolean vlBlueNoise;
     public static ValueBoolean vlDitherTemporal;
     public static ValueBoolean vlClusterCull;
+    public static ValueBoolean vlShadowHiz;
 
     private IrliteConfig()
     {}
@@ -232,5 +233,18 @@ public final class IrliteConfig
     public static boolean vlClusterCull()
     {
         return vlClusterCull == null || vlClusterCull.get();
+    }
+
+    /** Runtime toggle for the VL shadow Hi-Z segment skip, applied live
+     *  through the globals UBO flags each frame — no shader reload. On
+     *  classifies each pixel's march segment once against the coarse min/max
+     *  spot shadow pyramid: segments provably fully lit skip every per-step
+     *  shadow-map tap, segments provably fully occluded skip the light
+     *  entirely; anything ambiguous falls back to the per-step taps. Spot
+     *  lights only — the image is identical, only the cost drops. Default
+     *  on. */
+    public static boolean vlShadowHiz()
+    {
+        return vlShadowHiz == null || vlShadowHiz.get();
     }
 }

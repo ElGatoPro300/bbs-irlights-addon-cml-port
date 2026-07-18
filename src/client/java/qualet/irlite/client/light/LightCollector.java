@@ -146,7 +146,7 @@ public final class LightCollector
             IrliteConfig.vlNoiseStride(),
             (IrliteConfig.vlShadowsLive() ? 1 : 0) | (IrliteConfig.vlNoiseLive() ? 2 : 0)
                 | (IrliteConfig.vlBlueNoise() ? 4 : 0) | (IrliteConfig.vlDitherTemporal() ? 8 : 0)
-                | (IrliteConfig.vlClusterCull() ? 16 : 0)
+                | (IrliteConfig.vlClusterCull() ? 16 : 0) | (IrliteConfig.vlShadowHiz() ? 32 : 0)
         );
 
         if (world == null || cameraPos == null)

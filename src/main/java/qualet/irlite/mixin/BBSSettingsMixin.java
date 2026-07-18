@@ -46,6 +46,7 @@ public class BBSSettingsMixin
         IrliteConfig.vlBlueNoise = builder.getBoolean("vl_blue_noise", true);
         IrliteConfig.vlDitherTemporal = builder.getBoolean("vl_dither_temporal", true);
         IrliteConfig.vlClusterCull = builder.getBoolean("vl_cluster_cull", true);
+        IrliteConfig.vlShadowHiz = builder.getBoolean("vl_shadow_hiz", true);
 
         // Separate section for the shader patcher (UI injected by
         // UISettingsOverlayPanelMixin). Empty category — buildSections still
