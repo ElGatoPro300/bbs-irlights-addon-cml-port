@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import org.lwjgl.opengl.GL30;
 import org.qualet.irl.light.IrlSamplers;
 import org.qualet.irl.light.shadow.IRLiteBbsCasterSource;
+import org.qualet.irl.light.shadow.ShadowBakeProbe;
 import org.qualet.irl.light.shadow.ShadowEngine;
 import org.qualet.irl.patcher.Patcher;
 import qualet.irlite.client.diag.VlProfiler;
@@ -19,9 +20,22 @@ public class IrliteClient implements ClientModInitializer {
         Patcher.install(new BbsPatcherHost());
 
         // Dev VL profiler HUD (-Dirlite.profileVl=true): live per-pass GPU ms
-        // in the corner. Not registered at all in normal runs.
+        // in the corner. Not registered at all in normal runs. The bake probe
+        // partitions the shadow-bake GPU bracket into sibling segments at the
+        // core bakeInner seams and feeds the per-window work counters.
         if (VlProfiler.ENABLED) {
             HudRenderCallback.EVENT.register((ctx, tickDelta) -> VlProfiler.renderHud(ctx));
+            ShadowEngine.installBakeProbe(new ShadowBakeProbe() {
+                @Override
+                public void section(String name) {
+                    VlProfiler.switchPass(name);
+                }
+
+                @Override
+                public void counter(String key, int amount) {
+                    VlProfiler.counter(key, amount);
+                }
+            });
         }
 
         // Install the BBS Form/Film/Morph shadow caster source + config so the shared

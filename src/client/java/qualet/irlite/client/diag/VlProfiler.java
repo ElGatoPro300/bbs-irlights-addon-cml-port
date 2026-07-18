@@ -2,6 +2,7 @@ package qualet.irlite.client.diag;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -21,10 +22,17 @@ import org.lwjgl.opengl.GL33C;
  * begin*, prepare*, shadowcomp*) is bracketed with GL_TIME_ELAPSED via
  * CompositeRendererTimerMixin, and the mod-side shadow bake is bracketed around
  * FramePipeline.frame in GameRendererLightMixin (the bake runs strictly before the
- * Iris pass sequence, so the sibling brackets never nest). Results are read back
- * asynchronously from a query pool a few frames later — the pipeline is never
- * stalled — and aggregated into 1-second windows printed to the log and mirrored
- * onto a small HUD overlay.</p>
+ * Iris pass sequence, so the sibling brackets never nest). The bake bracket is
+ * further PARTITIONED into sibling segments at the bakeInner seams by the
+ * core-side {@code ShadowBakeProbe} (installed in IrliteClient when ENABLED):
+ * bake-head (collect/prioritize + pre-loop setup) -> bake-spot -> bake-spot-filter
+ * -> bake-point -> bake-point-filter -> bake-tail, with a derived "bake=SUM" cell
+ * in the window line. The probe also feeds per-window WORK COUNTERS (full static
+ * bakes per type+tier, overlay draws, static->live copies, faces baked/copied,
+ * pyramid/EVSM flush sizes) printed as a second "[irlite] bake:" line. Results
+ * are read back asynchronously from a query pool a few frames later — the
+ * pipeline is never stalled — and aggregated into 1-second windows printed to
+ * the log and mirrored onto a small HUD overlay.</p>
  *
  * <p>Level 2 — differential sweep ({@link VlSweep}): cycles VlGlobals UBO flag
  * configs frame-by-frame to attribute the deferred2 (VL march) cost to shadows /
@@ -34,8 +42,17 @@ public final class VlProfiler
 {
     public static final boolean ENABLED = Boolean.getBoolean("irlite.profileVl");
 
-    /** Synthetic pass name for the mod-side shadow bake bracket. */
-    public static final String PASS_BAKE = "shadow-bake";
+    /** Synthetic pass name for the mod-side shadow bake bracket opened at
+     *  renderWorld HEAD. The core-side ShadowBakeProbe sections then switch it
+     *  to bake-spot/-spot-filter/-point/-point-filter/-tail siblings, so this
+     *  name ends up covering only the pre-spot-loop head (collect/prioritize,
+     *  quality apply, beginBake) — the derived "bake" total in the window line
+     *  is the old whole-bracket number. */
+    public static final String PASS_BAKE = "bake-head";
+
+    /** Every bake segment (the head bracket + the probe-switched siblings)
+     *  carries this prefix; the window flush sums them into the derived total. */
+    private static final String BAKE_PREFIX = "bake-";
 
     /** The Iris pass name of our VL march program (the sweep target). */
     public static final String PASS_VL = "deferred2";
@@ -68,6 +85,14 @@ public final class VlProfiler
     private static final Map<String, Stat> window = new HashMap<>();
     private static long windowStart;
     private static volatile List<String> hudLines = List.of();
+
+    /** Per-window work counters fed by the core-side ShadowBakeProbe (bakes per
+     *  type+tier, faces copied/cleared, pyramid/EVSM flush sizes). Values are
+     *  WINDOW SUMS; the flush line prints the window's frame count next to them
+     *  so per-frame rates can be read off. Render thread only. */
+    private static final Map<String, long[]> counters = new HashMap<>();
+    /** Frames seen since the last window flush (normalizes the counters). */
+    private static int windowFrames;
 
     private VlProfiler()
     {}
@@ -140,6 +165,39 @@ public final class VlProfiler
         drainCompleted();
         VlSweep.tick(frameNo);
         maybeFlushWindow();
+        // AFTER the flush: this tick's bake counters land after the flush too,
+        // so the window's tick count and its bake-frame span coincide exactly
+        // (incrementing before the flush over-counted the first window by one).
+        windowFrames += 1;
+    }
+
+    /**
+     * Core-side ShadowBakeProbe.section: close the current bake bracket and
+     * open the named sibling. Fired at the bakeInner seams while the mixin's
+     * bake-head bracket is active, so the whole bake stays covered by
+     * consecutive sibling brackets (GL_TIME_ELAPSED cannot nest). If the head
+     * bracket never opened this frame (F3 timer active, pool exhausted), both
+     * halves degrade to the same no-op/skip and the segment samples drop
+     * consistently.
+     */
+    public static void switchPass(String name)
+    {
+        if (!ENABLED)
+        {
+            return;
+        }
+        endPass();
+        beginPass(name);
+    }
+
+    /** Core-side ShadowBakeProbe.counter: accumulate into the 1-second window. */
+    public static void counter(String key, int amount)
+    {
+        if (!ENABLED)
+        {
+            return;
+        }
+        counters.computeIfAbsent(key, k -> new long[1])[0] += amount;
     }
 
     /** Opens a GL_TIME_ELAPSED bracket. No-ops (and drops the sample) if a
@@ -281,15 +339,38 @@ public final class VlProfiler
         List<Map.Entry<String, Stat>> entries = new ArrayList<>(window.entrySet());
         entries.sort((a, b) -> Long.compare(b.getValue().sumNs, a.getValue().sumNs));
 
+        // Derived whole-bake total: the probe partitions the old single
+        // shadow-bake bracket into bake-* siblings, so their sum restores the
+        // number every earlier measurement ("shadow-bake 3.4-4.0 ms") reported.
+        long bakeSumNs = 0L;
+        int bakeSegments = 0;
+        int bakeSamples = 0;
+        for (Map.Entry<String, Stat> e : entries)
+        {
+            if (e.getKey().startsWith(BAKE_PREFIX))
+            {
+                bakeSumNs += e.getValue().sumNs;
+                bakeSamples = Math.max(bakeSamples, e.getValue().samples);
+                bakeSegments += 1;
+            }
+        }
+
         StringBuilder line = new StringBuilder("[irlite] gpu:");
         List<String> hud = new ArrayList<>();
         int shown = 0;
+        if (bakeSegments >= 2 && bakeSamples > 0)
+        {
+            String cell = String.format(Locale.ROOT, "bake %.2f ms", bakeSumNs / 1_000_000D / bakeSamples);
+            line.append(' ').append(cell);
+            hud.add(cell);
+            shown += 1;
+        }
         for (Map.Entry<String, Stat> e : entries)
         {
             Stat s = e.getValue();
             String cell = String.format(Locale.ROOT, "%s %.2f/%.2f ms",
                 e.getKey(), s.avgMs(), s.maxNs / 1_000_000D);
-            if (shown < 12)
+            if (shown < 16)
             {
                 line.append(shown == 0 ? " " : " | ").append(cell);
             }
@@ -314,6 +395,32 @@ public final class VlProfiler
             externalTimerSkips = 0;
         }
         System.out.println(line);
+
+        // Second line: the bake work counters (window sums + the frame count
+        // to read per-frame rates off), mirrored onto the HUD in packed rows.
+        if (!counters.isEmpty())
+        {
+            List<String> keys = new ArrayList<>(counters.keySet());
+            Collections.sort(keys);
+            StringBuilder bakeLine = new StringBuilder("[irlite] bake:");
+            List<String> cells = new ArrayList<>(keys.size());
+            for (String key : keys)
+            {
+                String cell = key + " " + counters.get(key)[0];
+                bakeLine.append(cells.isEmpty() ? " " : " | ").append(cell);
+                cells.add(cell);
+            }
+            bakeLine.append(" | ").append(windowFrames).append(" frames");
+            System.out.println(bakeLine);
+
+            for (int i = 0; i < cells.size(); i += 4)
+            {
+                hud.add(String.join(" | ", cells.subList(i, Math.min(i + 4, cells.size()))));
+            }
+            hud.add(windowFrames + " frames");
+            counters.clear();
+        }
+        windowFrames = 0;
 
         hudLines = hud;
         window.clear();
