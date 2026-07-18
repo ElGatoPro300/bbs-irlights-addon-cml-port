@@ -44,7 +44,8 @@ final class VlSweep
     private static final int STALL_FRAMES = 120;
 
     /** UBO flag bits (VlGlobalsBuffer contract): 0 shadows, 1 noise, 2 blue-noise,
-     *  3 temporal dither, 4 cluster cull, 5 Hi-Z skip. */
+     *  3 temporal dither, 4 cluster cull, 5 Hi-Z skip, 6 bilateral upsample
+     *  (composite1-side, not part of the deferred2 march this sweep measures). */
     private static final int BIT_SHADOWS = 1;
     private static final int BIT_NOISE = 2;
     private static final int BIT_CULL = 16;
@@ -211,7 +212,8 @@ final class VlSweep
         Config config = CONFIGS[idx];
         int userFlags = (IrliteConfig.vlShadowsLive() ? 1 : 0) | (IrliteConfig.vlNoiseLive() ? 2 : 0)
             | (IrliteConfig.vlBlueNoise() ? 4 : 0) | (IrliteConfig.vlDitherTemporal() ? 8 : 0)
-            | (IrliteConfig.vlClusterCull() ? 16 : 0) | (IrliteConfig.vlShadowHiz() ? 32 : 0);
+            | (IrliteConfig.vlClusterCull() ? 16 : 0) | (IrliteConfig.vlShadowHiz() ? 32 : 0)
+            | (qualet.irlite.client.light.LightCollector.VL_BILATERAL ? 64 : 0);
         VlGlobalsBuffer.set(
             IrliteConfig.vlIntensity(),
             IrliteConfig.vlMaxDist(),

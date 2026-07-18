@@ -54,6 +54,12 @@ public final class LightCollector
     public static final double MAX_DIST = 256.0;
     private static final double MAX_DIST_SQ = MAX_DIST * MAX_DIST;
 
+    /** VL depth-aware bilateral upsample (UBO flags bit6): always on, no UI knob —
+     *  at IRLITE_VL_RESOLUTION 1.0 it converges to plain bilinear, below 1.0 it is
+     *  what makes reduced res viable. Dev A/B kill-switch (needs restart):
+     *  -Dirlite.vlNoBilateral=true. Mirrored by VlSweep.overrideVlGlobals. */
+    public static final boolean VL_BILATERAL = !Boolean.getBoolean("irlite.vlNoBilateral");
+
     private LightCollector()
     {}
 
@@ -131,8 +137,9 @@ public final class LightCollector
         // (binding 7) on upload, so UBO-era patches read every VL number and
         // flag live without a recompile (bit0 = VL shadows, bit1 = VL noise,
         // bit2 = blue-noise dither, bit3 = temporal dither rotation,
-        // bit4 = VL cluster culling). The two header pushes above stay for
-        // pre-UBO patches until the fleet is regenerated.
+        // bit4 = VL cluster culling, bit5 = Hi-Z skip, bit6 = bilateral
+        // upsample). The two header pushes above stay for pre-UBO patches
+        // until the fleet is regenerated.
         VlGlobalsBuffer.set(
             IrliteConfig.vlIntensity(),
             IrliteConfig.vlMaxDist(),
@@ -148,6 +155,7 @@ public final class LightCollector
             (IrliteConfig.vlShadowsLive() ? 1 : 0) | (IrliteConfig.vlNoiseLive() ? 2 : 0)
                 | (IrliteConfig.vlBlueNoise() ? 4 : 0) | (IrliteConfig.vlDitherTemporal() ? 8 : 0)
                 | (IrliteConfig.vlClusterCull() ? 16 : 0) | (IrliteConfig.vlShadowHiz() ? 32 : 0)
+                | (VL_BILATERAL ? 64 : 0)
         );
         // Dev VL profiler sweep (-Dirlite.profileVl=true): may re-issue the push
         // above with per-config flag overrides — last write wins before upload.
