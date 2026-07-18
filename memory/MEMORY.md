@@ -39,7 +39,8 @@ Done-логи в `_archive/` — не индексируется. Инфра: 3 
 
 ### Тени (оркестрация физически в irl-core)
 - [plan-irl-core-shadow-extraction](plan-irl-core-shadow-extraction.md) — КАНОН теней: оркестрация в irl-core + шов ShadowCasterSource + 5 инвариантов; Ф4 тираж на порт-ветки открыт.
-- [project-shadow-bake-perf-audit](project-shadow-bake-perf-audit.md) — живой док перфа бейка; Tier-1/2 done; открыт только C10 per-face block-cull.
+- [project-shadow-bake-perf-audit](project-shadow-bake-perf-audit.md) — живой док перфа бейка; Tier-1/2 done; открыт C10.
+- [plan-shadow-bake-track](plan-shadow-bake-track.md) — ПЛАН новой сессии: Ф0 профайлер-разбивка бейка (steady 3.4-4ms = overlay-цепочка Pyramid/EVSM z=6, спайки 320ms = C10) → C10 → per-face фильтры → BBS-probe статики; рекон-якоря и вердикты «не переоткрывать» внутри.
 - [addon-shadows](addon-shadows.md) — референс бейк-движка (ShadowBaker/Renderer, пресеты, кэш, cull); open anim-token freeze; caster cap = nearest-128.
 - [fix-shadow-depthstate-repin](fix-shadow-depthstate-repin.md) — ре-пин depth/blend/матриц перед emit + feet-pivot AABB->сфера.
 - [fix-shadow-slot-rank-stability](fix-shadow-slot-rank-stability.md) — фикс «прыгающих» теней при спросе>пула: rank-стабильность + spare-режим; ЗАКОММИЧЕН, ретест PASS 2026-07-17.
