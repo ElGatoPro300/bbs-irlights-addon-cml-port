@@ -1,18 +1,36 @@
 ---
 name: plan-vl-profiler
-description: "ПЛАН на новую сессию (код НЕ начат): VL-профайлер — GL timer queries по пассам Iris + автоматический дифференциальный свип по live-флагам UBO; заодно чистка 4 UI-тумблеров и ответ на загадку Hi-Z +1 FPS."
+description: "VL-профайлер РЕАЛИЗОВАН 2026-07-18 (сессия 2): задача A (чистка UI) ЗАКОММИЧЕНА addon ee0b145 / editor 16cfd21; задача B (профайлер: GL-таймеры пассов + дифф-свип) реализована, ревью 9 фиксов, end-to-end PASS автотестом quickplay — НЕ ЗАКОММИЧЕНА, ждёт подтверждения юзера. Готчи и результаты внутри."
 metadata: 
   node_type: memory
   type: project
   originSessionId: 1a47d7b9-f46d-49f3-a5ce-79b7f33d8d56
 ---
 
-# VL Profiler + чистка UI (план новой сессии, код НЕ начат)
+# VL Profiler + чистка UI
 
-СТАТУС 2026-07-18: план утверждён юзером (уровни 1+2 одобрены концептуально, чистка UI подтверждена через AskUserQuestion). Все фазы VL-рефактора до 3b включительно ЗАКОММИЧЕНЫ (3b: core 38e017c / addon a45c35a / editor cbcc76c), деревья чистые. Fable-агенты для кода РАЗРЕШЕНЫ юзером (сессия 2026-07-18).
+## СТАТУС 2026-07-18 (сессия 2, выполнение)
+- **Задача A (чистка UI) DONE + ЗАКОММИЧЕНА**: addon ee0b145 (BBSSettingsMixin −4 регистрации, L10nMixin −8 ключей), editor 16cfd21 (LightEditorPanel −3 toggleRow+поля, en/ru lang −3 ключа; у shader_light_clustering в редакторе UI-строки НИКОГДА не было). Аккессоры/поля/LightDriver/LightCollector не тронуты, поведение = всегда-вкл (null-регистрация→true). vl_dither_temporal оставлен видимым. Обе сборки зелёные.
+- **Задача B (профайлер) РЕАЛИЗОВАНА, НЕ ЗАКОММИЧЕНА** (uncommitted в аддоне; ядро и редактор НЕ тронуты — republish/loom-purge не нужен). Ревью-воркфлоу (14 агентов): 9 подтверждённых находок починены (1 блокер), 1 рефьют. End-to-end автотест PASS: quickplay в мир Testing, свип отработал сам, таблица в лог+чат, конфиг восстановлен, лог чист.
+- Файлы: NEW addon diag/VlProfiler.java + diag/VlSweep.java + mixin/client/iris/CompositeRendererTimerMixin.java; EDIT GameRendererLightMixin (frameTick+брекет бейка), LightCollector (override-хук после UBO-пуша), IrliteClient (HUD-гейт), irlite.client.mixins.json, build.gradle (loom runs.client: -Pquickplay / -PclientJvmArgs).
+- Активация: `-Dirlite.profileVl=true`. Автотест-команда: `./gradlew runClient -Pmc=1.20.4 -Pquickplay="Testing" -PclientJvmArgs="-Dirlite.profileVl=true"` (лог run/runclient-console.log). Каналы вывода (решение юзера в чате): лог = источник правды, чат = итог свипа, HUD = live per-pass ms; BBS UI не трогаем.
+- **Замер спавн-сцены Testing** (тривиальная, deferred2 0.494 ms): shadows 58% стоимости марша, noise/morph ~0, Hi-Z/cluster-cull ~0 (нечего скипать), bare march 0.205 ms; shadow-bake avg 0.12-0.25 ms (первый кадр 120 ms — lazy alloc, ожидаемо). **Загадка Hi-Z НЕ закрыта** — нужен прогон юзера в тапо-тяжёлой сцене (8+ спотов), инструмент готов.
 
-## NEXT-SESSION PROMPT
-«Делаем по plan-vl-profiler: сначала задача A (чистка UI, маленькая, свой коммит), затем задача B (профайлер). Рантайм-проверки через runClient -Pmc=1.20.4».
+## ГОТЧИ (сессия 2)
+- **FrameProfiler НЕ СУЩЕСТВОВАЛ** — был откачен в треке gui-lag (память утверждала «каркас есть» — ложь); написан с нуля. Прецедент = profileShadows в ShadowBaker (System.out, окно 1 с).
+- **Ванильный GlTimer**: при открытом F3 (GPU% дебага) MC оборачивает весь кадр в свой GL_TIME_ELAPSED → чужой begin травил бы пул навсегда. Фикс: проверка GL_CURRENT_QUERY до/после begin + сторож STUCK_FRAMES=120 в дрейне.
+- Iris 1.7.2: у Pass/Program НЕТ имени — карта Program→имя строится инжектом на RETURN createProgram (ProgramSource.getName), WeakHashMap. Редиректы renderAll (Program.use / FullScreenQuadRenderer.renderQuad, пакет net.irisshaders.iris.pathways!) с require=0 expect=1 — деградация в no-op вместо краша при дрейфе Iris.
+- «Пасс поверхностного света» на CR НЕ существует (mainLighting.glsl вшит в gbuffers-программы) — surface-таймер невозможен как пасс; таймится deferred2/composite1/бейк/все пассы по именам.
+- Бейк строго ДО пассов Iris (renderWorld HEAD) → брекеты-сиблинги, нестинга нет; брекет вокруг FramePipeline.frame() меряет только GL бейка (collect/prioritize без GL).
+- Свип: атрибуция сэмплов по кадру ВЫДАЧИ запроса (лаг чтения 2-3 кадра не смазывает конфиги), SKIP=20/конфиг, DRAIN_GRACE=10 перед отчётом, STALL_FRAMES=120 → ре-арм при потере VL-пасса. Восстановление автоматическое (LightCollector перепушивает конфиг каждый кадр). Legacy SSBO-header флаги свип НЕ переопределяет — для CR это верно (патч читает только UBO irlite_vlC.w).
+
+## ЗАМЕР ЮЗЕРА В РЕАЛЬНОЙ СЦЕНЕ 2026-07-18 (свип deferred2, baseline 2.761 ms, n=100/конфиг)
+shadows 1.486 ms (53.8%), noise 0.164 ms (6.0%), morph 0.361 ms (13.1%), Hi-Z saves 0.182 ms (6.6%), cluster-cull saves 0.441 ms (16.0%), bare march 1.494 ms (54% = ALU-пол). В более тяжёлом ракурсе той же сессии deferred2 доходил до 8.2 ms avg; shadow-bake стабильно 3.4-4.0 ms avg GPU (заметный потребитель, вне свипа).
+**ЗАГАДКА Hi-Z ЗАКРЫТА = гипотеза (б)**: марш ALU-bound (голый марш без единого тапа = 54% стоимости), теневые тапы всего 1.49 ms, и Hi-Z скипает лишь ~12% их стоимости (0.18 из 1.49) → потолок выигрыша мал by construction. 0.18 ms ≈ +1-2 FPS при 70-90 FPS — совпадает с замером «+1 FPS» из 3b. Hi-Z = страховка, оставлен ON (решение юзера в 3b подтверждено данными). Чинить гарды смысла нет — даже идеальный Hi-Z ограничен 1.49 ms.
+
+## NEXT
+1. Коммит задачи B по подтверждению юзера (чекпоинт) + memory-коммит.
+2. Дальше по plan-vl-refactor-research: 3c bilateral (рекон готов), затем тираж. Инсайт для приоритетов: cluster-cull уже даёт 16%, тени = главный рычаг (54% марша), bake 3.4-4 ms GPU — кандидат в оптимизацию отдельным треком.
 
 ## Задача A — чистка UI (маленькая, отдельный коммит)
 Убрать 4 технических тумблера из UI ОБОИХ модов (поведение = всегда-вкл): shader_light_clustering, vl_blue_noise, vl_cluster_cull, vl_shadow_hiz.
