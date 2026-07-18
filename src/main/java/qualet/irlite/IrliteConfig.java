@@ -195,7 +195,7 @@ public final class IrliteConfig
      *  counter wraps. Default 1 (runtime-only knob, no pack define). */
     public static float vlNoiseMorph()
     {
-        return vlNoiseMorph != null ? vlNoiseMorph.get() : 1F;
+        return vlNoiseMorph != null ? vlNoiseMorph.get() : 0F;
     }
 
     /** Sample the VL density noise every Nth march step, applied live through
