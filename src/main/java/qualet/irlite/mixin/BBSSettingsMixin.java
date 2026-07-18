@@ -41,6 +41,7 @@ public class BBSSettingsMixin
         IrliteConfig.vlNoiseAmount = builder.getFloat("vl_noise_amount", 0.6F, 0.2F, 1F);
         IrliteConfig.vlNoiseScale = builder.getFloat("vl_noise_scale", 2F, 0.5F, 6F);
         IrliteConfig.vlNoiseSpeed = builder.getFloat("vl_noise_speed", 0.25F, 0F, 3F);
+        IrliteConfig.vlNoiseMorph = builder.getFloat("vl_noise_morph", 1F, 0F, 3F);
         IrliteConfig.vlNoiseStride = builder.getInt("vl_noise_stride", 2, 1, 4);
         IrliteConfig.vlBlueNoise = builder.getBoolean("vl_blue_noise", true);
         IrliteConfig.vlDitherTemporal = builder.getBoolean("vl_dither_temporal", true);

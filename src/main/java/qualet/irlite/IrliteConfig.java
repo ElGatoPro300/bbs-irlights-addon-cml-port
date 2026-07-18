@@ -25,6 +25,7 @@ public final class IrliteConfig
     public static ValueFloat vlNoiseAmount;
     public static ValueFloat vlNoiseScale;
     public static ValueFloat vlNoiseSpeed;
+    public static ValueFloat vlNoiseMorph;
     public static ValueInt vlNoiseStride;
     public static ValueBoolean vlBlueNoise;
     public static ValueBoolean vlDitherTemporal;
@@ -184,6 +185,16 @@ public final class IrliteConfig
     public static float vlNoiseSpeed()
     {
         return vlNoiseSpeed != null ? vlNoiseSpeed.get() : 0.25F;
+    }
+
+    /** How fast the VL noise puffs reshape (morph) on top of the drift,
+     *  applied live through the globals UBO each frame — no shader reload.
+     *  0 = classic drifting-only fog. The core quantizes it to 0.25 steps so
+     *  the morph crossfade phase stays slice-congruent when the shader's time
+     *  counter wraps. Default 1 (runtime-only knob, no pack define). */
+    public static float vlNoiseMorph()
+    {
+        return vlNoiseMorph != null ? vlNoiseMorph.get() : 1F;
     }
 
     /** Sample the VL density noise every Nth march step, applied live through

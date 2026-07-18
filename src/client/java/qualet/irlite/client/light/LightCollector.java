@@ -140,6 +140,7 @@ public final class LightCollector
             IrliteConfig.vlNoiseAmount(),
             IrliteConfig.vlNoiseScale(),
             IrliteConfig.vlNoiseSpeed(),
+            IrliteConfig.vlNoiseMorph(),
             IrliteConfig.vlSteps(),
             IrliteConfig.vlShadowStride(),
             IrliteConfig.vlNoiseStride(),
