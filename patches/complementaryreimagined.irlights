@@ -618,11 +618,18 @@ float irlite_spotShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fas
     {
         float penDepthTex = penumbraNdc / texelNdc;
         float evsmRes = float(textureSize(irl_spotEvsm, 0).x);
-        if (penDepthTex >= IRLITE_PREFILTER_MIN_PEN && evsmRes * 2.0 == atlasSize.x)   // size gate: matching irl-core build
+        // Ratio-aware size gate (matching irl-core build): the EVSM base is atlas/2 normally and
+        // atlas/4 at ULTRA (SpotlightDepthAtlas.evsmShift); any other ratio = foreign/stale texture.
+        // The engage threshold scales with the ratio: a coarser base cannot express penumbras
+        // narrower than its own lod-0 Gaussian, so those stay on the gather-PCF below.
+        float evsmDiv = atlasSize.x / max(evsmRes, 1.0);
+        float minPenE = IRLITE_PREFILTER_MIN_PEN * (evsmDiv * 0.5);
+        if (penDepthTex >= minPenE && (evsmDiv == 2.0 || evsmDiv == 4.0))
         {
-            // base Gaussian covers ~2 half-res texels (= 4 depth texels) at lod 0; every mip is re-blurred
-            // on bake, so the width genuinely doubles per lod (contract with SpotShadowEvsm.flushDirty)
-            float lod = clamp(log2(penDepthTex * 0.25), 0.0, float(findMSB(int(tileRes)) - 1));
+            // base Gaussian covers ~2 EVSM texels (= 2*div depth texels) at lod 0; every mip is
+            // re-blurred on bake, so the width genuinely doubles per lod (contract with
+            // SpotShadowEvsm.flushDirty); the chain is one level shorter per extra ratio octave
+            float lod = clamp(log2(penDepthTex / (2.0 * evsmDiv)), 0.0, float(findMSB(int(tileRes)) - findMSB(int(evsmDiv))));
             vec2 lightUV = vec2(ndcX, ndcY) * 0.5 + 0.5;
             vec2 uvE = tileUvMin + lightUV * tileUvSize;
             // clamp half a COARSE-mip texel inside the tile (trilinear reads floor(lod) and ceil(lod));
@@ -643,7 +650,7 @@ float irlite_spotShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fas
                             irlite_chebyshev(mm.zw, wn, bn * bn));
             // light-bleeding reduction (Lauritzen linstep; EVSM4 needs only a weak floor)
             vis = clamp((vis - IRLITE_EVSM_BLEED) / (1.0 - IRLITE_EVSM_BLEED), 0.0, 1.0);
-            irlPreW = smoothstep(IRLITE_PREFILTER_MIN_PEN, IRLITE_PREFILTER_MIN_PEN * 1.5, penDepthTex);
+            irlPreW = smoothstep(minPenE, minPenE * 1.5, penDepthTex);
             if (irlPreW >= 1.0) return vis;
             irlPreVis = vis;   // blend zone: fall through to the PCF and mix below
             }
