@@ -15,9 +15,30 @@ metadata:
 - Ревью-воркфлоу 13 агентов: 1 подтверждённая (off-by-one кадров первого окна — починена переносом windowFrames++ после flush), 3 рефьюта (в т.ч. «копии неотделимы от дро по GPU-времени внутри bake-spot/point» — рефьют: счётчики дают атрибуцию).
 - Сборки зелёные (core publish → пурж loom → addon → editor). E2E quickplay Testing PASS: все 6 сегментов в "[irlite] gpu:", bake 0.79 ≈ Σ сегментов, счётчики консистентны (sp.copy=sp.dyn=pyr.sp=evsm.sp=frames — оверлей-цепочка), первое окно точное (17=17), stuck-query/GL-ошибок нет. Уже на спавн-сцене: bake-spot-filter 0.69 ms vs дро 0.09 ms — фильтры доминируют.
 
+## ГЕЙТ Ф0 ПРОЙДЕН 2026-07-18: замер юзера, тестовая сцена, тени ULTRA, бейк вкл
+Steady (окна 17-26 FPS, 114 окон): **bake total 34-42 ms** = кап фреймрейта; **bake-spot-filter 29.5-37.4 ms = ~86% бейка** (Pyramid+EVSM); bake-spot (копии+dyn-дро) 4.4-5.9 ms (~13%); point/point-filter = 0 (в сцене нет point-ламп); deferred2 (VL) 0.14-7.8 по ракурсу. Счётчики: sp.copy=sp.dyn=pyr.sp=evsm.sp=**25/кадр** — 25 спотов ВСЕ в overlay каждый кадр, static-ребейков НОЛЬ (sp.bake только на загрузке: t0=8, t1=17). Cold start: bake-spot max 318 ms (C10-класс спайк, виден инструментом), spot-filter окно 543/667 ms (первый флаш 25 ultra-тайлов / смена качества).
+**ВЕРДИКТ: доминирует SPOT-FILTER (не point!)** — Ф2 (per-face гранулярность point Pyramid/EVSM) для этой сцены НЕ рычаг; 86% съедает ежекадровый полный re-filter 25 ultra-тайлов, контент которых меняется только силуэтом актёра.
+Кандидаты-рычаги по данным (порядок = ожидаемый выигрыш/риск):
+1. **Partial-tile filter**: convert/blur/mip только в bbox dyn-кастеров (+blur-margin) вместо всего тайла — бьёт в корень (у ultra стоимость ~квадратична от размера тайла).
+2. **Half-res EVSM на ultra**: фильтр-цепочка на res/2 (EVSM и так пре-блюрен — потери качества минимальны) ≈ −70% фильтра.
+3. **Cadence фильтров** (из «опционально»): раз в N кадров при неизменном dyn-наборе — просто, но лаг мягкой тени/пирамиды на анимации = визуальный риск.
+4. lazy-lod mip-хвоста — мелочь на фоне blur lod0.
+Ф2 (point per-face) остаётся в очереди для point-сцен; Ф1 C10 — спайк подтверждён (318 ms на загрузке), но steady не трогает.
+
+## HALF-RES EVSM ПИЛОТ НА CR: DONE + ЗАКОММИЧЕН 2026-07-18 (core 01160ad / addon 6457312+c913299)
+Рычаг после гейта Ф0. Итог той же ultra-сцены: **bake 34-42 → 17.8-18.4 ms, FPS-окна 17-26 → 29-35**; сплит фильтров дал атрибуцию: старые 29.6 = EVSM ~25.3 + pyramid ~4.3; после: **evsm 9.3-9.6 (×2.7)** + pyr 4.3 (не тронута) + дро/копии 4.2-4.5. VRAM −1 GiB, evictions +0, юзер визуально принял.
+- **Core**: SpotlightDepthAtlas.evsmShift (1=atlas/2, 2=atlas/4 ТОЛЬКО ULTRA, ставится IRLShadowQuality.apply; setEvsmShift удаляет EVSM-текстуры при смене); SpotShadowEvsm параметризован shift'ом (convert NxN через uniform srcStep, levels=log2(tileSize)-shift+1, все сдвиги lod+shift); ShadowBaker: секция bake-spot-filter → bake-spot-pyr/bake-spot-evsm (+point-близнец).
+- **GLSL (ТОЛЬКО CR)**: гейт `evsmRes*2==atlasSize.x` → ratio-aware (`evsmDiv==2||4`), minPenE=MIN_PEN*(div/2) в гейте И smoothstep-блэнде, lod=log2(pen/(2*div)) с капом findMSB(tileRes)-findMSB(div); div-2 бит-идентичен старому. Реген gen-complementary-patch.ps1 + byte-proof PASS; run-пак ComplementaryReimagined_IRLights засинкан вручную.
+- **РЕВЬЮ**: 15 агентов, 4 minor (все закрыты), арифметика/лайфсайкл чистые. ГОТЧА byte-proof: апплаер пишет маркер irlite_patched — диффать надо только shaders/.
+- **ОТКРЫТО (тираж, по команде)**: остальные 6 паков + бандл редактора (copy-patches.ps1) — на ultra их EVSM молча гаснет в PCF (не баг, деградация до тиража); Prism-инстанс = RE-PATCH (форк CR_IRLights+DOF старого поколения); пирамиду half-res НЕЛЬЗЯ без регена (GLSL texelFetch >>1 без гейта).
+
+## АНОМАЛИЯ «ЛИНЕЙНАЯ ДЕГРАДАЦИЯ» (2026-07-18, ЗАПАРКОВАНА решением юзера)
+В ultra-прогоне №1: spot-filter 29.6→430-510 ms за ~80 с при КОНСТАНТНОЙ работе (25 тайлов/кадр, счётчики не менялись), деградация стартует сама (юзер ничего не делал), **F11 (fullscreen→windowed, пересоздание свапчейна) мгновенно сбрасывает к 29.6**, затем цикл начинается снова. RTX 3060 12GB + браузер. Гипотеза №1 residency thrash (ultra спот-стек ~4 GiB: live 1 + static 1 + EVSM 1.4 + pyr 0.7). Добавлена VRAM-телеметрия в VlProfiler (строка "[irlite] vram:", GL_NVX_gpu_memory_info: free + evictions с дельтой; НЕ ЗАКОММИЧЕНА). Прогон №2 аномалию НЕ воспроизвёл (steady free 5.2 GiB, evictions +0). НЕ копать без команды; детектор встроен.
+
 ## NEXT
-1. **Гейт Ф0 = прогон юзера в реальной сцене** (та же, где bake 3.4-4.0 ms): -Dirlite.profileVl=true, снять "[irlite] gpu:"+"[irlite] bake:" → таблица какой из [spot-filter | point-filter | копии | дро] доминирует steady → выбор Ф1/Ф2.
-2. Дальше фазы ниже по данным Ф0.
+1. **Partial-tile filter** (юзер сказал «идём дальше» после half-res): фильтровать только bbox dyn-кастеров + blur-margin — Java-only (GLSL не видит диспатч-геометрию), режет все 3 компонента остатка (evsm 9.5 + pyr 4.3 + дро 4.4).
+2. Тираж ratio-aware гейта на 6 паков + редактор — по команде.
+3. Ф1 C10 / Ф2 point — по команде, когда дойдут руки до их сцен.
 
 ## КАРТА ВИНОВНИКОВ (рекон 2026-07-18, актуальный код ПОСЛЕ atlas-merge; аудит-якоря частично устарели)
 **Steady 3.4–4ms — цепочка оверлея, вне таксономии аудита:** все BBS-кастеры динамические (энтити/реплеи by design; модел-блоки ЖЁСТКО isStatic=false — INVARIANT 2 в IRLiteBbsCasterSource ~L424-430, «анимированный модел-блок с isStatic=true заморозил бы тень»; modelBlockHash = мёртвый код с TODO Ф3 Open Q1). Любой актёр в радиусе лампы → overlay КАЖДЫЙ кадр: copyStaticToLive + dyn-дро + **markDirty на ВЕСЬ тайл/блок → Pyramid+EVSM flushDirty каждый бейк**. Цена фильтров: spot-тайл ≈ 30+ compute-дисп. (convert + blur H/V + mip-цепочка ~10-11 lod с ре-блюром, батч по lod); point — гранулярность «весь блок»: PointShadowPyramid.markDirty(block), ВСЕ диспатчи z=6 (все 6 граней), PointShadowEvsm layer=localBlock*6+face тоже z=6 → **одна динамическая грань = полный 6-гранный ребилд MSM+пирамиды каждый кадр**. Бюджеты НЕ покрывают оверлеи/копии/фильтры вообще (ShadowBaker L242-43 «Dynamic overlays and static->live copies are NOT counted»).
