@@ -5,10 +5,10 @@
 - В начале каждой сессии по этому проекту читать внешний источник памяти: `C:\Users\Qualet\.claude\projects\C--Users-Qualet-Documents-Project-Minecraft-BBS-irlights\memory\MEMORY.md`.
 
 СЕССИЯ 2026-07-18 (2, ПРОФАЙЛЕР): задача A (чистка UI) ЗАКОММИЧЕНА addon ee0b145 / editor 16cfd21; VL-профайлер (GL-таймеры пассов + дифф-свип, -Dirlite.profileVl=true) РЕАЛИЗОВАН, ревью 9 фиксов, e2e-автотест PASS (quickplay-инфра в build.gradle) — НЕ ЗАКОММИЧЕН, ждёт подтверждения; загадка Hi-Z открыта до прогона юзера в тяжёлой сцене. Статус/готчи: [plan-vl-profiler](plan-vl-profiler.md).
-СЕССИЯ 2026-07-17→18 (VL-РЕФАКТОР, главный трек): мега-исследование (36 агентов) → пилот на CR ЗАВЕРШЁН до 3b, ВСЁ ЗАКОММИЧЕНО (Fable-агенты разрешены). Итог: zero-recompile хребет (std140 UBO b7, все глобалы runtime, слайдеры BBS+ImGui), blue-noise dither, cluster-cull VL (+10 FPS), noise time-morph, spot Hi-Z (+1 FPS, оставлен как страховка). Статусы/коммиты/готчи (loom-purge!): [plan-vl-refactor-research](plan-vl-refactor-research.md); очередь новой сессии: [plan-vl-profiler](plan-vl-profiler.md).
-СЕССИЯ 2026-07-17 (2): баг «прыгающих теней» починен + ретест PASS; закоммичен вместе с atlas-merge (core eb3b229 / addon 38bf5e7+e11886e). Флаг -Dirlite.profileShadows=true существует. Детали: [fix-shadow-slot-rank-stability](fix-shadow-slot-rank-stability.md).
+СЕССИЯ 2026-07-17→18 (VL-РЕФАКТОР, главный трек): мега-исследование (36 агентов) → пилот на CR ЗАВЕРШЁН до 3b, ВСЁ ЗАКОММИЧЕНО (Fable-агенты разрешены). Итог: zero-recompile хребет (UBO b7, слайдеры BBS+ImGui), blue-noise, cluster-cull (+10 FPS), time-morph (деф.OFF), Hi-Z (страховка). Статусы/коммиты/готчи (loom-purge!): [plan-vl-refactor-research](plan-vl-refactor-research.md); далее: [plan-vl-3c-bilateral](plan-vl-3c-bilateral.md).
+СЕССИЯ 2026-07-17 (2): баг «прыгающих теней» починен + ретест PASS; закоммичен вместе с atlas-merge (core eb3b229 / addon 38bf5e7+e11886e). Детали: [fix-shadow-slot-rank-stability](fix-shadow-slot-rank-stability.md).
 СЕССИЯ 2026-07-16: atlas-merge point-теней РЕАЛИЗОВАН ЦЕЛИКОМ, I5 закрыт 07-17, закоммичен той же связкой. Статус: [plan-point-shadow-atlas-merge](plan-point-shadow-atlas-merge.md).
-СЕССИЯ 2026-07-13 (2): octahedral/dual-paraboloid point-тени ЗАКРЫТЫ КАК НЕРЕАЛИЗУЕМЫЕ — НЕ ПЕРЕОТКРЫВАТЬ (бейк = ванильные per-RenderLayer шейдеры, трансформ только матричный → нелинейный warp невозможен; DPSM требует тесселяции → light-leak). Атлас как хранение валиден — реализован 07-16. Открыто: пропуск бейка граней без кастеров (sphereTouchesFace уже считает). Топик-файл удалён по команде юзера — эта строка = канон.
+СЕССИЯ 2026-07-13 (2): octahedral/dual-paraboloid point-тени ЗАКРЫТЫ КАК НЕРЕАЛИЗУЕМЫЕ — НЕ ПЕРЕОТКРЫВАТЬ (бейк = ванильные per-RenderLayer шейдеры, только матричный трансформ → нелинейный warp невозможен; DPSM требует тесселяции). Атлас как хранение — реализован 07-16. Открыто: пропуск бейка граней без кастеров (sphereTouchesFace уже считает). Топик-файл удалён — эта строка = канон.
 СЕССИЯ 2026-07-13: LOD-тиры I1-I4 + caster fix закоммичены (2e57f8d/700b60c/08df3f6); I5 закрыт 07-17; тираж на другие шейдеры — по команде. Детали: [plan-shadow-lod-tiers](plan-shadow-lod-tiers.md).
 СЕССИЯ 2026-07-12: Phase 3 кластеризация DONE + PASS 67→112 FPS (binding 6). Детали: [plan-perf-fix-cluster-phase3](plan-perf-fix-cluster-phase3.md).
 СЕССИЯ 2026-07-10 (3): Phase 2 core DONE (C1/C2/C3). Детали: [plan-perf-fix-core-phase2](plan-perf-fix-core-phase2.md).
@@ -16,8 +16,8 @@
 СЕССИЯ 2026-07-08 (2): унификация трилогии ЗАКРЫТА (per-version ядро, версия 1.1, 13/13, запушено) → [project-trilogy-unify-11](project-trilogy-unify-11.md).
 СЕССИЯ 2026-07-08: линия 1.21.11 ЗАКРЫТА (core 3527d63) → [project-port-12111-refresh](project-port-12111-refresh.md). Готча mavenLocal per-MC — в routing-файле.
 Фаза 2026-07-02 (директива юзера): чиним ТОЛЬКО main/master; порт на ветки/редактор — в конце, строго по команде.
-2026-07-03: point-стек сведён (MSM4+cube-view), Photon 30040cf PASS; NORMAL_OFFSET re-exposure uncommitted — коммитить первым при возврате. HANDOFF: [project-point-shadow-fix-backlog](project-point-shadow-fix-backlog.md).
-СЕССИЯ 2026-07-04: тираж фильтрации 6/6 (CR 69ecbda, RV f3b3f37, BSL 697373c, Solas 19e6b4e, Bliss 283256b). IterationRP ЛОКАЛЬНО/gitignored, коммит НЕ пере-предлагать; DoF-комбо в bbs-dof-addon 736fa7d.
+2026-07-03: point-стек сведён (MSM4+cube-view), Photon 30040cf PASS. HANDOFF: [project-point-shadow-fix-backlog](project-point-shadow-fix-backlog.md).
+СЕССИЯ 2026-07-04: тираж фильтрации 6/6 (CR 69ecbda, RV f3b3f37, BSL 697373c, Solas 19e6b4e, Bliss 283256b). IterationRP ЛОКАЛЬНО/gitignored — коммит НЕ пере-предлагать.
 СЕССИЯ 2026-07-06/07: линия 1.21.4 ЗАКРЫТА (1ce93fc/a88d05a) → [project-port-1214](project-port-1214.md).
 СЕССИЯ 2026-07-06: порт 1.21.1 ЗАКРЫТ+ЗАКОММИЧЕН (80a3986/688afda/f85113e) → [plan-port-1211-workflow](plan-port-1211-workflow.md).
 СЕССИЯ 2026-07-05: Tier1+2 выносы в core закоммичены (cf4ad94 v1.1 / 3c3ef3f / fa71093) → [plan-irl-core-library-extraction](plan-irl-core-library-extraction.md); editor e147571.
@@ -30,7 +30,7 @@ Done-логи в `_archive/` — не индексируется. Инфра: 3 
 - [project-github-repos](project-github-repos.md) — 3 приватных репо под owner quaIett (заглавная I); origin+ветки, gh CLI.
 - [project-irl-sync-strategy](project-irl-sync-strategy.md) — карта дрейфа аддон<->редактор; универс-jar отменён -> per-MC.
 - [plan-irl-core-library-extraction](plan-irl-core-library-extraction.md) — Tier1+2 выносы РЕАЛИЗОВАНЫ+ЗАКОММИЧЕНЫ 2026-07-05; core-API список внутри; Tier3 не делалось.
-- [plan-port-1211-workflow](plan-port-1211-workflow.md) — порт 1.21.1 ВЫПОЛНЕН+ЗАКОММИЧЕН 2026-07-06; статус-блок = точка возобновления.
+- [plan-port-1211-workflow](plan-port-1211-workflow.md) — порт 1.21.1 done 2026-07-06; статус-блок внутри.
 - [tool-build-trilogy-script](tool-build-trilogy-script.md) — build-trilogy.ps1: трилогия на все MC -> Desktop\IRLights; per-MC core = publishToMavenLocal.
 - [tool-build-bbs-pack-script](tool-build-bbs-pack-script.md) — build-bbs-pack.ps1: core+4 аддона 1.20.x -> Desktop\bbs_pack.
 
@@ -61,8 +61,8 @@ Done-логи в `_archive/` — не индексируется. Инфра: 3 
 - [project-flashback-irlights-plan](project-flashback-irlights-plan.md) — PLAN-only: аддон под Flashback replay; kill-switch = SSBO b7 под export.
 - [project-imgui-axiom-collision](project-imgui-axiom-collision.md) — краш ImGui рядом с Axiom; try/catch+fallback.
 - [project-auto-block-lights](project-auto-block-lights.md) — авто-свет от эмиссивных блоков; OFF по умолчанию; MAX_LIGHTS->2048.
-- [project-gui-lag-gpu-bound-diagnosis](project-gui-lag-gpu-bound-diagnosis.md) — лаг GUI = GPU-bound; рычаг 1 = кластеризация (done). FrameProfiler.
-- [project-spotlight-gobo-cookie-plan](project-spotlight-gobo-cookie-plan.md) — gobo/cookie done все версии; LRU для флипбуков done; per-pack recheck open.
+- [project-gui-lag-gpu-bound-diagnosis](project-gui-lag-gpu-bound-diagnosis.md) — лаг GUI = GPU-bound; рычаг = кластеризация (done); его FrameProfiler ОТКАЧЕН (профайлер VL написан заново).
+- [project-spotlight-gobo-cookie-plan](project-spotlight-gobo-cookie-plan.md) — gobo/cookie done; LRU done; per-pack recheck open.
 
 ### Forge / Sinytra Connector
 - [project-forge-connector-compat](project-forge-connector-compat.md) — аддон на Forge 1.20.1 через Connector beta.48 (fmj fabricloader >=0.15.0).
@@ -89,7 +89,7 @@ Done-логи в `_archive/` — не индексируется. Инфра: 3 
 
 ## irl-core — общее ядро
 - [patcher](patcher.md) — DSL .irlights (@target/@packversion/@marker, after/before/replace); validate-first. CONTRACT_VERSION=1.
-- [addon-light-buffer-ssbo](addon-light-buffer-ssbo.md) — std430 LightBuffer: binding7, header 16B + 6×vec4/96б; MAX_LIGHTS=2048; GLSL зеркалит байт-в-байт. Рядом UBO IrliteVlGlobals (std140 b7, 64Б) — контракт в plan-vl-refactor-research.
+- [addon-light-buffer-ssbo](addon-light-buffer-ssbo.md) — std430 LightBuffer: binding7, header 16B + 6×vec4/96б; MAX_LIGHTS=2048; GLSL зеркалит байт-в-байт. Рядом UBO IrliteVlGlobals — контракт в plan-vl-3c-bilateral.
 - [plan-perf-fix-cluster-phase3](plan-perf-fix-cluster-phase3.md) — Phase 3 кластеризация DONE 2026-07-12 (binding 6, 67->112 FPS); статус-блоки внизу; тираж отложен.
 
 ## Шейдер-инжект — общие контракты
@@ -98,7 +98,8 @@ Done-логи в `_archive/` — не индексируется. Инфра: 3 
 - [shader-shadow-sampling](shader-shadow-sampling.md) — GLSL-чтение теней; гард: vlParams.w<0 ДО int().
 - [shader-volumetric](shader-volumetric.md) — волюметрика Beer-Lambert/HG; VL-noise done на CR, порт в 5 паков open.
 - [plan-vl-refactor-research](plan-vl-refactor-research.md) — VL-рефактор: реализация до 3b ЗАКОММИЧЕНА 2026-07-18; тираж на 6 паков open; статусы/готчи/рекон 3c внутри.
-- [plan-vl-profiler](plan-vl-profiler.md) — ПЛАН новой сессии: чистка 4 UI-тумблеров + VL-профайлер (таймеры пассов + диф-свип по флагам); закрывает загадку Hi-Z.
+- [plan-vl-profiler](plan-vl-profiler.md) — профайлер РЕАЛИЗОВАН+ЗАКОММИЧЕН 2026-07-18 (-Dirlite.profileVl=true); замеры+готчи внутри; Hi-Z закрыт (ALU-bound); чистка UI done.
+- [plan-vl-3c-bilateral](plan-vl-3c-bilateral.md) — ПЛАН новой сессии: bilateral + полурез = главный рычаг VL; рекон/контракт/протокол внутри.
 - [shader-settings](shader-settings.md) — настройки в Iris UI; гоча: boolean #define только при голом #ifdef.
 - [plan-irlights-settings-unification](plan-irlights-settings-unification.md) — единый дизайн настроек + ребрендинг DONE (3b3d79a).
 - [addon-iris-integration](addon-iris-integration.md) — (ref) 2 миксина биндят тени (ProgramSamplersBuilder + SamplerBindingCubeArray).
