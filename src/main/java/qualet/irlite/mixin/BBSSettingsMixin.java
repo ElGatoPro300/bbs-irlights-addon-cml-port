@@ -28,6 +28,7 @@ public class BBSSettingsMixin
         IrliteConfig.shadowBlocks = builder.getBoolean("shadow_blocks", true);
         IrliteConfig.shadowBlockRadius = builder.getInt("shadow_block_radius", 24, 4, 96);
         IrliteConfig.shadowBakeBudget = builder.getInt("shadow_bake_budget", 4, 0, 16);
+        IrliteConfig.shadowPoseReach = builder.getFloat("shadow_pose_reach", 0.9F, 0F, 2F);
         IrliteConfig.maxShaderLights = builder.getInt("max_shader_lights", 64, 0, 2048);
         IrliteConfig.vlIntensity = builder.getFloat("vl_intensity", 1F, 0F, 5F);
         IrliteConfig.vlSteps = builder.getInt("vl_steps", 48, 8, 64);

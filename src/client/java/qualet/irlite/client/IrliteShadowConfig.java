@@ -22,6 +22,7 @@ public final class IrliteShadowConfig
             .shadowBakeBudget(IrliteConfig::shadowBakeBudget)
             .shadowBlocks(IrliteConfig::shadowBlocks)
             .shadowBlockRadius(IrliteConfig::shadowBlockRadius)
+            .shadowPoseReach(IrliteConfig::shadowPoseReach)
             .build();
 
     private IrliteShadowConfig()

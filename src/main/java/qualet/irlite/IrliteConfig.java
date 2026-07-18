@@ -12,6 +12,7 @@ public final class IrliteConfig
     public static ValueBoolean shadowBlocks;
     public static ValueInt shadowBlockRadius;
     public static ValueInt shadowBakeBudget;
+    public static ValueFloat shadowPoseReach;
     public static ValueInt maxShaderLights;
     public static ValueBoolean shaderLightClustering;
     public static ValueFloat vlIntensity;
@@ -79,6 +80,16 @@ public final class IrliteConfig
     public static int shadowBakeBudget()
     {
         return shadowBakeBudget != null ? shadowBakeBudget.get() : 4;
+    }
+
+    /** Horizontal pose slack of the partial-tile shadow rect, as a fraction of
+     *  the caster's half-height (default 0.9). Applied live every bake. Raise
+     *  it if wide animation poses (arms out) or forms bigger than their hitbox
+     *  get their shadow edges clipped; large values saturate at the old
+     *  full-sphere bound (guaranteed clip-free) and only cost bake speed. */
+    public static float shadowPoseReach()
+    {
+        return shadowPoseReach != null ? shadowPoseReach.get() : 0.9F;
     }
 
     /** Max lights uploaded to the shader SSBO per frame; the injected shader loops
