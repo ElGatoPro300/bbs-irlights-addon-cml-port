@@ -38,9 +38,6 @@ public class L10nMixin
         self.getKey("bbs.config.irlite.max_shader_lights", "Max shader lights");
         self.getKey("bbs.config.irlite.max_shader_lights-comment", "Upper bound on how many lights are uploaded to the shader each frame. The injected shader loops over every uploaded light per pixel, so fewer lights is cheaper. When more lights are in range than this, the nearest (highest-priority) ones win; the rest are skipped for lighting but still cast and receive shadows and stay registered. 0 = no limit. Default 64.");
 
-        self.getKey("bbs.config.irlite.shader_light_clustering", "Shader light clustering");
-        self.getKey("bbs.config.irlite.shader_light_clustering-comment", "Split the screen into tiles and skip lights that cannot touch a pixel: the shader only loops the lights whose on-screen bounds cover a pixel's tile, so the image is identical while the per-pixel light cost drops. Off = the shader runs the plain full loop over every uploaded light. Default on.");
-
         self.getKey("bbs.config.irlite.vl_intensity", "VL intensity (live)");
         self.getKey("bbs.config.irlite.vl_intensity-comment", "Global multiplier on the volumetric light (fog beams) from IRLite lights. Applies instantly every frame without reloading the shaderpack. 1.0 = the pack's default, 0 = IRLite volumetrics off. Shaderpacks patched before this option keep using their compiled VL intensity setting.");
 
@@ -80,16 +77,7 @@ public class L10nMixin
         self.getKey("bbs.config.irlite.vl_noise_stride", "VL noise tap stride (live)");
         self.getKey("bbs.config.irlite.vl_noise_stride-comment", "Sample the density noise every Nth march step and reuse the value in between. Cheaper at high step counts; may band along the beam. 1 = every step. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime VL globals.");
 
-        self.getKey("bbs.config.irlite.vl_blue_noise", "VL blue-noise dither (live)");
-        self.getKey("bbs.config.irlite.vl_blue_noise-comment", "Use the mod's blue-noise texture to dither the volumetric march start instead of the pack's own hash noise. Pushes banding into fine even grain the eye discards — smoother beams at the same step count. Off falls back to the pack's dither. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime VL globals.");
-
         self.getKey("bbs.config.irlite.vl_dither_temporal", "VL dither temporal rotation (live)");
         self.getKey("bbs.config.irlite.vl_dither_temporal-comment", "Rotate the blue-noise dither pattern every frame so the grain averages out over time. If recorded footage shimmers/boils on moving lamps without temporal anti-aliasing, switch this off for that shot. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime VL globals.");
-
-        self.getKey("bbs.config.irlite.vl_cluster_cull", "VL cluster culling (live)");
-        self.getKey("bbs.config.irlite.vl_cluster_cull-comment", "Reuse the per-frame screen-tile light grid inside the volumetric march: each pixel skips lights whose on-screen bounds miss its tile. Visually identical, pure performance. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime VL globals.");
-
-        self.getKey("bbs.config.irlite.vl_shadow_hiz", "VL shadow Hi-Z skip (live)");
-        self.getKey("bbs.config.irlite.vl_shadow_hiz-comment", "Classify each beam chunk once against a coarse min/max summary of the spot shadow map and skip the per-step shadow-map taps for chunks provably fully lit or fully in shadow. Spot lights only. Visually identical, pure performance. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime VL globals.");
     }
 }

@@ -29,7 +29,6 @@ public class BBSSettingsMixin
         IrliteConfig.shadowBlockRadius = builder.getInt("shadow_block_radius", 24, 4, 96);
         IrliteConfig.shadowBakeBudget = builder.getInt("shadow_bake_budget", 4, 0, 16);
         IrliteConfig.maxShaderLights = builder.getInt("max_shader_lights", 64, 0, 2048);
-        IrliteConfig.shaderLightClustering = builder.getBoolean("shader_light_clustering", true);
         IrliteConfig.vlIntensity = builder.getFloat("vl_intensity", 1F, 0F, 5F);
         IrliteConfig.vlSteps = builder.getInt("vl_steps", 48, 8, 64);
         IrliteConfig.vlMaxDist = builder.getFloat("vl_max_dist", 96F, 32F, 256F);
@@ -43,10 +42,7 @@ public class BBSSettingsMixin
         IrliteConfig.vlNoiseSpeed = builder.getFloat("vl_noise_speed", 0.25F, 0F, 3F);
         IrliteConfig.vlNoiseMorph = builder.getFloat("vl_noise_morph", 1F, 0F, 3F);
         IrliteConfig.vlNoiseStride = builder.getInt("vl_noise_stride", 2, 1, 4);
-        IrliteConfig.vlBlueNoise = builder.getBoolean("vl_blue_noise", true);
         IrliteConfig.vlDitherTemporal = builder.getBoolean("vl_dither_temporal", true);
-        IrliteConfig.vlClusterCull = builder.getBoolean("vl_cluster_cull", true);
-        IrliteConfig.vlShadowHiz = builder.getBoolean("vl_shadow_hiz", true);
 
         // Separate section for the shader patcher (UI injected by
         // UISettingsOverlayPanelMixin). Empty category — buildSections still
