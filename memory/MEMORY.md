@@ -28,6 +28,8 @@
 Объединённая база: 2 мода — IRLite (BBS-аддон), IRL-redactor (ImGui-редактор) — + ядро irl-core. Старт «поменяй X» -> [reference-edit-routing-by-area](reference-edit-routing-by-area.md).
 Done-логи в `_archive/` — не индексируется. Инфра: 3 memory-дира = ОДИН склад через junctions -> [reference-memory-junctions](reference-memory-junctions.md).
 
+АКТИВНО СЕЙЧАС: [plan-partial-tile-filter](plan-partial-tile-filter.md) — partial-tile DONE+ЗАКОММИЧЕН (core 3eaebae; ultra −10-12%, rect-share 36%, мелкие кастеры ×4.5); NEXT SESSION = AABB-проекция вместо cull-сферы (план+промпт внутри; СУБАГЕНТОВ ЭКОНОМИТЬ — лимиты юзера, рекон/имплем инлайн).
+
 ## Маршрутизация и стратегия (читать первой)
 - [reference-edit-routing-by-area](reference-edit-routing-by-area.md) — что-где менять (патчер+свет+тени=irl-core; caster/UI per-mod; .irlights owner IRLite); команды сборки.
 - [project-github-repos](project-github-repos.md) — 3 приватных репо под owner quaIett (заглавная I); origin+ветки, gh CLI.
