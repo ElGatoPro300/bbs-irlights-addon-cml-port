@@ -25,8 +25,9 @@ import org.lwjgl.opengl.GL33C;
  * Iris pass sequence, so the sibling brackets never nest). The bake bracket is
  * further PARTITIONED into sibling segments at the bakeInner seams by the
  * core-side {@code ShadowBakeProbe} (installed in IrliteClient when ENABLED):
- * bake-head (collect/prioritize + pre-loop setup) -> bake-spot -> bake-spot-filter
- * -> bake-point -> bake-point-filter -> bake-tail, with a derived "bake=SUM" cell
+ * bake-head (collect/prioritize + pre-loop setup) -> bake-spot -> bake-spot-pyr
+ * -> bake-spot-evsm -> bake-point -> bake-point-pyr -> bake-point-evsm ->
+ * bake-tail, with a derived "bake=SUM" cell
  * in the window line. The probe also feeds per-window WORK COUNTERS (full static
  * bakes per type+tier, overlay draws, static->live copies, faces baked/copied,
  * pyramid/EVSM flush sizes) printed as a second "[irlite] bake:" line. Results
@@ -44,10 +45,10 @@ public final class VlProfiler
 
     /** Synthetic pass name for the mod-side shadow bake bracket opened at
      *  renderWorld HEAD. The core-side ShadowBakeProbe sections then switch it
-     *  to bake-spot/-spot-filter/-point/-point-filter/-tail siblings, so this
-     *  name ends up covering only the pre-spot-loop head (collect/prioritize,
-     *  quality apply, beginBake) — the derived "bake" total in the window line
-     *  is the old whole-bracket number. */
+     *  to bake-spot/-spot-pyr/-spot-evsm/-point/-point-pyr/-point-evsm/-tail
+     *  siblings, so this name ends up covering only the pre-spot-loop head
+     *  (collect/prioritize, quality apply, beginBake) — the derived "bake"
+     *  total in the window line is the old whole-bracket number. */
     public static final String PASS_BAKE = "bake-head";
 
     /** Every bake segment (the head bracket + the probe-switched siblings)
@@ -93,6 +94,21 @@ public final class VlProfiler
     private static final Map<String, long[]> counters = new HashMap<>();
     /** Frames seen since the last window flush (normalizes the counters). */
     private static int windowFrames;
+
+    // --- VRAM telemetry (GL_NVX_gpu_memory_info, NVIDIA only) ----------------
+    // One "[irlite] vram:" line per window: free dedicated VRAM + the driver's
+    // cumulative eviction count/size with per-window deltas. Diagnoses residency
+    // thrash: a growing filter-pass time at CONSTANT work + climbing evictions
+    // = the driver is demoting our atlas/EVSM textures, not an algorithm bug.
+    private static final int NVX_DEDICATED_VIDMEM = 0x9047;
+    private static final int NVX_TOTAL_AVAILABLE = 0x9048;
+    private static final int NVX_CURRENT_AVAILABLE = 0x9049;
+    private static final int NVX_EVICTION_COUNT = 0x904A;
+    private static final int NVX_EVICTED_MEMORY = 0x904B;
+    /** null = not probed yet; probed once on the render thread. */
+    private static Boolean nvxMemoryInfo;
+    private static long lastEvictionCount = -1;
+    private static long lastEvictedKb = -1;
 
     private VlProfiler()
     {}
@@ -422,9 +438,45 @@ public final class VlProfiler
         }
         windowFrames = 0;
 
+        String vram = vramLine();
+        if (vram != null)
+        {
+            System.out.println("[irlite] vram: " + vram);
+            hud.add(vram);
+        }
+
         hudLines = hud;
         window.clear();
         windowStart = now;
+    }
+
+    /** One-line VRAM/eviction snapshot via GL_NVX_gpu_memory_info, or null when
+     *  the extension is absent (non-NVIDIA). Values arrive in KiB; the eviction
+     *  count/size deltas are per window — a climbing delta while the filter
+     *  passes slow down at constant work is residency thrash, caught red-handed. */
+    private static String vramLine()
+    {
+        if (nvxMemoryInfo == null)
+        {
+            nvxMemoryInfo = org.lwjgl.opengl.GL.getCapabilities().GL_NVX_gpu_memory_info;
+        }
+        if (!nvxMemoryInfo)
+        {
+            return null;
+        }
+        long dedicatedKb = GL33C.glGetInteger(NVX_DEDICATED_VIDMEM) & 0xffffffffL;
+        long totalKb = GL33C.glGetInteger(NVX_TOTAL_AVAILABLE) & 0xffffffffL;
+        long freeKb = GL33C.glGetInteger(NVX_CURRENT_AVAILABLE) & 0xffffffffL;
+        long evictions = GL33C.glGetInteger(NVX_EVICTION_COUNT) & 0xffffffffL;
+        long evictedKb = GL33C.glGetInteger(NVX_EVICTED_MEMORY) & 0xffffffffL;
+        long dEvictions = lastEvictionCount < 0 ? 0 : evictions - lastEvictionCount;
+        long dEvictedKb = lastEvictedKb < 0 ? 0 : evictedKb - lastEvictedKb;
+        lastEvictionCount = evictions;
+        lastEvictedKb = evictedKb;
+        return String.format(Locale.ROOT,
+            "free %d/%d MiB (total avail %d) | evictions %d (+%d), evicted %d MiB (+%d)",
+            freeKb >> 10, dedicatedKb >> 10, totalKb >> 10,
+            evictions, dEvictions, evictedKb >> 10, dEvictedKb >> 10);
     }
 
     /** HudRenderCallback (registered in IrliteClient only when ENABLED). */

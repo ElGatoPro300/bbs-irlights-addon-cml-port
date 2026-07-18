@@ -22,9 +22,10 @@ public class GameRendererLightMixin
         // never nests with the per-pass brackets. collect/prioritize inside
         // frame() issue no GL, so the bracket measures bake GPU work only. The
         // core-side ShadowBakeProbe (installed in IrliteClient) switches this
-        // bracket to bake-spot/-spot-filter/-point/-point-filter/-tail siblings
-        // at the bakeInner seams; the endPass below closes whichever segment is
-        // open (the tail, or the head when the bake early-returned).
+        // bracket to bake-spot/-spot-pyr/-spot-evsm/-point/-point-pyr/
+        // -point-evsm/-tail siblings at the bakeInner seams; the endPass below
+        // closes whichever segment is open (the tail, or the head when the
+        // bake early-returned).
         VlProfiler.frameTick();
         VlProfiler.beginPass(VlProfiler.PASS_BAKE);
         FramePipeline.frame(tickDelta, IrisShadersState::shadersDisabled, LightCollector::collect, () -> {});
