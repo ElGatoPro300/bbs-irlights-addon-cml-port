@@ -1,18 +1,32 @@
 ---
 name: plan-vl-3c-bilateral
-description: "ПЛАН на новую сессию (код НЕ начат): 3c — depth-aware bilateral upsample VL (colortex10) + переход на RESOLUTION 0.5. По данным профайлера это ГЛАВНЫЙ рычаг VL-пасса (~3-4× срез полного марша). Весь рекон, контракт, протокол проверки и готчи внутри."
+description: "3c ЗАВЕРШЁН+ЗАКОММИЧЕН 2026-07-18 (core db0d3e2 / addon f8d2fb7 / editor 5dd3207): bilateral upsample VL в CR, протокол юзера PASS — deferred2 3.40→0.97 ms (×3.5) на 0.5, bilateral +0.09 ms, края чистые. Half = дефолт. Открыто: тираж (вкл. +DOF-форк = re-patch). Детали/готчи внутри; next = bake-трек."
 metadata: 
   node_type: memory
   type: project
   originSessionId: 1a47d7b9-f46d-49f3-a5ce-79b7f33d8d56
 ---
 
-# VL 3c: bilateral upsample + полурез (план новой сессии, код НЕ начат)
+# VL 3c: bilateral upsample + полурез
 
-СТАТУС 2026-07-18: план утверждён юзером. Все предыдущие фазы VL-рефактора ЗАКОММИЧЕНЫ (последние: профайлер addon 4197173, морф-дефолт-OFF core b4a9988 / addon 4baaf40 / editor 5e85fb0). Деревья чистые. Fable-агенты для кода разрешены. Пилот = Complementary ONLY (тираж отдельно).
+СТАТУС 2026-07-18 (сессия 3, ЗАВЕРШЕНО): ЗАКОММИЧЕНО core db0d3e2 + addon f8d2fb7 (ветки optimization/octahedral-point-shadows) / editor 5dd3207 (main). ПРОТОКОЛ ЮЗЕРА PASS: deferred2 медиана 3.40 ms (1.0, bilinear) → 0.97 ms (0.5, bilateral) = ×3.5; цена bilateral в composite1 +0.09 ms (0.19→0.28); свипы обоих прогонов ~0.95 идентичны (bilateral на марш не влияет — подтверждено); визуально края чистые, остаточные пиксели «еле заметны» (принято). Half (0.5) = рабочий дефолт: дефайн уже 0.5, оверрайдов в конфигах чистого пака нет, юзер может вернуть 1.0 в экране Iris. Весь контракт ниже реализован, пилот CR. Изменённые файлы: composite1.glsl + irlite_lights.glsl (комментарий UBO) + deferred2.glsl (только шапка-комментарий) в Shadres/Modification; core VlGlobalsBuffer.java (0x3F→0x7F + javadoc); addon LightCollector.java (VL_BILATERAL | 64, dev-килл-свитч -Dirlite.vlNoBilateral=true, restart-only) + VlSweep.java (зеркало bit6); editor LightDriver.java (| 64). Патч отреген (21 ops, 2183 строки), byte-proof чист (дифф ПУСТОЙ, даже без lang-residue), синк run/shaderpacks + prism + copy-patches 7/7 md5. Сборки: core publish + addon + editor PASS (editor пересобран ПОСЛЕ copy-patches — бандл!). e2e quickplay+профайлер PASS: composite1 с bilateral = 0.04-0.05 ms (шум), свип 7 конфигов без выпадений bit6.
 
-## NEXT-SESSION PROMPT
-«Делаем по plan-vl-3c-bilateral: depth-aware bilateral upsample для VL + валидация полуреза. Рантайм-проверка = профайлер (-Dirlite.profileVl=true) до/после + визуальный тест краёв».
+## ДЕЛЬТЫ ОТ ИСХОДНОГО КОНТРАКТА (итог workflow-ревью 32 агента, 9 minor → 2 кодовых + 3 комментарных фикса)
+1. Метрика глубины = ИСТИННАЯ view-Z: nf/(f − z(f−n)), НЕ GetLinearDepth*far пака (тот = 2df/(d+f) → сигма дрейфовала бы ×0.5 у камеры / ×2 у far). Сигма честно в блоках, дефолт 1.5, оверрайд irlite_vlD.y (0=дефолт; сеттера в Java НЕТ — y пишется 0, мёртвого пламбинга не добавляли).
+2. Depth-fetch с bias +0.25: ivec2(tapUv*view + 0.25) — texel-центр low-res при R=0.5/0.25 попадает РОВНО на угол full-res пикселей (2t+1), float-округление флипало выбор по колонкам (13/960 на 1920w); bias детерминирует пиксель внутри footprint, при R=1.0 floor(t+0.75)=t — маппинг не меняется.
+3. bit6-off путь = буквально прежний texture2D (бит-идентичность); degenerate-фолбэк wsum<1e-3 → чистый bilinear.
+
+## ОТКРЫТОЕ ПОСЛЕ 3c
+- Тираж bilateral на остальные паки (Photon = MISS by design). ВАЖНО: у юзера в prism живёт форк ComplementaryReimagined_IRLights+DOF = СТАРОЕ поколение IRLite (либа без F0/F1/F2 и UBO-эры, deferred2 без blue-noise) — слепой синк 3 файлов СЛОМАЕТ его, нужен полный re-patch; его конфиг оставлен на RESOLUTION=1.0 намеренно. BSL_IRLights+DOF.txt держит RESOLUTION=100 (процентная шкала BSL — не трогали).
+- Сигма-сеттер в Java (vlD.y) — только если юзер попросит ручку.
+- 0.25 = opt-in per-shot (вердикт judges не менялся).
+- NEXT SESSION (по слову юзера): bake-трек — [[project-shadow-bake-perf-audit]] C10 per-face block-cull + пропуск бейка граней без кастеров (sphereTouchesFace уже считает; см. канон-строку octahedral в MEMORY.md). Bake 3.4-4 ms GPU = теперь крупнейший GPU-потребитель IRLite после среза VL.
+
+## ГОТЧИ СЕССИИ 3 (новые)
+- Два loom-билда одной MC-версии ПАРАЛЛЕЛЬНО = гонка за ~/.gradle/caches/fabric-loom/minecraftMaven → NoSuchFileException; строго сериализовать addon→editor.
+- PowerShell разбирает -Pmc=1.20.4 на «-Pmc=1» — gradlew ТОЛЬКО через Git Bash (подтверждена готча feedback-addon-runclient-command и для build).
+- Grep/rg молчит внутри Shadres/ из репо аддона (gitignore) — читать по абсолютному пути или искать из дира Shadres.
+- Лок loom-кэша при пурже = осиротевшие демоны → gradlew --stop в ОБОИХ репо, повторить.
 
 ## ПОЧЕМУ ЭТО ГЛАВНЫЙ РЫЧАГ (данные профайлера 2026-07-18, реальная сцена юзера)
 deferred2 (VL-марш) на RESOLUTION **1.0** (так у юзера) = 2.761 ms; «голый марш» без единого тапа = 1.494 ms (54% = ALU-пол). ВСЁ это масштабируется с числом пикселей → 0.5-рез режет ~в 4× число пикселей марша: ожидание ~0.8-1.0 ms вместо 2.76. Это больше, чем все точечные оптимизации вместе (cluster-cull 0.44 ms, Hi-Z 0.18 ms, morph 0.36 ms). Bilateral делает полурез визуально бесплатным (убирает ореолы на краях). Разбивка для справки: тени 1.486 ms (53.8%), шум 0.164, морф 0.361 (теперь деф. OFF), Hi-Z экономит 0.182, cluster-cull 0.441. Bake теней 3.4-4 ms GPU — ОТДЕЛЬНЫЙ будущий трек (C10 per-face cull + пропуск граней без кастеров), НЕ этот.
@@ -41,13 +55,7 @@ deferred2 (VL-марш) на RESOLUTION **1.0** (так у юзера) = 2.761 m
 - **Числа до/после — ПРОФАЙЛЕРОМ**: `-Dirlite.profileVl=true` (или автотест `./gradlew runClient -Pmc=1.20.4 -Pquickplay="Testing" -PclientJvmArgs="-Dirlite.profileVl=true"`); сравнивать медиану deferred2. Каналы: лог = правда, чат = итог свипа, HUD = live.
 - Коммиты только чекпоинтами по подтверждению; память → repo memory/ → отдельный «memory:»-коммит; индекс MEMORY.md держать < ~17.5KB.
 
-## ПРОТОКОЛ ПРОВЕРКИ (юзер в игре)
-1. RESOLUTION 0.5 БЕЗ bilateral (bit6 off или до правки): запомнить вид краёв лучей на силуэтах (столбы/персонажи поверх луча) — ореолы/лесенка = базовая боль.
-2. RESOLUTION 0.5 С bilateral: края чистые, ореолы ушли; заборы/листва в луче — без артефактов (degenerate-фолбэк).
-3. Профайлер: deferred2 медиана на 1.0 vs 0.5+bilateral (ожидание ~2.76 → ~0.8-1.0 ms в той же сцене).
-4. bit6 toggle (временно через код/свип, UI нет): картинка на 0.5 меняется ТОЛЬКО на краях (bilateral работает), на 1.0 — не меняется вовсе (при равных res bilinear≈bilateral, допускается бит-неидентичность только на краях).
-
 ## Контракт UBO (актуальный, зеркало VlGlobalsBuffer.java)
-std140 binding 7 (64Б): vec4 irlite_vlA (intensity,maxDist,tipBoost,tipRadius); vec4 irlite_vlB (noiseAmount,noiseScale,noiseSpeed,frameIndex wrap4096); uvec4 irlite_vlC (stepMax,shadowStride,noiseStride,flags: bit0 shadows / bit1 noise / bit2 blueNoise / bit3 ditherTemporal / bit4 clusterCull / bit5 hiZSkip / bit6 → bilateral (этой фазой)); vec4 irlite_vlD (x noiseMorph деф.0, y → сигма bilateral (этой фазой; 0=дефолт), z/w reserved).
+std140 binding 7 (64Б): vec4 irlite_vlA (intensity,maxDist,tipBoost,tipRadius); vec4 irlite_vlB (noiseAmount,noiseScale,noiseSpeed,frameIndex wrap4096); uvec4 irlite_vlC (stepMax,shadowStride,noiseStride,flags: bit0 shadows / bit1 noise / bit2 blueNoise / bit3 ditherTemporal / bit4 clusterCull / bit5 hiZSkip / bit6 bilateral, деф. 0x7F); vec4 irlite_vlD (x noiseMorph деф.0, y сигма bilateral в блоках (0=дефолт 1.5; Java-сеттера нет, пишется 0), z/w reserved).
 
 Связь: [[plan-vl-refactor-research]] (все фазы, mega-research вердикты по bilateral/stratified), [[plan-vl-profiler]] (инструмент замера + замеры 2026-07-18), [[sync-workflow]], [[reference-edit-routing-by-area]].
