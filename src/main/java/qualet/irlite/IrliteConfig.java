@@ -82,14 +82,15 @@ public final class IrliteConfig
         return shadowBakeBudget != null ? shadowBakeBudget.get() : 4;
     }
 
-    /** Horizontal pose slack of the partial-tile shadow rect, as a fraction of
-     *  the caster's half-height (default 0.9). Applied live every bake. Raise
-     *  it if wide animation poses (arms out) or forms bigger than their hitbox
-     *  get their shadow edges clipped; large values saturate at the old
-     *  full-sphere bound (guaranteed clip-free) and only cost bake speed. */
+    /** Pose/oversize slack of the partial-tile shadow rect (both axes), as a
+     *  fraction of the caster's half-height (default 1.0). Applied live every
+     *  bake. Raise it if wide animation poses (arms out) or forms/models drawn
+     *  bigger than their hitbox get their shadow edges clipped; uncapped —
+     *  oversized values only cost bake speed and eventually fall back to the
+     *  full-tile path. */
     public static float shadowPoseReach()
     {
-        return shadowPoseReach != null ? shadowPoseReach.get() : 0.9F;
+        return shadowPoseReach != null ? shadowPoseReach.get() : 1.0F;
     }
 
     /** Max lights uploaded to the shader SSBO per frame; the injected shader loops
