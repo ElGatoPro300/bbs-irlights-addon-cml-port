@@ -8,6 +8,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.qualet.irl.light.FramePipeline;
 import org.qualet.irl.light.iris.IrisShadersState;
+import qualet.irlite.client.diag.VlProfiler;
 import qualet.irlite.client.light.LightCollector;
 
 @Mixin(GameRenderer.class)
@@ -16,7 +17,14 @@ public class GameRendererLightMixin
     @Inject(method = "renderWorld", at = @At("HEAD"))
     private void irlite$collectLights(float tickDelta, long limitTime, MatrixStack matrices, CallbackInfo ci)
     {
+        // Dev VL profiler (-Dirlite.profileVl=true): the shadow bake below runs
+        // strictly before the Iris pass sequence, so its GL_TIME_ELAPSED bracket
+        // never nests with the per-pass brackets. collect/prioritize inside
+        // frame() issue no GL, so the bracket measures bake GPU work only.
+        VlProfiler.frameTick();
+        VlProfiler.beginPass(VlProfiler.PASS_BAKE);
         FramePipeline.frame(tickDelta, IrisShadersState::shadersDisabled, LightCollector::collect, () -> {});
+        VlProfiler.endPass();
     }
 
     /**

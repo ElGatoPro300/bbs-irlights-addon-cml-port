@@ -51,6 +51,22 @@ loom {
             sourceSet sourceSets.client
         }
     }
+
+    runs {
+        client {
+            // Dev conveniences for automated runtime checks:
+            //   -Pquickplay="World name"  auto-joins that singleplayer save,
+            //   -PclientJvmArgs="-Dirlite.profileVl=true"  forwards JVM flags
+            // (e.g. the VL/shadow profilers) into the forked client.
+            if (project.hasProperty('quickplay')) {
+                programArgs '--quickPlaySingleplayer', project.property('quickplay').toString()
+            }
+            if (project.hasProperty('clientJvmArgs')) {
+                // Whitespace-separated; values containing spaces can't ride this.
+                project.property('clientJvmArgs').toString().split(/\s+/).findAll { !it.isEmpty() }.each { vmArg it }
+            }
+        }
+    }
 }
 
 fabricApi {

@@ -25,6 +25,7 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.chunk.BlockEntityTickInvoker;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
+import qualet.irlite.client.diag.VlProfiler;
 import qualet.irlite.client.light.cookie.CookieArray;
 import qualet.irlite.forms.PointLightForm;
 import qualet.irlite.forms.SpotlightForm;
@@ -148,6 +149,10 @@ public final class LightCollector
                 | (IrliteConfig.vlBlueNoise() ? 4 : 0) | (IrliteConfig.vlDitherTemporal() ? 8 : 0)
                 | (IrliteConfig.vlClusterCull() ? 16 : 0) | (IrliteConfig.vlShadowHiz() ? 32 : 0)
         );
+        // Dev VL profiler sweep (-Dirlite.profileVl=true): may re-issue the push
+        // above with per-config flag overrides — last write wins before upload.
+        // New VlGlobalsBuffer.set args must be mirrored in VlSweep.overrideVlGlobals.
+        VlProfiler.overrideVlGlobals();
 
         if (world == null || cameraPos == null)
         {
