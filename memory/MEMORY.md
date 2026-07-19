@@ -29,7 +29,7 @@
 Объединённая база: 2 мода — IRLite (BBS-аддон), IRL-redactor (ImGui-редактор) — + ядро irl-core. Старт «поменяй X» -> [reference-edit-routing-by-area](reference-edit-routing-by-area.md).
 Done-логи в `_archive/` — не индексируется. Инфра: 3 memory-дира = ОДИН склад через junctions -> [reference-memory-junctions](reference-memory-junctions.md).
 
-АКТИВНО СЕЙЧАС: [plan-partial-tile-filter](plan-partial-tile-filter.md) — AABB+слайдер ЗАКРЫТЫ 2026-07-19 сессия 7 (core 2e6af37 / addon e140c9f): клип-расследование решено (сферный путь модель-блоков был вне слайдера + игрок-в-конусе маскировал), слак на все кастеры/обе оси, слайдер 0..4, дефолт 1.0. NEXT SESSION = план «сессия 8» ВНУТРИ файла: Ф1 перемер ultra (развилка по вертикальному слаку) → Ф2 реальные cull-bounds модель-блоков (emitModelBlock; иначе тень мигает у края конуса) → Ф3 апроны/lod только по цифрам телеметрии; Ф0-прицеп = old==state гейт в редакторе. СУБАГЕНТОВ ЭКОНОМИТЬ.
+АКТИВНО СЕЙЧАС: [plan-partial-tile-filter](plan-partial-tile-filter.md) — ТРЕК ЗАКРЫТ 2026-07-19 сессия 8: Ф1 перемер ultra PASS (bake 13.4-13.7, rect 100%, вертикальную формулу не трогали), Ф2 cull-слак модель-блоков реализован + визуал-гейт юзера PASS (тень у края конуса не мигает, +0.3-0.4 ms), Ф3 апроны/lod ЗАКРЫТЫ ИЗМЕРЕНИЕМ (оверхед ~1.3% при пороге 15%, пирамида ровно 4/3 — НЕ РЫЧАГ, не переоткрывать; ~13.5-14 ms = потолок фичи). ВНИМАНИЕ: core теперь версия 1.2 в mavenLocal. ЗАКОММИЧЕНО: core 9c8e8fe / addon 633422c. Хвосты: Ф0-прицеп (гейт редактора, по команде), тираж на порт-ветки.
 
 ## Маршрутизация и стратегия (читать первой)
 - [reference-edit-routing-by-area](reference-edit-routing-by-area.md) — что-где менять (патчер+свет+тени=irl-core; caster/UI per-mod; .irlights owner IRLite); команды сборки.
