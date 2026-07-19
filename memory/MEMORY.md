@@ -29,7 +29,7 @@
 Объединённая база: 2 мода — IRLite (BBS-аддон), IRL-redactor (ImGui-редактор) — + ядро irl-core. Старт «поменяй X» -> [reference-edit-routing-by-area](reference-edit-routing-by-area.md).
 Done-логи в `_archive/` — не индексируется. Инфра: 3 memory-дира = ОДИН склад через junctions -> [reference-memory-junctions](reference-memory-junctions.md).
 
-АКТИВНО СЕЙЧАС: [plan-partial-tile-filter](plan-partial-tile-filter.md) — AABB+слайдер ЗАКРЫТЫ 2026-07-19 сессия 7 (core 2e6af37 / addon e140c9f, до того 0e236e2/7ae6626): клип-расследование решено — сферный путь модель-блоков был ВНЕ слайдера + игрок-в-конусе маскировал симптом; фикс = слак на все кастеры/обе оси/без клампа, слайдер 0..4, дефолт 1.0 (калибровка юзера: 0.9 чуть режет). Диаг-флаги partialFullFilters/dynRectDebug в коде. ОТКРЫТО: cull-сфера модель-блока из hitbox (пропадание целиком у края конуса; фикс в emitModelBlock), перемер ultra с новым слаком, апроны/lod, тираж — детали внутри.
+АКТИВНО СЕЙЧАС: [plan-partial-tile-filter](plan-partial-tile-filter.md) — AABB+слайдер ЗАКРЫТЫ 2026-07-19 сессия 7 (core 2e6af37 / addon e140c9f): клип-расследование решено (сферный путь модель-блоков был вне слайдера + игрок-в-конусе маскировал), слак на все кастеры/обе оси, слайдер 0..4, дефолт 1.0. NEXT SESSION = план «сессия 8» ВНУТРИ файла: Ф1 перемер ultra (развилка по вертикальному слаку) → Ф2 реальные cull-bounds модель-блоков (emitModelBlock; иначе тень мигает у края конуса) → Ф3 апроны/lod только по цифрам телеметрии; Ф0-прицеп = old==state гейт в редакторе. СУБАГЕНТОВ ЭКОНОМИТЬ.
 
 ## Маршрутизация и стратегия (читать первой)
 - [reference-edit-routing-by-area](reference-edit-routing-by-area.md) — что-где менять (патчер+свет+тени=irl-core; caster/UI per-mod; .irlights owner IRLite); команды сборки.
