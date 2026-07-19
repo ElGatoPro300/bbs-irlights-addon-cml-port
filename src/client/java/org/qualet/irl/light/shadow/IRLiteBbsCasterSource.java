@@ -42,6 +42,7 @@ import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.chunk.BlockEntityTickInvoker;
 import org.joml.Matrix3f;
+import qualet.irlite.IrliteConfig;
 import qualet.irlite.client.light.LightCollector;
 import qualet.irlite.forms.PointLightForm;
 import qualet.irlite.forms.SpotlightForm;
@@ -417,9 +418,21 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
         double cy = pivotY + offY;
         double cz = pivotZ + offZ;
         // Minimal circumscribing radius = half the rotated box's diagonal =
-        // |(ehx,ehy,ehz)|, + OVERLAP_MARGIN slack (emitFromBox adds the same margin for
-        // the entity/replay arms; the raw emit() does not, so mirror it here).
-        float radius = (float) Math.sqrt((double) ehx * ehx + (double) ehy * ehy + (double) ehz * ehz) + OVERLAP_MARGIN;
+        // |(ehx,ehy,ehz)|, + cull slack. The plain OVERLAP_MARGIN is not enough here:
+        // the sphere derives from the form's HITBOX, and the drawn model routinely
+        // extends past it, so at a cone/reach boundary the caster culls out ENTIRELY
+        // (the whole shadow blinks — the partial-tile rect slack can't help, it only
+        // widens the rect of casters that survived the cull). Mirror that rect slack,
+        // max(OVERLAP_MARGIN, poseReach·ehy) incl. the sanitizer, on the emitted
+        // sphere: growing a cull sphere is strictly conservative, oversize only
+        // costs bake speed.
+        float poseReach = IrliteConfig.shadowPoseReach();
+        if (!(poseReach >= 0f))
+        {
+            poseReach = 1.0f;
+        }
+        float slack = Math.max(OVERLAP_MARGIN, poseReach * ehy);
+        float radius = (float) Math.sqrt((double) ehx * ehx + (double) ehy * ehy + (double) ehz * ehz) + slack;
 
         // INVARIANT 2 (CONSERVATIVE, LOCKED): mark ALL model blocks dynamic. An
         // animated model block left isStatic=true would FREEZE its shadow at the first
