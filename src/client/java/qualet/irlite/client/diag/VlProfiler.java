@@ -87,6 +87,14 @@ public final class VlProfiler
     private static long windowStart;
     private static volatile List<String> hudLines = List.of();
 
+    /** CPU-side per-window stats: nanoTime brackets around render-thread work
+     *  that issues no GL (light collect/prioritize/cluster build, SSBO upload)
+     *  plus the frame-to-frame delta ("frame" — real frame time, so the log
+     *  carries FPS next to the GPU pass costs). Flushed with the same 1-second
+     *  window as a separate "[irlite] cpu:" line. */
+    private static final Map<String, Stat> cpuWindow = new HashMap<>();
+    private static long lastFrameTickNs;
+
     /** Per-window work counters fed by the core-side ShadowBakeProbe (bakes per
      *  type+tier, faces copied/cleared, pyramid/EVSM flush sizes). Values are
      *  WINDOW SUMS; the flush line prints the window's frame count next to them
@@ -178,6 +186,12 @@ public final class VlProfiler
             return;
         }
         frameNo += 1;
+        long nowNs = System.nanoTime();
+        if (lastFrameTickNs != 0L)
+        {
+            cpuWindow.computeIfAbsent("frame", key -> new Stat()).add(nowNs - lastFrameTickNs);
+        }
+        lastFrameTickNs = nowNs;
         drainCompleted();
         VlSweep.tick(frameNo);
         maybeFlushWindow();
@@ -204,6 +218,18 @@ public final class VlProfiler
         }
         endPass();
         beginPass(name);
+    }
+
+    /** Render-thread CPU bracket (a nanoTime delta) accumulated into the
+     *  window; printed on the "[irlite] cpu:" line. For no-GL work only — GPU
+     *  brackets go through beginPass/endPass. */
+    public static void cpuSample(String name, long ns)
+    {
+        if (!ENABLED)
+        {
+            return;
+        }
+        cpuWindow.computeIfAbsent(name, key -> new Stat()).add(ns);
     }
 
     /** Core-side ShadowBakeProbe.counter: accumulate into the 1-second window. */
@@ -411,6 +437,36 @@ public final class VlProfiler
             externalTimerSkips = 0;
         }
         System.out.println(line);
+
+        // CPU line: frame time + the no-GL render-thread brackets, so a frame
+        // far slower than the GPU pass sum is attributable at a glance.
+        if (!cpuWindow.isEmpty())
+        {
+            List<Map.Entry<String, Stat>> cpuEntries = new ArrayList<>(cpuWindow.entrySet());
+            cpuEntries.sort((a, b) -> Long.compare(b.getValue().sumNs, a.getValue().sumNs));
+            StringBuilder cpuLine = new StringBuilder("[irlite] cpu:");
+            boolean firstCell = true;
+            for (Map.Entry<String, Stat> e : cpuEntries)
+            {
+                Stat s = e.getValue();
+                String cell = String.format(Locale.ROOT, "%s %.2f/%.2f ms",
+                    e.getKey(), s.avgMs(), s.maxNs / 1_000_000D);
+                cpuLine.append(firstCell ? " " : " | ").append(cell);
+                if (hud.size() < 20)
+                {
+                    hud.add(cell);
+                }
+                firstCell = false;
+            }
+            // Census: lights the shader loop actually paid for last frame
+            // (post-cap), vs merely registered. Gates the mask-redesign call.
+            int uploaded = org.qualet.irl.light.LightRegistry.getUploadedCount();
+            String uploadedCell = "uploaded " + uploaded;
+            cpuLine.append(" | ").append(uploadedCell);
+            hud.add(uploadedCell);
+            System.out.println(cpuLine);
+            cpuWindow.clear();
+        }
 
         // Second line: the bake work counters (window sums + the frame count
         // to read per-frame rates off), mirrored onto the HUD in packed rows.

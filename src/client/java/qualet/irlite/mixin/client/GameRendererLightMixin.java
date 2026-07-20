@@ -28,7 +28,9 @@ public class GameRendererLightMixin
         // bake early-returned).
         VlProfiler.frameTick();
         VlProfiler.beginPass(VlProfiler.PASS_BAKE);
+        long pipelineT0 = System.nanoTime();
         FramePipeline.frame(tickDelta, IrisShadersState::shadersDisabled, LightCollector::collect, () -> {});
+        VlProfiler.cpuSample("pipeline", System.nanoTime() - pipelineT0);
         VlProfiler.endPass();
     }
 
@@ -46,6 +48,8 @@ public class GameRendererLightMixin
             require = 1)
     private void irlite$uploadLights(float tickDelta, long limitTime, MatrixStack matrices, CallbackInfo ci)
     {
+        long uploadT0 = System.nanoTime();
         FramePipeline.uploadIfPending();
+        VlProfiler.cpuSample("upload", System.nanoTime() - uploadT0);
     }
 }

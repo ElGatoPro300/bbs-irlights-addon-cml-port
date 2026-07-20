@@ -25,6 +25,7 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.chunk.BlockEntityTickInvoker;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
+import qualet.irlite.client.diag.StressTestLights;
 import qualet.irlite.client.diag.VlProfiler;
 import qualet.irlite.client.light.cookie.CookieArray;
 import qualet.irlite.forms.PointLightForm;
@@ -169,6 +170,10 @@ public final class LightCollector
 
         scanBlockEntities(world, cameraPos);
         scanFilmReplays(cameraPos, tickDelta);
+
+        // Debug stress field (settings button): synthetic rainbow grid registered
+        // after the real sources; lifts the upload cap set above while active.
+        StressTestLights.emit();
     }
 
     private static void scanBlockEntities(ClientWorld world, Vec3d cameraPos)

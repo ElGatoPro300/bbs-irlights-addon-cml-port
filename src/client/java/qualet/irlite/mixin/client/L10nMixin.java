@@ -41,6 +41,9 @@ public class L10nMixin
         self.getKey("bbs.config.irlite.max_shader_lights", "Max shader lights");
         self.getKey("bbs.config.irlite.max_shader_lights-comment", "Upper bound on how many lights are uploaded to the shader each frame. The injected shader loops over every uploaded light per pixel, so fewer lights is cheaper. When more lights are in range than this, the nearest (highest-priority) ones win; the rest are skipped for lighting but still cast and receive shadows and stay registered. 0 = no limit. Default 64.");
 
+        self.getKey("bbs.config.irlite.shader_light_clustering", "Shader light clustering");
+        self.getKey("bbs.config.irlite.shader_light_clustering-comment", "Build a per-frame screen-tile light grid so each pixel only loops the lights that can actually reach it. Identical image, much cheaper with many lights. Turn off only to compare performance (A/B debugging).");
+
         self.getKey("bbs.config.irlite.vl_intensity", "VL intensity (live)");
         self.getKey("bbs.config.irlite.vl_intensity-comment", "Global multiplier on the volumetric light (fog beams) from IRLite lights. Applies instantly every frame without reloading the shaderpack. 1.0 = the pack's default, 0 = IRLite volumetrics off. Shaderpacks patched before this option keep using their compiled VL intensity setting.");
 
