@@ -92,10 +92,11 @@ public final class IrliteConfig
      *  over every uploaded light per fragment, so fewer = cheaper. When more lights
      *  are in range than this, the nearest (highest-priority) ones win; the rest are
      *  skipped for lighting but stay registered and keep casting/receiving shadows.
-     *  0 disables the cap (upload everything). Default 64. */
+     *  0 disables the cap (upload everything), which is the default — and no
+     *  quality preset touches this knob, so the cap stays wherever it is put. */
     public static int maxShaderLights()
     {
-        return maxShaderLights != null ? maxShaderLights.get() : 64;
+        return maxShaderLights != null ? maxShaderLights.get() : 0;
     }
 
     /** Global multiplier on IRLite volumetric light brightness, applied live

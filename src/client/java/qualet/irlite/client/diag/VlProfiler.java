@@ -24,7 +24,8 @@ import org.lwjgl.opengl.GL33C;
  * FramePipeline.frame in GameRendererLightMixin (the bake runs strictly before the
  * Iris pass sequence, so the sibling brackets never nest). The bake bracket is
  * further PARTITIONED into sibling segments at the bakeInner seams by the
- * core-side {@code ShadowBakeProbe} (installed in IrliteClient when ENABLED):
+ * core-side {@code ShadowBakeProbe} (always installed; its hooks are no-ops
+ * while the profiler is off):
  * bake-head (collect/prioritize + pre-loop setup) -> bake-spot -> bake-spot-pyr
  * -> bake-spot-evsm -> bake-point -> bake-point-pyr -> bake-point-evsm ->
  * bake-tail, with a derived "bake=SUM" cell
@@ -41,7 +42,34 @@ import org.lwjgl.opengl.GL33C;
  */
 public final class VlProfiler
 {
-    public static final boolean ENABLED = Boolean.getBoolean("irlite.profileVl");
+    /** Live gate for the whole profiler. Starts from -Dirlite.profileVl so the
+     *  old boot-time workflow still works, but the settings UI can flip it.
+     *  Volatile: written from the UI thread, read on the render thread. */
+    private static volatile boolean enabled = Boolean.getBoolean("irlite.profileVl");
+
+    /** Toggle requested from the UI, applied at the top of the next frameTick.
+     *  Flipping mid-frame could strand an open GL_TIME_ELAPSED query (endPass
+     *  would early-return past its close), so the switch waits for the frame
+     *  boundary, where no bracket is ever open. */
+    private static volatile Boolean pendingEnabled;
+
+    public static boolean isEnabled()
+    {
+        return enabled;
+    }
+
+    /** Requested state, i.e. what a UI button should paint right now. */
+    public static boolean isEnabledOrPending()
+    {
+        Boolean pending = pendingEnabled;
+
+        return pending != null ? pending : enabled;
+    }
+
+    public static void toggle()
+    {
+        pendingEnabled = !isEnabledOrPending();
+    }
 
     /** Synthetic pass name for the mod-side shadow bake bracket opened at
      *  renderWorld HEAD. The core-side ShadowBakeProbe sections then switch it
@@ -160,7 +188,7 @@ public final class VlProfiler
      *  Program object is which pass ("deferred2", "composite1", ...). */
     public static void registerPassName(Object program, String name)
     {
-        if (!ENABLED || program == null || name == null)
+        if (!enabled || program == null || name == null)
         {
             return;
         }
@@ -181,7 +209,27 @@ public final class VlProfiler
      */
     public static void frameTick()
     {
-        if (!ENABLED)
+        // Frame boundary: no GL bracket is open here, so this is the only safe
+        // place to flip the gate. Must run BEFORE the guard below, or turning
+        // the profiler back on would never take effect.
+        Boolean requested = pendingEnabled;
+
+        if (requested != null)
+        {
+            pendingEnabled = null;
+
+            if (requested != enabled)
+            {
+                enabled = requested;
+
+                if (!enabled)
+                {
+                    hudLines = List.of();
+                }
+            }
+        }
+
+        if (!enabled)
         {
             return;
         }
@@ -212,7 +260,7 @@ public final class VlProfiler
      */
     public static void switchPass(String name)
     {
-        if (!ENABLED)
+        if (!enabled)
         {
             return;
         }
@@ -225,7 +273,7 @@ public final class VlProfiler
      *  brackets go through beginPass/endPass. */
     public static void cpuSample(String name, long ns)
     {
-        if (!ENABLED)
+        if (!enabled)
         {
             return;
         }
@@ -235,7 +283,7 @@ public final class VlProfiler
     /** Core-side ShadowBakeProbe.counter: accumulate into the 1-second window. */
     public static void counter(String key, int amount)
     {
-        if (!ENABLED)
+        if (!enabled)
         {
             return;
         }
@@ -246,7 +294,7 @@ public final class VlProfiler
      *  bracket is already active — timer queries cannot nest. */
     public static void beginPass(String name)
     {
-        if (!ENABLED)
+        if (!enabled)
         {
             return;
         }
@@ -285,7 +333,7 @@ public final class VlProfiler
     /** Closes the currently active bracket, if any. */
     public static void endPass()
     {
-        if (!ENABLED || activeQuery == -1)
+        if (!enabled || activeQuery == -1)
         {
             return;
         }
@@ -303,7 +351,7 @@ public final class VlProfiler
      */
     public static void overrideVlGlobals()
     {
-        if (!ENABLED)
+        if (!enabled)
         {
             return;
         }
@@ -535,9 +583,15 @@ public final class VlProfiler
             evictions, dEvictions, evictedKb >> 10, dEvictedKb >> 10);
     }
 
-    /** HudRenderCallback (registered in IrliteClient only when ENABLED). */
+    /** HudRenderCallback, registered unconditionally in IrliteClient — so it
+     *  carries its own gate now instead of relying on never being hooked up. */
     public static void renderHud(DrawContext ctx)
     {
+        if (!enabled)
+        {
+            return;
+        }
+
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc == null || mc.textRenderer == null)
         {

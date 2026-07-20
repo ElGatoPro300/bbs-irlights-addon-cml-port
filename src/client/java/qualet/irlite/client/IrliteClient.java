@@ -19,24 +19,24 @@ public class IrliteClient implements ClientModInitializer {
         // Wire the shared patcher core to BBS (UIUtils + Iris + bundled assets).
         Patcher.install(new BbsPatcherHost());
 
-        // Dev VL profiler HUD (-Dirlite.profileVl=true): live per-pass GPU ms
-        // in the corner. Not registered at all in normal runs. The bake probe
-        // partitions the shadow-bake GPU bracket into sibling segments at the
-        // core bakeInner seams and feeds the per-window work counters.
-        if (VlProfiler.ENABLED) {
-            HudRenderCallback.EVENT.register((ctx, tickDelta) -> VlProfiler.renderHud(ctx));
-            ShadowEngine.installBakeProbe(new ShadowBakeProbe() {
-                @Override
-                public void section(String name) {
-                    VlProfiler.switchPass(name);
-                }
+        // VL profiler HUD: live per-pass GPU ms in the corner. Registered
+        // unconditionally now that the settings UI can turn the profiler on
+        // mid-session (-Dirlite.profileVl still picks the starting state); every
+        // hook below early-returns while it is off. The bake probe partitions
+        // the shadow-bake GPU bracket into sibling segments at the core
+        // bakeInner seams and feeds the per-window work counters.
+        HudRenderCallback.EVENT.register((ctx, tickDelta) -> VlProfiler.renderHud(ctx));
+        ShadowEngine.installBakeProbe(new ShadowBakeProbe() {
+            @Override
+            public void section(String name) {
+                VlProfiler.switchPass(name);
+            }
 
-                @Override
-                public void counter(String key, int amount) {
-                    VlProfiler.counter(key, amount);
-                }
-            });
-        }
+            @Override
+            public void counter(String key, int amount) {
+                VlProfiler.counter(key, amount);
+            }
+        });
 
         // Install the BBS Form/Film/Morph shadow caster source + config so the shared
         // irl-core shadow orchestration can reach this mod's per-mod pieces.
