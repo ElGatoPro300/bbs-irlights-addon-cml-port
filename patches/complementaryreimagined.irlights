@@ -99,7 +99,9 @@ struct IrliteLight
     vec4 cookie;          // x gobo layer (-1 none), y rotation(rad), z scale, w flags (bit0 invert)
 };
 
-layout(std430, binding = 7) buffer IrliteLights
+// P5 experiment (red line): readonly restrict — lets the compiler sink/dedup the
+// per-light loads; the mod only ever writes this buffer from the CPU side.
+layout(std430, binding = 7) readonly restrict buffer IrliteLights
 {
     uint irlite_lightCount;
     float irlite_vlIntensityRt;   // legacy mirror of irlite_vlA.x (transition; unread here)
@@ -126,8 +128,9 @@ layout(std140, binding = 7) uniform IrliteVlGlobals
 // Second SSBO in this unit: the binding-7 #extension above already enables SSBOs for the whole program, so nothing extra is needed here.
 #if defined IRLITE_CLUSTER && (defined IRLITE_SURFACE_PASS || defined IRLITE_VL_PASS)
 layout(std430, binding = 6) readonly buffer IrliteCluster {
-    uvec4 irlite_clusterHeader;   // x=gridX, y=gridY, z=flags (1=active, 0=full-loop fallback), w=0
-    uvec2 irlite_clusterMasks[];  // row-major ty*gridX+tx, bottom-left origin; bit i (i<64) = packed light index i
+    uvec4 irlite_clusterHeader;      // x=gridX, y=gridY, z=flags (1=active, 0=full-loop fallback), w=words-per-tile of the wide region (0 = legacy-only mod)
+    uvec2 irlite_clusterMasks[576];  // legacy first-64-bit region (32*18 tiles, row-major ty*gridX+tx, bottom-left origin); still dual-written by the mod
+    uint  irlite_clusterWide[];      // W2 (red line): full-width mask, tile-major [tile * header.w + (i>>5)], bit (i&31) = packed light index i
 };
 
 // Phase 3: map gl_FragCoord to its cluster tile and return the packed 64-light mask for this fragment.
@@ -153,6 +156,27 @@ uvec2 irlite_clusterMaskFetch(vec2 uv)
     uint tx = min(uint(uv.x * float(gridX)), gridX - 1u);
     uint ty = min(uint(uv.y * float(gridY)), gridY - 1u);
     return irlite_clusterMasks[ty * gridX + tx];
+}
+
+// W2 (red line): base index of this fragment's tile in the wide region.
+// Callers must have checked header.z != 0 && header.w != 0 (irlClusterOn).
+uint irlite_clusterWideBase()
+{
+    uint gridX = irlite_clusterHeader.x;
+    uint gridY = irlite_clusterHeader.y;
+    uint tx = min(uint(gl_FragCoord.x) * gridX / uint(viewWidth),  gridX - 1u);
+    uint ty = min(uint(gl_FragCoord.y) * gridY / uint(viewHeight), gridY - 1u);
+    return (ty * gridX + tx) * irlite_clusterHeader.w;
+}
+
+// VL-pass variant (reduced-res): tile from the normalized full-screen uv.
+uint irlite_clusterWideBase(vec2 uv)
+{
+    uint gridX = irlite_clusterHeader.x;
+    uint gridY = irlite_clusterHeader.y;
+    uint tx = min(uint(uv.x * float(gridX)), gridX - 1u);
+    uint ty = min(uint(uv.y * float(gridY)), gridY - 1u);
+    return (ty * gridX + tx) * irlite_clusterHeader.w;
 }
 
 #endif
@@ -1118,23 +1142,42 @@ void irlite_lightSurface(vec3 playerPos, vec3 normalM, vec3 nViewPos, float smoo
     vec3 n = normalize(viewToWorld * normalM);
 
     #ifdef IRLITE_CLUSTER
-        uvec2 irliteClusterMask = irlite_clusterMaskFetch();
+        // W2 (red line): full-width word-walk replaces the 64-bit mask. Gated on
+        // header.w so a legacy-only mod (w=0) falls back to the plain full loop.
+        bool irlClusterOn = irlite_clusterHeader.z != 0u && irlite_clusterHeader.w != 0u;
+        uint irlWideBase = irlClusterOn ? irlite_clusterWideBase() : 0u;
+        uint irlWord = 0u;
     #endif
 
     for (uint i = 0u; i < count; i++)
     {
         #ifdef IRLITE_CLUSTER
-            if (i < 64u && (irliteClusterMask[i >> 5u] & (1u << (i & 31u))) == 0u) continue;
+            if (irlClusterOn)
+            {
+                if ((i & 31u) == 0u)
+                {
+                    // One word covers 32 lights; an all-zero word skips them all
+                    // in a single iteration (the for's i++ makes the step 32).
+                    irlWord = irlite_clusterWide[irlWideBase + (i >> 5u)];
+                    if (irlWord == 0u) { i += 31u; continue; }
+                }
+                if ((irlWord & (1u << (i & 31u))) == 0u) continue;
+            }
         #endif
+        // P5 experiment (red line): fetch ONLY posRadius (16 B) for the range
+        // reject; the remaining 80 B of the struct are read after the light
+        // proves in range. An out-of-range light costs one vec4 load instead
+        // of the whole struct. Same rejects, same image — order only.
+        vec4 irlPosRadius = irlite_lights[i].posRadius;
+        vec3 toLight = irlPosRadius.xyz - fragWorld;
+        float radius = irlPosRadius.w;
+        float dist2 = dot(toLight, toLight);
+        if (dist2 >= radius * radius || dist2 < 1e-8) continue;   // cheap reject before the sqrt
+
         IrliteLight light = irlite_lights[i];
         int irlMask = int(light.cone.z + 0.5);             // 0 all, 1 entities only, 2 blocks only
         if (irlMask == 1 && !nonTerrain) continue;         // entities only: skip terrain
         if (irlMask == 2 &&  nonTerrain) continue;         // blocks only:  skip entities
-
-        vec3 toLight = light.posRadius.xyz - fragWorld;
-        float radius = light.posRadius.w;
-        float dist2 = dot(toLight, toLight);
-        if (dist2 >= radius * radius || dist2 < 1e-8) continue;   // cheap reject before the sqrt
         float dist = sqrt(dist2);
 
         vec3 L = toLight / dist;
@@ -1420,16 +1463,28 @@ vec3 irlite_volumetric(vec3 startWorld, vec3 endWorld, vec3 worldDir, float dith
     vec3 result = vec3(0.0);
 
     #ifdef IRLITE_CLUSTER
-        // Phase 3a VL tile cull (vlC.w bit4, default ON): same mask/continue idiom as the surface
-        // pass, but through the uv fetch — this pass is reduced-res (see irlite_clusterMaskFetch).
-        // Bit off -> all-ones = exact full-loop parity; header flags==0 handled inside the fetch.
-        uvec2 irliteClusterMask = (irlite_vlC.w & 16u) != 0u ? irlite_clusterMaskFetch(texCoord) : uvec2(0xFFFFFFFFu);
+        // Phase 3a VL tile cull (vlC.w bit4, default ON), W2 word-walk via the uv
+        // fetch — this pass is reduced-res. Bit4 off or legacy-only mod (w=0) ->
+        // no masking = exact full-loop parity; flags==0 likewise.
+        bool irlClusterOn = (irlite_vlC.w & 16u) != 0u && irlite_clusterHeader.z != 0u && irlite_clusterHeader.w != 0u;
+        uint irlWideBase = irlClusterOn ? irlite_clusterWideBase(texCoord) : 0u;
+        uint irlWord = 0u;
     #endif
 
     for (uint i = 0u; i < count; i++)
     {
         #ifdef IRLITE_CLUSTER
-            if (i < 64u && (irliteClusterMask[i >> 5u] & (1u << (i & 31u))) == 0u) continue;
+            if (irlClusterOn)
+            {
+                if ((i & 31u) == 0u)
+                {
+                    // One word covers 32 lights; an all-zero word skips them all
+                    // in a single iteration (the for's i++ makes the step 32).
+                    irlWord = irlite_clusterWide[irlWideBase + (i >> 5u)];
+                    if (irlWord == 0u) { i += 31u; continue; }
+                }
+                if ((irlWord & (1u << (i & 31u))) == 0u) continue;
+            }
         #endif
         IrliteLight light = irlite_lights[i];
         vec3 lightVec = light.posRadius.xyz - startWorld;   // light relative to the ray origin
