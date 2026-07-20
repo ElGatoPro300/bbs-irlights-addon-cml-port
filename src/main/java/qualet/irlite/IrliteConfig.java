@@ -14,7 +14,6 @@ public final class IrliteConfig
     public static ValueInt shadowBakeBudget;
     public static ValueFloat shadowPoseReach;
     public static ValueInt maxShaderLights;
-    public static ValueBoolean shaderLightClustering;
     public static ValueFloat vlIntensity;
     public static ValueInt vlSteps;
     public static ValueFloat vlMaxDist;
@@ -101,15 +100,6 @@ public final class IrliteConfig
     public static int maxShaderLights()
     {
         return maxShaderLights != null ? maxShaderLights.get() : 64;
-    }
-
-    /** When on, the shader consults a per-frame screen-tile light grid so each pixel
-     *  only loops the lights whose on-screen bounds cover its tile — the image is
-     *  identical, the per-pixel light cost drops. Off falls back to the plain full
-     *  loop over every uploaded light. Default on. */
-    public static boolean shaderLightClustering()
-    {
-        return shaderLightClustering == null || shaderLightClustering.get();
     }
 
     /** Global multiplier on IRLite volumetric light brightness, applied live

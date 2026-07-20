@@ -124,10 +124,9 @@ public final class LightCollector
         // Track the "max shader lights" slider each frame: caps how many lights the
         // flush packs into the SSBO (registration + shadow caches still see them all).
         LightRegistry.setUploadCap(IrliteConfig.maxShaderLights());
-        // Track the clustering toggle each frame: off -> flush records no snapshot and
-        // the gbuffer-matrix hook uploads an empty (flags=0) grid, so the shader falls
-        // back to its full per-pixel light loop.
-        ClusterGridBuffer.setEnabled(IrliteConfig.shaderLightClustering());
+        // Clustering has no knob: it is always on (core default), the image is
+        // identical either way and it only ever makes the per-pixel loop cheaper.
+        // For an A/B measurement, start with -Dirlite.noClustering=true.
         // Track the VL intensity slider each frame: lands in the SSBO header on
         // upload, so patched shaders read it live without a recompile.
         LightBuffer.setVlGlobalIntensity(IrliteConfig.vlIntensity());
