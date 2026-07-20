@@ -30,6 +30,9 @@ public class L10nMixin
         self.getKey("irlights.config.shadows.title", "Shadows");
         self.getKey("irlights.config.shadows.tooltip", "Shadow maps baked for IRLights lights");
 
+        self.getKey("irlights.config.outline.title", "Outline");
+        self.getKey("irlights.config.outline.tooltip", "Light-driven rim outline: silhouette, Fresnel halo and the front catch-light");
+
         self.getKey("irlights.config.patcher.title", "Shader Patcher");
         self.getKey("irlights.config.patcher.tooltip", "Apply IRLights .irlights files onto shaderpacks");
 
@@ -86,5 +89,35 @@ public class L10nMixin
 
         self.getKey("irlights.config.shadows.shadow_blocks", "Block shadows");
         self.getKey("irlights.config.shadows.shadow_blocks-comment", "Cast shadows from world blocks: partial blocks (slabs, stairs, fences) by their real shape, and cutout blocks (leaves, bars, glass doors) without shadowing transparent texels. Heavier until the per-light cache lands.");
+
+        self.getKey("irlights.config.outline.outline", "Outline");
+        self.getKey("irlights.config.outline.outline-comment", "Draw a rim outline on surfaces lit by IRLights lights: a depth silhouette plus a Fresnel halo, tinted by the light colour and faded by its falloff. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime globals.");
+
+        self.getKey("irlights.config.outline.outline_target", "Draw on");
+        self.getKey("irlights.config.outline.outline_target-comment", "Which surfaces get the outline, read from the gbuffer material mask: ALL, ENTITIES only (mobs, players, model blocks) or BLOCKS only. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime globals.");
+
+        self.getKey("irlights.config.outline.outline_strength", "Strength");
+        self.getKey("irlights.config.outline.outline_strength-comment", "Overall brightness of the rim. 0 = invisible. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime globals.");
+
+        self.getKey("irlights.config.outline.outline_pixel_size", "Thickness");
+        self.getKey("irlights.config.outline.outline_pixel_size-comment", "Tap offset of the depth-edge detector, in pixels. Larger reads a wider silhouette — thicker but coarser, and it starts catching edges that are not really silhouettes. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime globals.");
+
+        self.getKey("irlights.config.outline.outline_fresnel_power", "Fresnel falloff");
+        self.getKey("irlights.config.outline.outline_fresnel_power-comment", "How tightly the rim hugs grazing angles. Higher = a thinner band right at the silhouette; lower = the glow spreads across the surface. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime globals.");
+
+        self.getKey("irlights.config.outline.outline_back", "Backlight rim");
+        self.getKey("irlights.config.outline.outline_back-comment", "Rim strength on surfaces facing AWAY from the light — the classic backlight silhouette. 0 turns it off; it has no separate toggle by design. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime globals.");
+
+        self.getKey("irlights.config.outline.outline_front", "Front catch-light");
+        self.getKey("irlights.config.outline.outline_front-comment", "Add a rim on surfaces facing TOWARD the light, on top of the backlight rim. Off by default. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime globals.");
+
+        self.getKey("irlights.config.outline.outline_front_strength", "Front strength");
+        self.getKey("irlights.config.outline.outline_front_strength-comment", "Strength of the front catch-light rim. Only used while Front catch-light is on — switching that off keeps this value for when you come back. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime globals.");
+
+        self.getKey("irlights.config.outline.outline_glow", "Inner glow");
+        self.getKey("irlights.config.outline.outline_glow-comment", "Add a soft Fresnel halo inside the silhouette, which the shaderpack's bloom then picks up. Off by default. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime globals.");
+
+        self.getKey("irlights.config.outline.outline_glow_strength", "Glow strength");
+        self.getKey("irlights.config.outline.outline_glow_strength-comment", "Strength of the inner glow halo. Only used while Inner glow is on — switching that off keeps this value for when you come back. Applies instantly every frame without reloading the shaderpack; only affects shaderpacks patched with runtime globals.");
     }
 }

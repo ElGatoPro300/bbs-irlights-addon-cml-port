@@ -13,7 +13,7 @@ import mchorse.bbs_mod.settings.values.numeric.ValueInt;
  *  Index {@code COUNT} on each axis is that Custom slot; applying it is a no-op
  *  (there are no values to restore, the current ones already are the custom
  *  set). The Balanced / Dusty entries are deliberately identical to the
- *  registered defaults in BBSSettingsMixin, so a fresh install already sits on a
+ *  registered defaults in IrlightsAddon.build, so a fresh install already sits on a
  *  named preset instead of reading Custom. */
 public final class IrlitePresets
 {

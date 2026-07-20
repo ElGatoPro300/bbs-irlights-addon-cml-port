@@ -66,6 +66,25 @@ public class IrlightsAddon implements BBSAddonMod
         );
         IrliteConfig.shadowBlocks = builder.getBoolean("shadow_blocks", old.getBool("shadow_blocks", true));
 
+        // Wave 1 (2026-07-21): these ten used to be Iris-screen #defines, each
+        // costing a shaderpack recompile. They now ride the globals UBO, so they
+        // are live here and gone from the pack's settings screen.
+        builder.category("outline", Icons.OUTLINE);
+        IrliteConfig.outline = builder.getBoolean("outline", old.getBool("outline", true));
+        IrliteConfig.outlineTarget = builder.getInt("outline_target", old.getInt("outline_target", 1), 0, 2).modes(
+            IKey.constant("ALL"),
+            IKey.constant("ENTITIES"),
+            IKey.constant("BLOCKS")
+        );
+        IrliteConfig.outlineStrength = builder.getFloat("outline_strength", old.getFloat("outline_strength", 0.65F), 0F, 3F);
+        IrliteConfig.outlinePixelSize = builder.getInt("outline_pixel_size", old.getInt("outline_pixel_size", 6), 1, 6);
+        IrliteConfig.outlineFresnelPower = builder.getFloat("outline_fresnel_power", old.getFloat("outline_fresnel_power", 2.2F), 1F, 4F);
+        IrliteConfig.outlineBack = builder.getFloat("outline_back", old.getFloat("outline_back", 1F), 0F, 2F);
+        IrliteConfig.outlineFront = builder.getBoolean("outline_front", old.getBool("outline_front", false));
+        IrliteConfig.outlineFrontStrength = builder.getFloat("outline_front_strength", old.getFloat("outline_front_strength", 0.3F), 0F, 1.5F);
+        IrliteConfig.outlineGlow = builder.getBoolean("outline_glow", old.getBool("outline_glow", false));
+        IrliteConfig.outlineGlowStrength = builder.getFloat("outline_glow_strength", old.getFloat("outline_glow_strength", 0.12F), 0F, 0.75F);
+
         // Empty category — its body is injected at runtime by
         // UISettingsOverlayPanelMixin. buildSections still lists it.
         builder.category("patcher", Icons.WRENCH);

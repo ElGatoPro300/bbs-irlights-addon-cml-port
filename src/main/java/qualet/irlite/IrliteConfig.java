@@ -27,6 +27,16 @@ public final class IrliteConfig
     public static ValueBoolean vlDitherTemporal;
     public static ValueBoolean vlClusterCull;
     public static ValueBoolean vlShadowHiz;
+    public static ValueBoolean outline;
+    public static ValueInt outlineTarget;
+    public static ValueFloat outlineStrength;
+    public static ValueInt outlinePixelSize;
+    public static ValueFloat outlineFresnelPower;
+    public static ValueFloat outlineBack;
+    public static ValueBoolean outlineFront;
+    public static ValueFloat outlineFrontStrength;
+    public static ValueBoolean outlineGlow;
+    public static ValueFloat outlineGlowStrength;
 
     private IrliteConfig()
     {}
@@ -191,7 +201,8 @@ public final class IrliteConfig
      *  applied live through the globals UBO each frame — no shader reload.
      *  0 = classic drifting-only fog. The core quantizes it to 0.25 steps so
      *  the morph crossfade phase stays slice-congruent when the shader's time
-     *  counter wraps. Default 1 (runtime-only knob, no pack define). */
+     *  counter wraps. Default 0 = morph off (runtime-only knob, no pack define);
+     *  no quality preset touches it. */
     public static float vlNoiseMorph()
     {
         return vlNoiseMorph != null ? vlNoiseMorph.get() : 0F;
@@ -217,8 +228,8 @@ public final class IrliteConfig
 
     /** Runtime toggle for per-frame rotation of the VL blue-noise dither,
      *  applied live through the globals UBO flags each frame — no shader
-     *  reload. Without TAA it can shimmer/boil on moving lamps, so it
-     *  defaults off. */
+     *  reload. Default on; switch it off for a shot that shimmers/boils on
+     *  moving lamps without temporal anti-aliasing. */
     public static boolean vlDitherTemporal()
     {
         return vlDitherTemporal == null || vlDitherTemporal.get();
@@ -245,5 +256,82 @@ public final class IrliteConfig
     public static boolean vlShadowHiz()
     {
         return vlShadowHiz == null || vlShadowHiz.get();
+    }
+
+    /* ---- outline (wave 1: moved off the Iris screen into the globals UBO) ----
+     *
+     * All ten apply live through the UBO each frame — no shader reload. They only
+     * do anything on a pack patched with the runtime globals block; on the other
+     * six packs the UBO is absent and these silently do nothing, the same way the
+     * VL knobs already behave. Defaults mirror the pack's compile-time defines,
+     * so a fresh install looks identical to the pre-migration build. */
+
+    /** Master toggle for the light-driven rim outline. Default on. */
+    public static boolean outline()
+    {
+        return outline == null || outline.get();
+    }
+
+    /** What the outline is drawn on: 0 all, 1 entities only, 2 blocks only.
+     *  Default 1 (pack's IRLITE_OUTLINE_TARGET). */
+    public static int outlineTarget()
+    {
+        return outlineTarget != null ? outlineTarget.get() : 1;
+    }
+
+    /** Overall rim brightness multiplier. Default 0.65. */
+    public static float outlineStrength()
+    {
+        return outlineStrength != null ? outlineStrength.get() : 0.65F;
+    }
+
+    /** Depth-edge detector tap offset in pixels — larger = thicker, coarser
+     *  silhouette. Default 6 (the slider maximum): picked by eye 2026-07-21. */
+    public static int outlinePixelSize()
+    {
+        return outlinePixelSize != null ? outlinePixelSize.get() : 6;
+    }
+
+    /** Fresnel falloff exponent; higher = the rim hugs grazing angles more
+     *  tightly. Default 2.2. */
+    public static float outlineFresnelPower()
+    {
+        return outlineFresnelPower != null ? outlineFresnelPower.get() : 2.2F;
+    }
+
+    /** Base rim strength on surfaces facing AWAY from the light (backlight rim).
+     *  0 = off; it is slider-only by the pack's own idiom, no companion toggle.
+     *  Default 1.0. */
+    public static float outlineBack()
+    {
+        return outlineBack != null ? outlineBack.get() : 1F;
+    }
+
+    /** Toggle for the catch-light rim on surfaces facing TOWARD the light.
+     *  Default off. Kept as its own toggle rather than folded into
+     *  outlineFrontStrength == 0 so switching it off preserves the slider
+     *  value to come back to. */
+    public static boolean outlineFront()
+    {
+        return outlineFront != null && outlineFront.get();
+    }
+
+    /** Strength of the front catch-light rim. Default 0.3. */
+    public static float outlineFrontStrength()
+    {
+        return outlineFrontStrength != null ? outlineFrontStrength.get() : 0.3F;
+    }
+
+    /** Toggle for the soft inner Fresnel halo that feeds the pack's bloom.
+     *  Default off. Same rationale as outlineFront for keeping the toggle. */
+    public static boolean outlineGlow()
+    {
+        return outlineGlow != null && outlineGlow.get();
+    }
+
+    /** Strength of the inner glow halo. Default 0.12. */
+    public static float outlineGlowStrength()
+    {
+        return outlineGlowStrength != null ? outlineGlowStrength.get() : 0.12F;
     }
 }

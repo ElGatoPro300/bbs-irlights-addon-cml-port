@@ -156,9 +156,26 @@ public final class LightCollector
                 | (IrliteConfig.vlClusterCull() ? 16 : 0) | (IrliteConfig.vlShadowHiz() ? 32 : 0)
                 | (VL_BILATERAL ? 64 : 0)
         );
+        // Outline knobs ride the same UBO but push separately: the sweep below
+        // rebuilds the VL flag word from the VL toggles alone, so folding the
+        // outline bits into that argument would let a sweep clear them. The core
+        // ORs the two flag words together at upload instead.
+        VlGlobalsBuffer.setOutline(
+            IrliteConfig.outline(),
+            IrliteConfig.outlineTarget(),
+            IrliteConfig.outlineStrength(),
+            IrliteConfig.outlineFresnelPower(),
+            IrliteConfig.outlineBack(),
+            IrliteConfig.outlineFront(),
+            IrliteConfig.outlineFrontStrength(),
+            IrliteConfig.outlineGlow(),
+            IrliteConfig.outlineGlowStrength(),
+            IrliteConfig.outlinePixelSize()
+        );
         // Dev VL profiler sweep (-Dirlite.profileVl=true): may re-issue the push
         // above with per-config flag overrides — last write wins before upload.
         // New VlGlobalsBuffer.set args must be mirrored in VlSweep.overrideVlGlobals.
+        // setOutline is NOT mirrored there by design — the sweep only varies VL.
         VlProfiler.overrideVlGlobals();
 
         if (world == null || cameraPos == null)

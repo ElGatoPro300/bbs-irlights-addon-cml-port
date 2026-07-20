@@ -63,9 +63,12 @@
 #define IRLITE_TOON_BANDS 3 // [2 3 4 5 6 8]
 #define IRLITE_TOON_SMOOTH 0.10 // [0.0 0.05 0.10 0.20 0.30 0.50]
 
-#define IRLITE_OUTLINE                    // light-driven rim: depth silhouette + Fresnel halo, back/front + glow (IRLEngine LocalLightOutline)
+// light-driven rim: depth silhouette + Fresnel halo, back/front + glow (IRLEngine
+// LocalLightOutline). The enable is vlC.w bit8 from the mod, NOT a define — see the
+// note above the outline block. The numeric defines below stay as the values used
+// when no mod is driving the globals UBO.
 #define IRLITE_OUTLINE_TARGET 1 // [0 1 2]
-#define IRLITE_OUTLINE_PIXEL_SIZE 2 // [1 2 3 4 5 6]
+#define IRLITE_OUTLINE_PIXEL_SIZE 6 // [1 2 3 4 5 6]
 #define IRLITE_OUTLINE_STRENGTH 0.65 // [0.0 0.1 0.2 0.35 0.5 0.65 0.8 1.0 1.5 2.0 3.0]
 #define IRLITE_OUTLINE_FRESNEL_POWER 2.2 // [1.0 1.2 1.5 1.8 2.0 2.2 2.5 3.0 4.0]
 // each new feature = on/off toggle + strength slider (pack idiom). BACK = base rim strength, slider only (0 = off).
@@ -120,9 +123,38 @@ layout(std140, binding = 7) uniform IrliteVlGlobals
 {
     vec4 irlite_vlA;   // x intensity, y maxDist, z tipBoost, w tipRadius
     vec4 irlite_vlB;   // x noiseAmount, y noiseScale, z noiseSpeed, w frameIndex (0..4095, temporal dither rotation)
-    uvec4 irlite_vlC;  // x stepMax, y shadowStride, z noiseStride, w flags (bit0 shadows, bit1 noise, bit2 blueNoise, bit3 ditherTemporal, bit4 clusterCull, bit5 hiZSkip, bit6 bilateralUpsample)
+    uvec4 irlite_vlC;  // x stepMax, y shadowStride, z noiseStride, w flags (bit0 shadows, bit1 noise, bit2 blueNoise, bit3 ditherTemporal, bit4 clusterCull, bit5 hiZSkip, bit6 bilateralUpsample, bit7 GLOBALS VALID, bit8 outline, bit9 outlineFront, bit10 outlineGlow, bits11-12 outlineTarget)
     vec4 irlite_vlD;   // x noiseMorph (0 = morph off, drift only), y bilateral depth sigma in blocks (0 = default), z/w reserved (written as 0)
+    vec4 irlite_vlE;   // outline: x strength, y fresnelPower, z back, w frontStrength
+    vec4 irlite_vlF;   // outline: x glowStrength, y pixelSize (int-valued float), z/w reserved (written as 0)
 };
+
+// Wave 1 (2026-07-21): the outline knobs moved from #define to this UBO, so they
+// are live BBS settings instead of Iris-screen recompiles. Extending the block in
+// the TAIL is binary-safe — std140 offsets 0..63 do not move, and an older GLSL
+// simply reads the first 64 bytes of a larger buffer.
+//
+// Bit 7 = "globals valid", set by the mod on EVERY upload (VlGlobalsBuffer.upload
+// ORs it in, so it cannot be forgotten in a setter). An unbound UBO reads as all
+// zeros -> the bit is false -> every knob below falls back to its compile-time
+// define. The zero-sentinel idiom used for IRLITE_VL_INTENSITY cannot be reused
+// here: 0 is a LEGAL user value for strength/back/front/glow, so "reads 0" and
+// "no data" are indistinguishable without this bit.
+#define IRLITE_GLOBALS_OK ((irlite_vlC.w & 128u) != 0u)
+
+// Fallbacks for the two toggle-gated strengths, folded to 0.0 when the toggle
+// define is absent. Resolving them here keeps the runtime selects below free of
+// preprocessor conditionals inside expressions.
+#ifdef IRLITE_OUTLINE_GLOW
+    #define IRLITE_OUTLINE_GLOW_S_FB IRLITE_OUTLINE_GLOW_STRENGTH
+#else
+    #define IRLITE_OUTLINE_GLOW_S_FB 0.0
+#endif
+#ifdef IRLITE_OUTLINE_FRONT
+    #define IRLITE_OUTLINE_FRONT_S_FB IRLITE_OUTLINE_FRONT_STRENGTH
+#else
+    #define IRLITE_OUTLINE_FRONT_S_FB 0.0
+#endif
 
 // ---- cluster grid (binding 6) — std430 mirror of ClusterGridBuffer.java; per-fragment screen-tile light mask ----
 // Second SSBO in this unit: the binding-7 #extension above already enables SSBOs for the whole program, so nothing extra is needed here.
@@ -184,7 +216,7 @@ uint irlite_clusterWideBase(vec2 uv)
 const float IRLITE_PI = 3.14159265;
 
 // Master-gated on IRLITE_SHADOWS so disabling shadows also removes the samplerCubeArray declaration - the one construct a strict #version 130 driver could reject.
-#if defined IRLITE_SHADOWS && (defined IRLITE_SURFACE_PASS || (defined COMPOSITE1 && defined IRLITE_OUTLINE) || (defined IRLITE_VL_PASS && defined IRLITE_VOLUMETRIC && defined IRLITE_VL_SHADOWS))
+#if defined IRLITE_SHADOWS && (defined IRLITE_SURFACE_PASS || defined COMPOSITE1 || (defined IRLITE_VL_PASS && defined IRLITE_VOLUMETRIC && defined IRLITE_VL_SHADOWS))
     #define IRLITE_COMPILE_SHADOWS
 #endif
 
@@ -994,9 +1026,13 @@ float irlite_pointShadow(vec3 fragWorld, vec3 normal, IrliteLight light, bool fa
 #endif // IRLITE_COMPILE_SHADOWS
 
 // ---- outline (IRLITE_COMPOSITE_PASS) ----
-// (bare ifdef — registers IRLITE_OUTLINE with Iris; if-defined refs are not counted)
+// Gated on the pass alone. There is deliberately NO `#ifdef IRLITE_OUTLINE` here
+// any more: a bare ifdef is what registers a boolean option with Iris, and Iris
+// applies a persisted value from <pack>.txt whether or not the option still sits
+// on a screen. With the option gone from every screen (it lives in BBS now, as
+// vlC.w bit8), a leftover IRLITE_OUTLINE=false would have compiled the whole
+// feature out with no way left to switch it back on. The enable is bit8 only.
 #ifdef COMPOSITE1
-#ifdef IRLITE_OUTLINE
 
 // Actual view-space depth (metres) at a texel via gbufferProjectionInverse.
 float irlite_outlineDepth(ivec2 t)
@@ -1013,7 +1049,7 @@ float irlite_outlineDepth(ivec2 t)
 // 4-corner depth-edge detector at ±PIXEL_SIZE: maxBehind × edgeness, smoothstepped.
 float irlite_outlineFactor()
 {
-    int ps = IRLITE_OUTLINE_PIXEL_SIZE;
+    int ps = IRLITE_GLOBALS_OK ? int(irlite_vlF.y) : IRLITE_OUTLINE_PIXEL_SIZE;
     ivec2 tc = ivec2(gl_FragCoord.xy);
     float zC = irlite_outlineDepth(tc);
 
@@ -1043,14 +1079,24 @@ vec3 irlite_outlineInk(vec3 playerPos, vec3 flatNormal)
     vec3 fragWorld = playerPos;
     vec3 v = -normalize(playerPos);
 
-    float fres = pow(clamp(1.0 - abs(dot(n, v)), 0.0, 1.0), IRLITE_OUTLINE_FRESNEL_POWER);
+    // Live knobs (UBO) with the compile-time defines as the unbound fallback.
+    bool  irlGlobalsOk = IRLITE_GLOBALS_OK;
+    float oFresnelP = irlGlobalsOk ? irlite_vlE.y : IRLITE_OUTLINE_FRESNEL_POWER;
+    float oGlowS    = irlGlobalsOk ? (((irlite_vlC.w & 1024u) != 0u) ? irlite_vlF.x : 0.0)   // bit10 = glow
+                                   : IRLITE_OUTLINE_GLOW_S_FB;
+
+    float fres = pow(clamp(1.0 - abs(dot(n, v)), 0.0, 1.0), oFresnelP);
     float silhouette = irlite_outlineFactor() * fres;        // crisp depth-edge rim (grazing only)
-    float glow = 0.0;                                         // soft inner Fresnel halo, picked up by pack bloom
-    #ifdef IRLITE_OUTLINE_GLOW
-        glow = IRLITE_OUTLINE_GLOW_STRENGTH * fres;
-    #endif
+    float glow = oGlowS * fres;                               // soft inner Fresnel halo, picked up by pack bloom
     float contourFactor = silhouette + glow;
     if (contourFactor <= 1e-4) return vec3(0.0);
+
+    // Loop-invariant, so they are hoisted out of the per-light loop below rather
+    // than re-selected per light (the #define version had them as literals).
+    float oBack     = irlGlobalsOk ? irlite_vlE.z : IRLITE_OUTLINE_BACK;
+    float oFrontS   = irlGlobalsOk ? (((irlite_vlC.w & 512u) != 0u) ? irlite_vlE.w : 0.0)    // bit9 = front
+                                   : IRLITE_OUTLINE_FRONT_S_FB;
+    float oStrength = irlGlobalsOk ? irlite_vlE.x : IRLITE_OUTLINE_STRENGTH;
 
     uint count = irlite_lightCount;
     vec3 ink = vec3(0.0);
@@ -1093,17 +1139,14 @@ vec3 irlite_outlineInk(vec3 playerPos, vec3 flatNormal)
 
         vec3 lightCol = pow(max(light.colorIntensity.rgb, vec3(0.0)), vec3(1.0 / 2.2))
                       * light.colorIntensity.a;
-        float rim = IRLITE_OUTLINE_BACK * (1.0 - ndl);
-        #ifdef IRLITE_OUTLINE_FRONT
-            rim += IRLITE_OUTLINE_FRONT_STRENGTH * ndl;
-        #endif
-        ink += lightCol * (contourFactor * rim * attenuation * IRLITE_OUTLINE_STRENGTH);
+        // front off => oFrontS == 0, so this is exactly the old back-only rim.
+        float rim = oBack * (1.0 - ndl) + oFrontS * ndl;
+        ink += lightCol * (contourFactor * rim * attenuation * oStrength);
     }
 
     return ink * 5.0;
 }
 
-#endif // IRLITE_OUTLINE
 #endif // COMPOSITE1 (outline half)
 
 // ---- surface (IRLITE_SURFACE_PASS) ----
@@ -1985,20 +2028,20 @@ after "#include \"/lib/util/spaceConversion.glsl\""
 >>>
 before "    color = pow(color, vec3(2.2));"
 <<<
-    #if defined IRLITE_ACTIVE && defined IRLITE_OUTLINE
+    #ifdef IRLITE_ACTIVE
         // IRLite backlight rim outline; post-translucent, before pow-2.2. IRLITE_OUTLINE_TARGET gates by gbuffer materialMask: entities = PBR 100..199 or default 254, blocks = 0..99.
+        // Enable + target are live UBO values (vlC.w bit8, bits11-12); the defines
+        // are the unbound-UBO fallback. The colortex6 fetch is now compiled in
+        // unconditionally — macOS is out of scope, so the pack's 8-sampler guard
+        // at the top of this file is not a constraint we design around.
         bool irliteODraw = z0 < 1.0 && z0 > 0.56;
-        #if IRLITE_OUTLINE_TARGET != 0
-            if (irliteODraw) {
-                float irliteOMat = texelFetch(colortex6, texelCoord, 0).g * 255.0;
-                bool irliteOEntity = (irliteOMat > 99.5 && irliteOMat < 199.5) || irliteOMat > 253.5;
-                #if IRLITE_OUTLINE_TARGET == 1
-                    irliteODraw = irliteOEntity;   // only entities
-                #else
-                    irliteODraw = !irliteOEntity;  // only blocks
-                #endif
-            }
-        #endif
+        if (IRLITE_GLOBALS_OK && (irlite_vlC.w & 256u) == 0u) irliteODraw = false;
+        uint irliteOTarget = IRLITE_GLOBALS_OK ? ((irlite_vlC.w >> 11u) & 3u) : uint(IRLITE_OUTLINE_TARGET);
+        if (irliteODraw && irliteOTarget != 0u) {
+            float irliteOMat = texelFetch(colortex6, texelCoord, 0).g * 255.0;
+            bool irliteOEntity = (irliteOMat > 99.5 && irliteOMat < 199.5) || irliteOMat > 253.5;
+            irliteODraw = (irliteOTarget == 1u) ? irliteOEntity : !irliteOEntity;
+        }
         if (irliteODraw) {
             vec3 irliteOPlayerPos = ViewToPlayer(viewPos.xyz);
             vec3 irliteDerivN = cross(dFdx(irliteOPlayerPos), dFdy(irliteOPlayerPos));
@@ -2092,16 +2135,15 @@ VANILLAAO_I PLAYER_SHADOW [IRLIGHTS]
 >>>
 after "        screen.PIXELATED_LIGHTING_SETTINGS=<empty> <empty> PIXELATED_SHADOWS PIXELATED_BLOCKLIGHT PIXELATED_AO PIXEL_SCALE"
 <<<
-        screen.IRLIGHTS=IRLITE_DIFFUSE IRLITE_INTENSITY <empty> <empty> [IRLIGHTS_SPECULAR] [IRLIGHTS_SHADOWS] [IRLIGHTS_TOON] [IRLIGHTS_VOLUMETRIC] [IRLIGHTS_OUTLINE] <empty>
+        screen.IRLIGHTS=IRLITE_DIFFUSE IRLITE_INTENSITY <empty> <empty> [IRLIGHTS_SPECULAR] [IRLIGHTS_SHADOWS] [IRLIGHTS_TOON] [IRLIGHTS_VOLUMETRIC] <empty>
             screen.IRLIGHTS_SPECULAR=IRLITE_SPECULAR <empty> IRLITE_SPECULAR_INTENSITY <empty>
             screen.IRLIGHTS_SHADOWS=IRLITE_SHADOWS IRLITE_SHADOW_QUALITY <empty> <empty> IRLITE_SHADOW_SIZE IRLITE_SHADOW_BIAS IRLITE_SHADOW_NORMAL_OFFSET <empty>
             screen.IRLIGHTS_TOON=IRLITE_TOON <empty> IRLITE_TOON_BANDS IRLITE_TOON_SMOOTH
             screen.IRLIGHTS_VOLUMETRIC=IRLITE_VOLUMETRIC IRLITE_VL_RESOLUTION
-            screen.IRLIGHTS_OUTLINE=IRLITE_OUTLINE IRLITE_OUTLINE_TARGET <empty> <empty> IRLITE_OUTLINE_STRENGTH IRLITE_OUTLINE_PIXEL_SIZE IRLITE_OUTLINE_FRESNEL_POWER <empty> <empty> <empty> IRLITE_OUTLINE_BACK <empty> IRLITE_OUTLINE_FRONT IRLITE_OUTLINE_FRONT_STRENGTH IRLITE_OUTLINE_GLOW IRLITE_OUTLINE_GLOW_STRENGTH
 >>>
 replace "END_STAR_INTENSITY GENERATED_NORMAL_RES"
 <<<
-END_STAR_INTENSITY GENERATED_NORMAL_RES IRLITE_INTENSITY IRLITE_SPECULAR_INTENSITY IRLITE_SHADOW_QUALITY IRLITE_SHADOW_SIZE IRLITE_SHADOW_BIAS IRLITE_SHADOW_NORMAL_OFFSET IRLITE_TOON_BANDS IRLITE_TOON_SMOOTH IRLITE_OUTLINE_TARGET IRLITE_OUTLINE_STRENGTH IRLITE_OUTLINE_PIXEL_SIZE IRLITE_OUTLINE_FRESNEL_POWER IRLITE_OUTLINE_BACK IRLITE_OUTLINE_FRONT_STRENGTH IRLITE_OUTLINE_GLOW_STRENGTH
+END_STAR_INTENSITY GENERATED_NORMAL_RES IRLITE_INTENSITY IRLITE_SPECULAR_INTENSITY IRLITE_SHADOW_QUALITY IRLITE_SHADOW_SIZE IRLITE_SHADOW_BIAS IRLITE_SHADOW_NORMAL_OFFSET IRLITE_TOON_BANDS IRLITE_TOON_SMOOTH
 >>>
 
 # --- option labels + tooltips ---
@@ -2120,8 +2162,6 @@ screen.IRLIGHTS_TOON=§aToon
 screen.IRLIGHTS_TOON.comment=Cel-shading style banding of IRLights lighting.
 screen.IRLIGHTS_VOLUMETRIC=§dVolumetric
 screen.IRLIGHTS_VOLUMETRIC.comment=Per-light volumetric beams and haze. §e[*]§r Only the structural options live here — beam brightness, march cost, shadowing and noise are configured live in the mod, under BBS Settings §6IRLights§r, and apply without reloading the pack.
-screen.IRLIGHTS_OUTLINE=§eOutline
-screen.IRLIGHTS_OUTLINE.comment=Light-driven rim outline along lit silhouettes: back/front rim and soft inner glow. Each sub-feature toggles independently.
 
 option.IRLITE_DIFFUSE=§6Diffuse Lighting
 option.IRLITE_DIFFUSE.comment=Surface lighting from IRLights point/spot lights.
@@ -2172,37 +2212,4 @@ option.IRLITE_TOON_BANDS.comment=Number of brightness bands.
 
 option.IRLITE_TOON_SMOOTH=§aBand Smoothing
 option.IRLITE_TOON_SMOOTH.comment=Softness of the band edges.
-
-option.IRLITE_OUTLINE=§eRim Outline
-option.IRLITE_OUTLINE.comment=Master toggle for the light-driven rim outline (depth silhouette + glow), tinted by the light colour. Sub-features toggle below.
-
-option.IRLITE_OUTLINE_TARGET=§eTarget
-option.IRLITE_OUTLINE_TARGET.comment=Which surfaces the rim outline draws on. Both = entities and blocks; Only Entities = mobs/players/items/hand; Only Blocks = terrain and block entities. Uses the pack's gbuffer entity tag.
-value.IRLITE_OUTLINE_TARGET.0=§eBoth
-value.IRLITE_OUTLINE_TARGET.1=§eOnly Entities
-value.IRLITE_OUTLINE_TARGET.2=§eOnly Blocks
-
-option.IRLITE_OUTLINE_STRENGTH=§eRim Strength
-option.IRLITE_OUTLINE_STRENGTH.comment=Rim brightness multiplier. 0.65 matches the IRLights diffuse scale.
-
-option.IRLITE_OUTLINE_PIXEL_SIZE=§eRim Thickness
-option.IRLITE_OUTLINE_PIXEL_SIZE.comment=Line thickness in pixels (depth-tap offset).
-
-option.IRLITE_OUTLINE_FRESNEL_POWER=§eFresnel Power
-option.IRLITE_OUTLINE_FRESNEL_POWER.comment=Sharpness of the silhouette rim falloff. Higher values narrow the rim to grazing angles only.
-
-option.IRLITE_OUTLINE_BACK=§eBack Rim
-option.IRLITE_OUTLINE_BACK.comment=Strength of the rim where the light is behind the surface (classic backlight halo). 0 = off.
-
-option.IRLITE_OUTLINE_FRONT=§eFront Catch-Light
-option.IRLITE_OUTLINE_FRONT.comment=Adds a rim on the edge facing the light (catch-light), on top of the back rim.
-
-option.IRLITE_OUTLINE_FRONT_STRENGTH=§eFront Strength
-option.IRLITE_OUTLINE_FRONT_STRENGTH.comment=Brightness of the front catch-light rim.
-
-option.IRLITE_OUTLINE_GLOW=§eInner Glow
-option.IRLITE_OUTLINE_GLOW.comment=Soft Fresnel halo just inside the silhouette; picked up by the pack bloom so light appears to wrap the edge.
-
-option.IRLITE_OUTLINE_GLOW_STRENGTH=§eGlow Strength
-option.IRLITE_OUTLINE_GLOW_STRENGTH.comment=Intensity of the soft inner glow.
 >>>
