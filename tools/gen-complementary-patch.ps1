@@ -77,7 +77,9 @@ $slIdx = $slLine.IndexOf('END_STAR_INTENSITY GENERATED_NORMAL_RES')
 if ($slIdx -lt 0) { throw "sliders tail anchor not found" }
 $slBody = $slLine.Substring($slIdx)
 if (-not $slBody.EndsWith('IRLITE_OUTLINE_GLOW_STRENGTH')) { throw "sliders body tail unexpected" }
-if ($slBody -notmatch 'IRLITE_VL_SHADOW_STRIDE') { throw "sliders body missing IRLITE_VL_SHADOW_STRIDE" }
+# Sentinel must be an option that survives the UI cleanup: every IRLITE_VL_* slider
+# was dropped from the Iris screens (their values come from the mod's UBO at runtime).
+if ($slBody -notmatch 'IRLITE_TOON_BANDS') { throw "sliders body missing IRLITE_TOON_BANDS" }
 
 $lg = Lines "$mod\lang\en_US.lang"
 $Y = IndexOfLine $lg 'option.XLIGHT_CURVE.comment=Adjusts how quickly the intensity of blocklight fades away as it travels distance away from the light source.'
