@@ -8,11 +8,7 @@ public final class IrliteConfig
 {
     public static ValueBoolean showGuides;
     public static ValueInt shadowQuality;
-    public static ValueBoolean shadowCache;
     public static ValueBoolean shadowBlocks;
-    public static ValueInt shadowBlockRadius;
-    public static ValueInt shadowBakeBudget;
-    public static ValueFloat shadowPoseReach;
     public static ValueInt maxShaderLights;
     public static ValueFloat vlIntensity;
     public static ValueInt vlSteps;
@@ -40,10 +36,12 @@ public final class IrliteConfig
         return showGuides != null && showGuides.get();
     }
 
-    /** When on, shadow maps are only re-baked when the scene changes (default on). */
+    /** Shadow maps are only re-baked when the scene changes. Always on — the
+     *  cache is transparent (a stale map is a bug to fix, not a mode to pick),
+     *  so it lost its BBS toggle. */
     public static boolean shadowCache()
     {
-        return shadowCache == null || shadowCache.get();
+        return true;
     }
 
     /** When on, world blocks cast shadows by their real shape, and cutout
@@ -59,13 +57,12 @@ public final class IrliteConfig
         return shadowQuality != null ? shadowQuality.get() : 1;
     }
 
-    /** Block-shadow collection radius in blocks (default 24). World blocks farther
-     *  than this from a light cast no shadow even when the light's range is larger
-     *  — it bounds the per-light bbox walk. Higher = bigger lights shadow correctly
-     *  but each re-collection (light move / nearby block edit) costs more. */
+    /** Block-shadow collection radius in blocks. World blocks farther than this
+     *  from a light cast no shadow even when the light's range is larger — it
+     *  bounds the per-light bbox walk. Fixed at 24: no BBS knob. */
     public static int shadowBlockRadius()
     {
-        return shadowBlockRadius != null ? shadowBlockRadius.get() : 24;
+        return 24;
     }
 
     /** Max full static shadow bakes started per frame before the rest are
@@ -75,21 +72,20 @@ public final class IrliteConfig
      *  &lt;= 0 disables throttling (bake everything every frame). First bakes and
      *  tile-reassign bakes are never deferred (they would sample a blank or
      *  foreign map); dynamic overlays and static-&gt;live copies are never
-     *  budgeted (they must run every frame). */
+     *  budgeted (they must run every frame). Fixed at 4: no BBS knob. */
     public static int shadowBakeBudget()
     {
-        return shadowBakeBudget != null ? shadowBakeBudget.get() : 4;
+        return 4;
     }
 
     /** Pose/oversize slack of the partial-tile shadow rect (both axes), as a
-     *  fraction of the caster's half-height (default 1.0). Applied live every
-     *  bake. Raise it if wide animation poses (arms out) or forms/models drawn
-     *  bigger than their hitbox get their shadow edges clipped; uncapped —
-     *  oversized values only cost bake speed and eventually fall back to the
-     *  full-tile path. */
+     *  fraction of the caster's half-height. Covers wide animation poses (arms
+     *  out) and forms drawn bigger than their hitbox; oversized bounds only cost
+     *  bake speed and fall back to the full-tile path, which never clips.
+     *  Fixed at 1.0 — the value calibrated against the visual gate. */
     public static float shadowPoseReach()
     {
-        return shadowPoseReach != null ? shadowPoseReach.get() : 1.0F;
+        return 1.0F;
     }
 
     /** Max lights uploaded to the shader SSBO per frame; the injected shader loops

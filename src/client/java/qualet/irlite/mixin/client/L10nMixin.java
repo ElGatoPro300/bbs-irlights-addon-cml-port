@@ -26,17 +26,8 @@ public class L10nMixin
         self.getKey("bbs.config.irlite.shadow_quality", "Shadow quality");
         self.getKey("bbs.config.irlite.shadow_quality-comment", "Resolution of the shadow depth maps. Higher is sharper but uses more VRAM (LOW ~40 MiB ... ULTRA ~2.5 GiB).");
 
-        self.getKey("bbs.config.irlite.shadow_cache", "Cache static shadows");
-        self.getKey("bbs.config.irlite.shadow_cache-comment", "Only re-bake shadow maps when lights or occluders move. Big FPS win for static/paused scenes. Turn off if shadows ever look stale.");
-
         self.getKey("bbs.config.irlite.shadow_blocks", "Block shadows");
         self.getKey("bbs.config.irlite.shadow_blocks-comment", "Cast shadows from world blocks: partial blocks (slabs, stairs, fences) by their real shape, and cutout blocks (leaves, bars, glass doors) without shadowing transparent texels. Heavier until the per-light cache lands.");
-
-        self.getKey("bbs.config.irlite.shadow_block_radius", "Block shadow radius");
-        self.getKey("bbs.config.irlite.shadow_block_radius-comment", "How far (in blocks) world blocks are collected as shadow casters around a light. Blocks beyond this cast no shadow even if the light reaches farther. Raise it for large lights; higher values make each re-collection (when a light moves or a nearby block changes) more expensive. Default 24.");
-
-        self.getKey("bbs.config.irlite.shadow_pose_reach", "Shadow pose margin");
-        self.getKey("bbs.config.irlite.shadow_pose_reach-comment", "Extra slack around animated shadow casters in the partial-tile shadow path, as a fraction of the caster's height. Raise it until shadows of wide poses (arms out) or forms/models drawn bigger than their hitbox stop getting cut off; applies instantly. Higher values only cost bake speed — oversized bounds gracefully fall back to the old full-tile behavior, which never clips. Default 1.0.");
 
         self.getKey("bbs.config.irlite.max_shader_lights", "Max shader lights");
         self.getKey("bbs.config.irlite.max_shader_lights-comment", "Upper bound on how many lights are uploaded to the shader each frame. The injected shader loops over every uploaded light per pixel, so fewer lights is cheaper. When more lights are in range than this, the nearest (highest-priority) ones win; the rest are skipped for lighting but still cast and receive shadows and stay registered. 0 = no limit. Default 64.");
