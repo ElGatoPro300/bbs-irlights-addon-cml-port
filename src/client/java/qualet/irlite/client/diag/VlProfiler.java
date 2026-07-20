@@ -185,10 +185,18 @@ public final class VlProfiler
     /* ---- wiring from mixins ------------------------------------------------ */
 
     /** CompositeRendererTimerMixin, at createProgram RETURN: remembers which Iris
-     *  Program object is which pass ("deferred2", "composite1", ...). */
+     *  Program object is which pass ("deferred2", "composite1", ...).
+     *
+     *  <p>Deliberately NOT gated on {@code enabled}: createProgram only runs at
+     *  shaderpack load, long before anyone toggles the overlay on. Skipping the
+     *  put while off left PASS_NAMES empty, so a later runtime enable timed every
+     *  composite pass under the single name "unnamed" — and because the stats
+     *  window is keyed by name, they all summed into one meaningless bucket
+     *  instead of reporting per-pass. The cost is a handful of WeakHashMap puts
+     *  per pack load; the entries die with the programs on F3+R either way.</p> */
     public static void registerPassName(Object program, String name)
     {
-        if (!enabled || program == null || name == null)
+        if (program == null || name == null)
         {
             return;
         }
