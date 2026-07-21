@@ -40,7 +40,7 @@ public class PointLightFormRenderer extends AbstractLightFormRenderer<PointLight
         Vector3d p = IRLightPositionResolver.resolve(context);
         Color c = this.form.color.get();
         LightRegistry.registerPoint(
-            (float) p.x, (float) p.y, (float) p.z,
+            p.x, p.y, p.z,
             c.r, c.g, c.b,
             this.form.intensity.get(), this.form.radius.get(),
             this.form.entitiesOnly.get(), this.form.blocksOnly.get(),

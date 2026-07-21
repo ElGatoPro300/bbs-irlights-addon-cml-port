@@ -370,7 +370,7 @@ public final class LightCollector
         // origin is the small matrix-local offset; add the double base back to recover
         // the absolute world position without the far-from-origin float quantization.
         Color c = form.color.get();
-        LightRegistry.registerPoint((float) (baseX + origin.x), (float) (baseY + origin.y), (float) (baseZ + origin.z), c.r, c.g, c.b, form.intensity.get(), form.radius.get(), form.entitiesOnly.get(), form.blocksOnly.get(), form.anisotropy.get(), form.vlDensity.get(), form.beamStrength.get(), form.bulbSize.get(), form.shadows.get(), System.identityHashCode(form));
+        LightRegistry.registerPoint(baseX + origin.x, baseY + origin.y, baseZ + origin.z, c.r, c.g, c.b, form.intensity.get(), form.radius.get(), form.entitiesOnly.get(), form.blocksOnly.get(), form.anisotropy.get(), form.vlDensity.get(), form.beamStrength.get(), form.bulbSize.get(), form.shadows.get(), System.identityHashCode(form));
     }
 
     private static void emitSpot(SpotlightForm form, Matrix4f matrix, double baseX, double baseY, double baseZ)
@@ -401,6 +401,6 @@ public final class LightCollector
         // Direction (w=0) is translation-invariant; only the origin gets the double base
         // added back to recover the absolute world position without float quantization.
         Color c = form.color.get();
-        LightRegistry.registerSpot((float) (baseX + origin.x), (float) (baseY + origin.y), (float) (baseZ + origin.z), dx, dy, dz, c.r, c.g, c.b, form.intensity.get(), form.range.get(), cosOuter, cosInner, form.entitiesOnly.get(), form.blocksOnly.get(), form.anisotropy.get(), form.vlDensity.get(), form.beamStrength.get(), form.bulbSize.get(), form.shadows.get(), (float) cookieLayer, cookieRot, form.cookieScale.get(), cookieFlags, System.identityHashCode(form));
+        LightRegistry.registerSpot(baseX + origin.x, baseY + origin.y, baseZ + origin.z, dx, dy, dz, c.r, c.g, c.b, form.intensity.get(), form.range.get(), cosOuter, cosInner, form.entitiesOnly.get(), form.blocksOnly.get(), form.anisotropy.get(), form.vlDensity.get(), form.beamStrength.get(), form.bulbSize.get(), form.shadows.get(), (float) cookieLayer, cookieRot, form.cookieScale.get(), cookieFlags, System.identityHashCode(form));
     }
 }
