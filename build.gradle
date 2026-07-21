@@ -8,8 +8,18 @@ plugins {
 // the target version. This branch (port/1.21.1) defaults to and is built for
 // MC 1.21.1 (Java 21) — the FINAL addon-supported MC version. The 1.20.x entries
 // stay for reference; they require Java 17 (gated by targetJavaVersion below).
-def mcTarget = (project.findProperty('mc') ?: '1.21.1').toString()
+def mcTarget = (project.findProperty('mc') ?: '1.21.4').toString()
 def mcVersions = [
+    '1.21.4': [
+        minecraft: '1.21.4',
+        yarn     : '1.21.4+build.6',
+        fabricApi: '0.118.0+1.21.4',
+        bbs      : '2.0-beta-1-1.21.4',
+        // Iris 1.8.8 keeps the 2-arg addDynamicSampler (4-arg arrives in 1.9+/1.10.7).
+        sodium   : 'mc1.21.4-0.6.13-fabric',
+        iris     : '1.8.8+1.21.4-fabric',
+        lwjglPin : null,
+    ],
     '1.21.1': [
         minecraft: '1.21.1',
         yarn     : '1.21.1+build.3',
@@ -40,7 +50,7 @@ def mcVersions = [
     ],
 ]
 if (!mcVersions.containsKey(mcTarget)) {
-    throw new GradleException("Unknown -Pmc=${mcTarget}; expected 1.21.1, 1.20.4 or 1.20.1")
+    throw new GradleException("Unknown -Pmc=${mcTarget}; expected 1.21.4, 1.21.1, 1.20.4 or 1.20.1")
 }
 def V = mcVersions[mcTarget]
 logger.lifecycle("IRLite build target: Minecraft ${V.minecraft} (yarn ${V.yarn})")
@@ -146,7 +156,7 @@ processResources {
 }
 
 // 1.21.1 is Java 21 (since 1.20.5); the 1.20.x reference profiles stay on 17.
-def targetJavaVersion = (mcTarget == '1.21.1') ? 21 : 17
+def targetJavaVersion = (mcTarget == '1.21.4') ? 21 : 17
 tasks.withType(JavaCompile).configureEach {
     // ensure that the encoding is set to UTF-8, no matter what the system default is
     // this fixes some edge cases with special characters not displaying correctly
