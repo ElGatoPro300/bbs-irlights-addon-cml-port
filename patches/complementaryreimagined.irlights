@@ -1926,8 +1926,10 @@ void main() {
         #endif
         dither = useBn ? bn : dither;
 
-        irliteVL = irlite_volumetric(vec3(0.0), playerPos,
-                                     normalize(playerPos), dither);
+        // Anchor the march at the bobbing eye (= ViewToPlayer(vec3(0)) = gbufferModelViewInverse[3].xyz; ~0 with view bobbing off, oscillates with it). The origin must carry the same MVI[3] the endpoint playerPos already does, or the shaft segment slides vs the bob-free lights and VL jitters under view bobbing.
+        vec3 eyePlayer = gbufferModelViewInverse[3].xyz;
+        irliteVL = irlite_volumetric(eyePlayer, playerPos,
+                                     normalize(playerPos - eyePlayer), dither);
     #endif
 
     /* RENDERTARGETS: 10 */
