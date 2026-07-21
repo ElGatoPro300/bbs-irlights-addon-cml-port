@@ -50,7 +50,7 @@ $II = IndexOfLineAfter $c '#include "/lib/irlite/irlite_lights.glsl"' $CF
 $cInc = $c[($CF + 1)..$II]                   # [blank, irlite include]
 if ($cInc[0] -ne '') { throw "expected blank before composite irlite include" }
 $P = IndexOfLine $c '    color = pow(color, vec3(2.2));'
-$OStart = IndexOfLine $c '    #if defined IRLITE_ACTIVE && defined IRLITE_OUTLINE'
+$OStart = IndexOfLine $c '    #ifdef IRLITE_ACTIVE'
 if ($c[$P - 1] -ne '') { throw "expected blank before pow line" }
 $cOutline = $c[$OStart..($P - 1)]            # outline block + trailing blank (before-op needs the trailing \n)
 $L = IndexOfLineAfter $c '    #ifdef LIGHTSHAFTS_ACTIVE' $P
@@ -81,8 +81,8 @@ if (@($slLine).Count -ne 1) { throw "sliders IRLITE line not unique" }
 $slIdx = $slLine.IndexOf('WATER_BUMP_INTERACTIVE TEXTURE_RES')
 if ($slIdx -lt 0) { throw "sliders tail anchor not found" }
 $slBody = $slLine.Substring($slIdx)
-if (-not $slBody.EndsWith('IRLITE_OUTLINE_GLOW_STRENGTH')) { throw "sliders body tail unexpected" }
-if ($slBody -notmatch 'IRLITE_VL_SHADOW_STRIDE') { throw "sliders body missing IRLITE_VL_SHADOW_STRIDE" }
+if (-not $slBody.EndsWith('IRLITE_TOON_SMOOTH')) { throw "sliders body tail unexpected" }
+if ($slBody -notmatch 'IRLITE_TOON_BANDS') { throw "sliders body missing IRLITE_TOON_BANDS" }
 
 # ---- lang/en_US.lang (append block) ----
 $lg = Lines "$mod\lang\en_US.lang"
