@@ -453,9 +453,16 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
 
     private static void drawEntity(Entity entity, MatrixStack matrices, VertexConsumerProvider.Immediate immediate, float tickDelta)
     {
-        double cx = MathHelper.lerp(tickDelta, entity.lastRenderX, entity.getX());
-        double cy = MathHelper.lerp(tickDelta, entity.lastRenderY, entity.getY());
-        double cz = MathHelper.lerp(tickDelta, entity.lastRenderZ, entity.getZ());
+        // Light-relative bake: emit geometry relative to the pass anchor (= the
+        // light view's origin, ShadowRenderer.currentOrigin*). Subtract in double
+        // BEFORE the float cast inside matrices.translate / dispatcher.render so
+        // the offsets stay sub-block-magnitude far from the world origin.
+        double ox = ShadowRenderer.currentOriginX();
+        double oy = ShadowRenderer.currentOriginY();
+        double oz = ShadowRenderer.currentOriginZ();
+        double cx = MathHelper.lerp(tickDelta, entity.lastRenderX, entity.getX()) - ox;
+        double cy = MathHelper.lerp(tickDelta, entity.lastRenderY, entity.getY()) - oy;
+        double cz = MathHelper.lerp(tickDelta, entity.lastRenderZ, entity.getZ()) - oz;
         float yaw = entity.getYaw(tickDelta);
 
         // BBS morph first so morphed players/actors bake their visible
@@ -501,10 +508,14 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
 
         // Feet Y = pos.getY()+translate.y (no +0.5, no ey) — the DRAW feet-Y
         // differs from the CULL center-Y (raised to mid-height); preserved as in
-        // the old IRLite renderer.
-        double feetX = mbe.getPos().getX() + 0.5 + (t == null ? 0 : t.translate.x);
-        double feetY = mbe.getPos().getY() + (t == null ? 0 : t.translate.y);
-        double feetZ = mbe.getPos().getZ() + 0.5 + (t == null ? 0 : t.translate.z);
+        // the old IRLite renderer. Light-relative bake: subtract the pass anchor
+        // (= the light view origin) in double before matrices.translate's float cast.
+        double ox = ShadowRenderer.currentOriginX();
+        double oy = ShadowRenderer.currentOriginY();
+        double oz = ShadowRenderer.currentOriginZ();
+        double feetX = mbe.getPos().getX() + 0.5 + (t == null ? 0 : t.translate.x) - ox;
+        double feetY = mbe.getPos().getY() + (t == null ? 0 : t.translate.y) - oy;
+        double feetZ = mbe.getPos().getZ() + 0.5 + (t == null ? 0 : t.translate.z) - oz;
 
         matrices.push();
         matrices.translate(feetX, feetY, feetZ);
@@ -530,9 +541,15 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
             return;
         }
 
-        double fx = MathHelper.lerp(tickDelta, stub.getPrevX(), stub.getX());
-        double fy = MathHelper.lerp(tickDelta, stub.getPrevY(), stub.getY());
-        double fz = MathHelper.lerp(tickDelta, stub.getPrevZ(), stub.getZ());
+        // Light-relative bake: subtract the pass anchor (= the light view origin)
+        // in double before matrices.translate's float cast. The Y-rotation below
+        // is unaffected (it is about the anchor-relative feet, orientation-only).
+        double ox = ShadowRenderer.currentOriginX();
+        double oy = ShadowRenderer.currentOriginY();
+        double oz = ShadowRenderer.currentOriginZ();
+        double fx = MathHelper.lerp(tickDelta, stub.getPrevX(), stub.getX()) - ox;
+        double fy = MathHelper.lerp(tickDelta, stub.getPrevY(), stub.getY()) - oy;
+        double fz = MathHelper.lerp(tickDelta, stub.getPrevZ(), stub.getZ()) - oz;
         float bodyYaw = MathHelper.lerp(tickDelta, stub.getPrevBodyYaw(), stub.getBodyYaw());
 
         matrices.push();
