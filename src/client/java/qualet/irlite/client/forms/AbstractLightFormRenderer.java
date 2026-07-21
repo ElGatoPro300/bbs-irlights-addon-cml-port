@@ -148,7 +148,7 @@ public abstract class AbstractLightFormRenderer<T extends Form> extends FormRend
         CustomVertexConsumerProvider.hijackVertexFormat((layer) ->
         {
             this.setupTarget(context, BBSShaders.getPickerModelsProgram());
-            RenderSystem.setShader(BBSShaders::getPickerModelsProgram);
+            RenderSystem.setShader(BBSShaders.getPickerModelsProgram());
         });
 
         Draw.renderBox(context.stack, 0, 0, 0, 0.5, 0.5, 0.5, c.r, c.g, c.b);

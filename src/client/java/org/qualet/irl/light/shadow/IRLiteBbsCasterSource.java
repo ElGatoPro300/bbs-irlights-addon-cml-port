@@ -480,7 +480,7 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
         }
         if (!rendered && entity instanceof LivingEntity living)
         {
-            int overlay = LivingEntityRenderer.getOverlay(living, 0f);
+            int overlay = OverlayTexture.packUv(OverlayTexture.getU(0f), OverlayTexture.getV(living.hurtTime > 0 || living.deathTime > 0));
             matrices.push();
             matrices.translate(cx, cy, cz);
             rendered = MorphRenderer.renderLivingEntity(living, yaw, tickDelta, matrices, immediate, FULL_LIGHT, overlay);
@@ -491,7 +491,7 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
             EntityRenderDispatcher dispatcher = MinecraftClient.getInstance().getEntityRenderDispatcher();
             if (dispatcher != null)
             {
-                dispatcher.render(entity, cx, cy, cz, yaw, tickDelta, matrices, immediate, FULL_LIGHT);
+                dispatcher.render(entity, cx, cy, cz, tickDelta, matrices, immediate, FULL_LIGHT);
             }
         }
     }
