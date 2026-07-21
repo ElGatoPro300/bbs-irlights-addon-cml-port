@@ -2166,11 +2166,7 @@ VANILLAAO_I PLAYER_SHADOW [IRLIGHTS]
 >>>
 after "        screen.PIXELATED_LIGHTING_SETTINGS=<empty> <empty> PIXELATED_SHADOWS PIXELATED_BLOCKLIGHT PIXELATED_AO PIXEL_SCALE"
 <<<
-        screen.IRLIGHTS=IRLITE_DIFFUSE IRLITE_INTENSITY <empty> <empty> [IRLIGHTS_SPECULAR] [IRLIGHTS_SHADOWS] [IRLIGHTS_TOON] [IRLIGHTS_VOLUMETRIC] <empty>
-            screen.IRLIGHTS_SPECULAR=IRLITE_SPECULAR <empty> IRLITE_SPECULAR_INTENSITY <empty>
-            screen.IRLIGHTS_SHADOWS=IRLITE_SHADOWS
-            screen.IRLIGHTS_TOON=IRLITE_TOON <empty> IRLITE_TOON_BANDS IRLITE_TOON_SMOOTH
-            screen.IRLIGHTS_VOLUMETRIC=IRLITE_VOLUMETRIC IRLITE_VL_RESOLUTION
+        screen.IRLIGHTS=<empty> <empty> IRLITE_DIFFUSE IRLITE_INTENSITY IRLITE_SPECULAR IRLITE_SPECULAR_INTENSITY IRLITE_VOLUMETRIC IRLITE_VL_RESOLUTION <empty> <empty> IRLITE_TOON <empty> IRLITE_TOON_BANDS IRLITE_TOON_SMOOTH <empty> <empty> IRLITE_SHADOWS
 >>>
 replace "END_STAR_INTENSITY GENERATED_NORMAL_RES"
 <<<
@@ -2184,14 +2180,6 @@ after "option.XLIGHT_CURVE.comment=Adjusts how quickly the intensity of blocklig
 
 screen.IRLIGHTS=§6§lIRLights§r
 screen.IRLIGHTS.comment=Dynamic point and spot lights from the IRLights BBS addon. Requires the IRLights mod to feed the lights — without it these settings do nothing.
-screen.IRLIGHTS_SPECULAR=§bSpecular
-screen.IRLIGHTS_SPECULAR.comment=Specular highlight from IRLights lights.
-screen.IRLIGHTS_SHADOWS=§3Shadows
-screen.IRLIGHTS_SHADOWS.comment=Real-time shadows baked by the IRLights mod for its lights.
-screen.IRLIGHTS_TOON=§aToon
-screen.IRLIGHTS_TOON.comment=Cel-shading style banding of IRLights lighting.
-screen.IRLIGHTS_VOLUMETRIC=§dVolumetric
-screen.IRLIGHTS_VOLUMETRIC.comment=Per-light volumetric beams and haze. §e[*]§r Only the structural options live here — beam brightness, march cost, shadowing and noise are configured live in the mod, under BBS Settings §6IRLights§r, and apply without reloading the pack.
 
 option.IRLITE_DIFFUSE=§6Diffuse Lighting
 option.IRLITE_DIFFUSE.comment=Surface lighting from IRLights point/spot lights.
