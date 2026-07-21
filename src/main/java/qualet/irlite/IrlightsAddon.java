@@ -65,6 +65,13 @@ public class IrlightsAddon implements BBSAddonMod
             IKey.constant("ULTRA")
         );
         IrliteConfig.shadowBlocks = builder.getBoolean("shadow_blocks", old.getBool("shadow_blocks", true));
+        // Wave 3 (2026-07-21): the live half of what used to be five Iris options.
+        // shadowsLive is the everyday on/off; IRLITE_SHADOWS stays on the Iris
+        // screen as a compile-time escape hatch for drivers that choke on
+        // samplerCubeArray. The other three former options are calibration
+        // constants now, baked into the pack.
+        IrliteConfig.shadowsLive = builder.getBoolean("shadows_live", old.getBool("shadows_live", true));
+        IrliteConfig.shadowSoftness = builder.getFloat("shadow_softness", old.getFloat("shadow_softness", 0.10F), 0F, 0.8F);
 
         // Wave 1 (2026-07-21): these ten used to be Iris-screen #defines, each
         // costing a shaderpack recompile. They now ride the globals UBO, so they

@@ -172,6 +172,7 @@ public final class LightCollector
             IrliteConfig.outlineGlowStrength(),
             IrliteConfig.outlinePixelSize()
         );
+        VlGlobalsBuffer.setShadow(IrliteConfig.shadowsLive(), IrliteConfig.shadowSoftness());
         // Dev VL profiler sweep (-Dirlite.profileVl=true): may re-issue the push
         // above with per-config flag overrides — last write wins before upload.
         // New VlGlobalsBuffer.set args must be mirrored in VlSweep.overrideVlGlobals.

@@ -37,6 +37,8 @@ public final class IrliteConfig
     public static ValueFloat outlineFrontStrength;
     public static ValueBoolean outlineGlow;
     public static ValueFloat outlineGlowStrength;
+    public static ValueBoolean shadowsLive;
+    public static ValueFloat shadowSoftness;
 
     private IrliteConfig()
     {}
@@ -333,5 +335,28 @@ public final class IrliteConfig
     public static float outlineGlowStrength()
     {
         return outlineGlowStrength != null ? outlineGlowStrength.get() : 0.12F;
+    }
+
+    /* ---- shadows, live half (wave 3) ---------------------------------------- */
+
+    /** Everyday on/off for shadows cast by IRLights lights, applied live through
+     *  the globals UBO each frame — no shader reload. This is NOT the same as the
+     *  pack's IRLITE_SHADOWS define, which stays on the Iris screen purely as a
+     *  compile-time escape hatch for drivers that reject samplerCubeArray: with
+     *  that one off there is no shadow code left for this toggle to gate.
+     *  Default on. */
+    public static boolean shadowsLive()
+    {
+        return shadowsLive == null || shadowsLive.get();
+    }
+
+    /** Apparent size of the light source, which sets how quickly the shadow edge
+     *  spreads with distance from the caster (PCSS penumbra width). 0 = hard
+     *  edges. A light with its own bulb size set still overrides this. Applied
+     *  live through the globals UBO each frame — no shader reload. Default 0.10
+     *  (pack's IRLITE_SHADOW_SIZE default). */
+    public static float shadowSoftness()
+    {
+        return shadowSoftness != null ? shadowSoftness.get() : 0.10F;
     }
 }
