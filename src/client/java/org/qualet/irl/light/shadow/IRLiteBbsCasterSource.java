@@ -10,6 +10,7 @@ import mchorse.bbs_mod.film.Films;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
+import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.renderers.FormRenderer;
 import mchorse.bbs_mod.forms.renderers.FormRenderType;
@@ -41,6 +42,10 @@ import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.chunk.BlockEntityTickInvoker;
 import org.joml.Matrix3f;
+import qualet.irlite.IrliteConfig;
+import qualet.irlite.client.light.LightCollector;
+import qualet.irlite.forms.PointLightForm;
+import qualet.irlite.forms.SpotlightForm;
 import qualet.irlite.mixin.client.bbs.FilmsAccessor;
 import qualet.irlite.mixin.client.bbs.WorldBlockEntityTickersAccessor;
 
@@ -72,8 +77,10 @@ import java.util.List;
  */
 public final class IRLiteBbsCasterSource implements ShadowCasterSource
 {
-    /** Max distance (from the camera) at which a caster is considered. */
-    private static final double COLLECT_DIST = 72.0;
+    /** Match the light collector's camera horizon. This removes the old 72-block
+     *  mismatch for co-located lamp/caster scenes; the global bounded pool remains
+     *  intentionally camera-prioritized for casters beyond this horizon. */
+    private static final double COLLECT_DIST = LightCollector.MAX_DIST;
     private static final double COLLECT_DIST_SQ = COLLECT_DIST * COLLECT_DIST;
     private static final int FULL_LIGHT = LightmapTextureManager.pack(15, 15);
 
@@ -87,8 +94,8 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
     private static final float OVERLAP_MARGIN = 0.5f;
 
     // ===================================================================== //
-    //  collect — WHAT casts (entity -> model-block -> replay; arm order is    //
-    //  load-bearing for deterministic over-cap drops, INVARIANT 6).          //
+    //  collect — WHAT casts (entity -> model-block -> replay; stable arm      //
+    //  order preserves deterministic equal-distance ties in the bounded set).//
     // ===================================================================== //
 
     @Override
@@ -114,8 +121,8 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
             }
 
             // emitFromBox raises the center to mid-height and derives the
-            // circumscribing box-diagonal radius (INVARIANT 5); over-cap casters
-            // are dropped by the sink. Entities are always dynamic -> isStatic
+            // circumscribing box-diagonal radius (INVARIANT 5); the sink retains
+            // the bounded nearest set. Entities are always dynamic -> isStatic
             // false, staticHash 0 (INVARIANT 2).
             sink.emitFromBox(entity, CasterType.ENTITY, false, ex, ey, ez, entity.getBoundingBox(), 1f, 0L);
         }
@@ -183,7 +190,7 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
                 continue;
             }
             Form form = props.getForm();
-            if (form == null)
+            if (!hasShadowGeometry(form))
             {
                 continue;
             }
@@ -246,7 +253,7 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
                     continue;
                 }
                 Form form = ent.getForm();
-                if (form == null)
+                if (!hasShadowGeometry(form))
                 {
                     continue;
                 }
@@ -274,6 +281,40 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
                 sink.emitFromBox(ent, CasterType.REPLAY, false, wx, wy, wz, box, 1f, 0L);
             }
         }
+    }
+
+    /**
+     * Light forms deliberately emit no depth during a custom shadow bake, but
+     * their body parts are still rendered by BBS after render3D returns. Drop a
+     * form only when its structure consists entirely of Point/Spot lights. A
+     * non-light descendant is conservatively retained, while pure light hosts no
+     * longer consume bounded-pool slots.
+     */
+    private static boolean hasShadowGeometry(Form form)
+    {
+        if (form == null)
+        {
+            return false;
+        }
+        if (!(form instanceof PointLightForm) && !(form instanceof SpotlightForm))
+        {
+            return true;
+        }
+
+        List<BodyPart> parts = form.parts.getAllTyped();
+        if (parts == null)
+        {
+            return false;
+        }
+        for (int i = 0, n = parts.size(); i < n; i++)
+        {
+            BodyPart part = parts.get(i);
+            if (part != null && hasShadowGeometry(part.getForm()))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static FilmEditorController getActiveEditorController()
@@ -377,9 +418,21 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
         double cy = pivotY + offY;
         double cz = pivotZ + offZ;
         // Minimal circumscribing radius = half the rotated box's diagonal =
-        // |(ehx,ehy,ehz)|, + OVERLAP_MARGIN slack (emitFromBox adds the same margin for
-        // the entity/replay arms; the raw emit() does not, so mirror it here).
-        float radius = (float) Math.sqrt((double) ehx * ehx + (double) ehy * ehy + (double) ehz * ehz) + OVERLAP_MARGIN;
+        // |(ehx,ehy,ehz)|, + cull slack. The plain OVERLAP_MARGIN is not enough here:
+        // the sphere derives from the form's HITBOX, and the drawn model routinely
+        // extends past it, so at a cone/reach boundary the caster culls out ENTIRELY
+        // (the whole shadow blinks — the partial-tile rect slack can't help, it only
+        // widens the rect of casters that survived the cull). Mirror that rect slack,
+        // max(OVERLAP_MARGIN, poseReach·ehy) incl. the sanitizer, on the emitted
+        // sphere: growing a cull sphere is strictly conservative, oversize only
+        // costs bake speed.
+        float poseReach = IrliteConfig.shadowPoseReach();
+        if (!(poseReach >= 0f))
+        {
+            poseReach = 1.0f;
+        }
+        float slack = Math.max(OVERLAP_MARGIN, poseReach * ehy);
+        float radius = (float) Math.sqrt((double) ehx * ehx + (double) ehy * ehy + (double) ehz * ehz) + slack;
 
         // INVARIANT 2 (CONSERVATIVE, LOCKED): mark ALL model blocks dynamic. An
         // animated model block left isStatic=true would FREEZE its shadow at the first

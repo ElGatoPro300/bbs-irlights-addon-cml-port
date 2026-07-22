@@ -53,17 +53,18 @@ $M5 = IndexOfLine $pr '#Multi-Colored Blocklight Prerequisites'
 $prPrereq = $pr[$S5..($M5 - 1)]             # deferred2/size block + trailing blank (before-op); SSBO flag rides the iris.features replace op (raw-parse, last-in-file wins)
 if ($prPrereq[-1] -ne '') { throw "prPrereq must end with a blank line" }
 $SAO = IndexOfLine $pr 'screen.AO=<empty> <empty> AO_METHOD <empty> <empty> <empty> AO_STRENGTH ambientOcclusionLevel'
-$prScreens = $pr[($SAO + 1)..($SAO + 7)]    # blank + the 6 IRLITE screen lines (after-op)
+$prScreens = $pr[($SAO + 1)..($SAO + 2)]    # blank + the single flattened screen.IRLIGHTS line (after-op)
 if ($prScreens[0] -ne '') { throw "prScreens must start with a blank line" }
 if (-not $prScreens[1].StartsWith('screen.IRLIGHTS=')) { throw "prScreens head unexpected" }
-if (-not $prScreens[6].StartsWith('screen.IRLIGHTS_OUTLINE=')) { throw "prScreens tail unexpected" }
-if ($pr[$SAO + 8] -ne '') { throw "expected blank after the IRLITE screens" }
+if (-not $prScreens[1].EndsWith('IRLITE_SHADOWS')) { throw "screen.IRLIGHTS not flattened" }
+if ($pr[$SAO + 3] -ne '') { throw "expected blank after the IRLITE screen" }
 $slLine = $pr | Where-Object { $_.StartsWith('sliders=') }
 if (@($slLine).Count -ne 1) { throw "sliders line not unique" }
 $slIdx = $slLine.IndexOf('RETRO_FILTER_DEPTH WORLD_CURVATURE_SIZE')
 if ($slIdx -lt 0) { throw "sliders tail anchor not found" }
 $slBody = $slLine.Substring($slIdx)
-if (-not $slBody.EndsWith('IRLITE_OUTLINE_GLOW_STRENGTH')) { throw "sliders body tail unexpected" }
+if (-not $slBody.EndsWith('IRLITE_TOON_SMOOTH')) { throw "sliders body tail unexpected" }
+if ($slBody -notmatch 'IRLITE_TOON_BANDS') { throw "sliders body missing IRLITE_TOON_BANDS" }
 
 $lg = Lines "$mod\lang\en_US.lang"
 $Y = IndexOfLine $lg 'option.WHITE_WORLD.comment=Replaces textures with flat white color.'
