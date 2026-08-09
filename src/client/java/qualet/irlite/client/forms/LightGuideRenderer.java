@@ -4,7 +4,6 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.graphics.Draw;
 import mchorse.bbs_mod.utils.Axis;
 import mchorse.bbs_mod.utils.colors.Color;
-import net.minecraft.client.gl.ShaderProgramKeys;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BufferRenderer;
 import net.minecraft.client.render.GameRenderer;
@@ -81,7 +80,7 @@ final class LightGuideRenderer
         RenderSystem.disableCull();
         RenderSystem.depthMask(false);
         RenderSystem.disableDepthTest();
-        RenderSystem.setShader(ShaderProgramKeys.POSITION_COLOR);
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
 
         // 1.21: begin() moved to Tessellator and returns the builder.
         BufferBuilder builder = Tessellator.getInstance()
@@ -250,7 +249,7 @@ final class LightGuideRenderer
         RenderSystem.disableCull();
         RenderSystem.depthMask(false);
         RenderSystem.disableDepthTest();
-        RenderSystem.setShader(ShaderProgramKeys.POSITION_COLOR);
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
 
         // 1.21: begin() moved to Tessellator and returns the builder.
         BufferBuilder builder = Tessellator.getInstance()
