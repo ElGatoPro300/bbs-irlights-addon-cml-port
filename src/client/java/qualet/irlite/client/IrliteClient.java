@@ -18,14 +18,8 @@ public class IrliteClient implements ClientModInitializer {
     public void onInitializeClient() {
         installSharedCore();
 
-        // OpenGL is not ready during entrypoint init; defer cookie uploads and re-wire
-        // shared core once the client is fully started (after the GL context exists).
-        ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
-            installSharedCore();
-            if (IrliteCalCompat.isCalPresent()) {
-                IrliteCalCompat.ensureCookiesReady();
-            }
-        });
+        // CAL may initialize after irlite; re-wire once the client is fully up.
+        ClientLifecycleEvents.CLIENT_STARTED.register(client -> installSharedCore());
     }
 
     private static void installSharedCore() {
@@ -41,9 +35,9 @@ public class IrliteClient implements ClientModInitializer {
         ShadowEngine.install(caster, IrliteShadowConfig.INSTANCE);
 
         // When CAL Editor is present, both mods share one gobo texture array.
-        // Texture upload is deferred to CLIENT_STARTED via ensureCookiesReady().
         if (IrliteCalCompat.isCalPresent())
         {
+            IrliteCalCompat.ensureCookiesReady();
             IrlSamplers.register("irl_cookieArray", IrliteCalCompat::getCookieTextureId, GL30.GL_TEXTURE_2D_ARRAY);
         }
         else

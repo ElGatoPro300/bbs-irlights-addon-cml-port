@@ -4,6 +4,7 @@ import mchorse.bbs_mod.resources.Link;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.math.Vec3d;
+import qualet.irlite.client.light.cookie.CookieArray;
 import org.qualet.irl.light.shadow.ShadowCasterSource;
 import org.qualet.irl.patcher.PatcherHost;
 import org.slf4j.Logger;
@@ -135,18 +136,30 @@ public final class IrliteCalCompat
 
     public static int getCookieTextureId()
     {
-        if (!LOADED || !cookiesReady)
+        if (!LOADED)
         {
-            return 0;
+            return CookieArray.getGlTextureId();
+        }
+
+        ensureCookiesReady();
+        if (!cookiesReady)
+        {
+            return CookieArray.getGlTextureId();
         }
         return UnifiedCookieArray.INSTANCE.getGlTextureId();
     }
 
     public static int resolveBbsCookie(Link link)
     {
-        if (!LOADED || !cookiesReady)
+        if (!LOADED)
         {
-            return -1;
+            return CookieArray.resolve(link);
+        }
+
+        ensureCookiesReady();
+        if (!cookiesReady)
+        {
+            return CookieArray.resolve(link);
         }
         return UnifiedCookieArray.INSTANCE.resolveBbs(link);
     }
