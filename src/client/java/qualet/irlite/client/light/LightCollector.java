@@ -25,13 +25,19 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.chunk.BlockEntityTickInvoker;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
+import qualet.irlite.client.diag.VlProfiler;
 import qualet.irlite.client.light.cookie.CookieArray;
 import qualet.irlite.forms.PointLightForm;
 import qualet.irlite.forms.SpotlightForm;
 import qualet.irlite.mixin.client.bbs.WorldBlockEntityTickersAccessor;
 
+import org.qualet.irl.light.ClusterGridBuffer;
+import org.qualet.irl.light.LightBuffer;
 import org.qualet.irl.light.LightMath;
 import org.qualet.irl.light.LightRegistry;
+import org.qualet.irl.light.VlGlobalsBuffer;
+
+import qualet.irlite.IrliteConfig;
 
 import java.util.List;
 
@@ -44,8 +50,15 @@ import java.util.List;
  */
 public final class LightCollector
 {
-    private static final double MAX_DIST = 256.0;
+    /** Shared camera-space horizon for lights and the casters that may shadow them. */
+    public static final double MAX_DIST = 256.0;
     private static final double MAX_DIST_SQ = MAX_DIST * MAX_DIST;
+
+    /** VL depth-aware bilateral upsample (UBO flags bit6): always on, no UI knob —
+     *  at IRLITE_VL_RESOLUTION 1.0 it converges to plain bilinear, below 1.0 it is
+     *  what makes reduced res viable. Dev A/B kill-switch (needs restart):
+     *  -Dirlite.vlNoBilateral=true. Mirrored by VlSweep.overrideVlGlobals. */
+    public static final boolean VL_BILATERAL = !Boolean.getBoolean("irlite.vlNoBilateral");
 
     private LightCollector()
     {}
@@ -107,16 +120,75 @@ public final class LightCollector
 
     public static void collect(ClientWorld world, Vec3d cameraPos, float tickDelta)
     {
+        // Track the "max shader lights" slider each frame: caps how many lights the
+        // flush packs into the SSBO (registration + shadow caches still see them all).
+        LightRegistry.setUploadCap(IrliteConfig.maxShaderLights());
+        // Clustering has no knob: it is always on (core default), the image is
+        // identical either way and it only ever makes the per-pixel loop cheaper.
+        // For an A/B measurement, start with -Dirlite.noClustering=true.
+        // Track the VL intensity slider each frame: lands in the SSBO header on
+        // upload, so patched shaders read it live without a recompile.
+        LightBuffer.setVlGlobalIntensity(IrliteConfig.vlIntensity());
+        // Track the live VL toggles each frame: packed as header bit flags
+        // (bit0 = VL shadows, bit1 = VL noise) read by runtime-flag patches.
+        LightBuffer.setVlFlags((IrliteConfig.vlShadowsLive() ? 1 : 0) | (IrliteConfig.vlNoiseLive() ? 2 : 0));
+        // Track the full VL knob set each frame: lands in the globals UBO
+        // (binding 7) on upload, so UBO-era patches read every VL number and
+        // flag live without a recompile (bit0 = VL shadows, bit1 = VL noise,
+        // bit2 = blue-noise dither, bit3 = temporal dither rotation,
+        // bit4 = VL cluster culling, bit5 = Hi-Z skip, bit6 = bilateral
+        // upsample). The two header pushes above stay for pre-UBO patches
+        // until the fleet is regenerated.
+        VlGlobalsBuffer.set(
+            IrliteConfig.vlIntensity(),
+            IrliteConfig.vlMaxDist(),
+            IrliteConfig.vlTipBoost(),
+            IrliteConfig.vlTipRadius(),
+            IrliteConfig.vlNoiseAmount(),
+            IrliteConfig.vlNoiseScale(),
+            IrliteConfig.vlNoiseSpeed(),
+            IrliteConfig.vlNoiseMorph(),
+            IrliteConfig.vlSteps(),
+            IrliteConfig.vlShadowStride(),
+            IrliteConfig.vlNoiseStride(),
+            (IrliteConfig.vlShadowsLive() ? 1 : 0) | (IrliteConfig.vlNoiseLive() ? 2 : 0)
+                | (IrliteConfig.vlBlueNoise() ? 4 : 0) | (IrliteConfig.vlDitherTemporal() ? 8 : 0)
+                | (IrliteConfig.vlClusterCull() ? 16 : 0) | (IrliteConfig.vlShadowHiz() ? 32 : 0)
+                | (VL_BILATERAL ? 64 : 0)
+        );
+        // Outline knobs ride the same UBO but push separately: the sweep below
+        // rebuilds the VL flag word from the VL toggles alone, so folding the
+        // outline bits into that argument would let a sweep clear them. The core
+        // ORs the two flag words together at upload instead.
+        VlGlobalsBuffer.setOutline(
+            IrliteConfig.outline(),
+            IrliteConfig.outlineTarget(),
+            IrliteConfig.outlineStrength(),
+            IrliteConfig.outlineFresnelPower(),
+            IrliteConfig.outlineBack(),
+            IrliteConfig.outlineFront(),
+            IrliteConfig.outlineFrontStrength(),
+            IrliteConfig.outlineGlow(),
+            IrliteConfig.outlineGlowStrength(),
+            IrliteConfig.outlinePixelSize()
+        );
+        VlGlobalsBuffer.setShadow(IrliteConfig.shadowsLive(), IrliteConfig.shadowSoftness());
+        // Dev VL profiler sweep (-Dirlite.profileVl=true): may re-issue the push
+        // above with per-config flag overrides — last write wins before upload.
+        // New VlGlobalsBuffer.set args must be mirrored in VlSweep.overrideVlGlobals.
+        // setOutline is NOT mirrored there by design — the sweep only varies VL.
+        VlProfiler.overrideVlGlobals();
+
         if (world == null || cameraPos == null)
         {
             return;
         }
 
-        scanBlockEntities(world, cameraPos);
+        scanBlockEntities(world, cameraPos, tickDelta);
         scanFilmReplays(cameraPos, tickDelta);
     }
 
-    private static void scanBlockEntities(ClientWorld world, Vec3d cameraPos)
+    private static void scanBlockEntities(ClientWorld world, Vec3d cameraPos, float tickDelta)
     {
         List<BlockEntityTickInvoker> tickers;
         try
@@ -190,79 +262,107 @@ public final class LightCollector
                 root.mul(propsM);
             }
 
-            walk(rootForm, root, pos.getX(), pos.getY(), pos.getZ());
+            walk(rootForm, root, pos.getX(), pos.getY(), pos.getZ(), tickDelta);
         }
     }
 
     /** {@code base[XYZ]} is the form tree's world origin, carried in double so a far-
      *  from-origin coordinate never enters the float {@code parent} matrix; it is added
      *  back to the matrix-local offset at emit. The matrix therefore only ever holds
-     *  small, block-local (or actor-local) values. */
-    private static void walk(Form form, Matrix4f parent, double baseX, double baseY, double baseZ)
+     *  small, block-local (or actor-local) values.
+     *
+     *  {@code transition} is the frame's partial tick, forwarded into
+     *  {@link Form#applyStates} so a form's animation states drive the light exactly
+     *  as they drive the visible render. */
+    private static void walk(Form form, Matrix4f parent, double baseX, double baseY, double baseZ, float transition)
     {
-        if (form == null || !form.visible.get())
+        if (form == null)
         {
             return;
         }
 
-        Matrix4f local = new Matrix4f(parent);
-        Transform t = form.transform.get();
-        if (t != null)
+        // Overlay this form's animation states before reading its transform, exactly
+        // as FormRenderer.render() does (applyStates -> read transforms + walk the
+        // subtree -> unapplyStates). BBS lays an animation frame onto a form's Value
+        // fields (transform, visible, ...) as a transient runtime override that lives
+        // ONLY inside that render window; the scanner runs at renderWorld HEAD, wholly
+        // outside it, so without this it would read the static base pose and a
+        // ModelBlock-placed light would never follow its form's animation. No-op for
+        // a form with no active state players. unapplyStates() sits in finally so the
+        // pair stays balanced (including the early returns below), leaving a clean
+        // base for the later real render to re-apply from. States are re-applied per
+        // form on the recursion, matching the render's per-form apply nesting.
+        form.applyStates(transition);
+        try
         {
-            Matrix4f tm = new Matrix4f();
-            t.setupMatrix(tm);
-            local.mul(tm);
-        }
-
-        if (form instanceof PointLightForm point)
-        {
-            emitPoint(point, local, baseX, baseY, baseZ);
-        }
-        else if (form instanceof SpotlightForm spot)
-        {
-            emitSpot(spot, local, baseX, baseY, baseZ);
-        }
-
-        if (form.parts == null)
-        {
-            return;
-        }
-        List<BodyPart> parts = form.parts.getAllTyped();
-        if (parts == null)
-        {
-            return;
-        }
-
-        for (int i = 0, n = parts.size(); i < n; i++)
-        {
-            BodyPart part = parts.get(i);
-            if (part == null)
+            if (!form.visible.get())
             {
-                continue;
+                return;
             }
 
-            String bone = part.bone.get();
-            if (bone != null && !bone.isEmpty())
+            Matrix4f local = new Matrix4f(parent);
+            Transform t = form.transform.get();
+            if (t != null)
             {
-                continue;
+                Matrix4f tm = new Matrix4f();
+                t.setupMatrix(tm);
+                local.mul(tm);
             }
 
-            Form child = part.getForm();
-            if (child == null)
+            if (form instanceof PointLightForm point)
             {
-                continue;
+                emitPoint(point, local, baseX, baseY, baseZ);
+            }
+            else if (form instanceof SpotlightForm spot)
+            {
+                emitSpot(spot, local, baseX, baseY, baseZ);
             }
 
-            Matrix4f childM = new Matrix4f(local);
-            Transform pt = part.transform.get();
-            if (pt != null)
+            if (form.parts == null)
             {
-                Matrix4f ptm = new Matrix4f();
-                pt.setupMatrix(ptm);
-                childM.mul(ptm);
+                return;
+            }
+            List<BodyPart> parts = form.parts.getAllTyped();
+            if (parts == null)
+            {
+                return;
             }
 
-            walk(child, childM, baseX, baseY, baseZ);
+            for (int i = 0, n = parts.size(); i < n; i++)
+            {
+                BodyPart part = parts.get(i);
+                if (part == null)
+                {
+                    continue;
+                }
+
+                String bone = part.bone.get();
+                if (bone != null && !bone.isEmpty())
+                {
+                    continue;
+                }
+
+                Form child = part.getForm();
+                if (child == null)
+                {
+                    continue;
+                }
+
+                Matrix4f childM = new Matrix4f(local);
+                Transform pt = part.transform.get();
+                if (pt != null)
+                {
+                    Matrix4f ptm = new Matrix4f();
+                    pt.setupMatrix(ptm);
+                    childM.mul(ptm);
+                }
+
+                walk(child, childM, baseX, baseY, baseZ, transition);
+            }
+        }
+        finally
+        {
+            form.unapplyStates();
         }
     }
 
@@ -332,7 +432,7 @@ public final class LightCollector
             Matrix4f root = new Matrix4f().identity();
             root.rotateY((float) Math.toRadians(-bodyYaw));
 
-            walk(rootForm, root, wx, wy, wz);
+            walk(rootForm, root, wx, wy, wz, tickDelta);
         }
     }
 

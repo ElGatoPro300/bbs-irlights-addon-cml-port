@@ -12,7 +12,8 @@
 	"entrypoints": {
 		"fabric-datagen": ["qualet.irlite.client.IrliteDataGenerator"],
 		"client": ["qualet.irlite.client.IrliteClient"],
-		"main": ["qualet.irlite.Irlite"]
+		"main": ["qualet.irlite.Irlite"],
+		"bbs-addon": ["qualet.irlite.IrlightsAddon"]
 	},
 	"mixins": [
 		"irlite.mixins.json",

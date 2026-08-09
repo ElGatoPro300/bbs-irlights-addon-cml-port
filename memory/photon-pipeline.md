@@ -63,6 +63,6 @@ KEY DIFFERENCES vs the IterationRP port (the porting deltas to get right):
 Порт — выполнено (лог в _archive):
 - 6-phase port done 2026-06-10 (commit 620fdce); Phase 5 = 1296 lines, 20 ops, byte-identical applier output.
 - Donor strategy: BSL lib internals (PCSS, VL per-step shadows, gather-PCF), Photon get_specular_highlight reuse, absolute-world quarter-res volumetric.
-- Outline: switched to OLD IRLEngine LocalLightOutline 2026-06-28 (see [[project-photon-outline-switch-to-old]]). COUPLING: IRL-inject lives in TWO patches (photon.irlights + photon-irl-dof.irlights) — edit BOTH.
+- Outline: switched to OLD IRLEngine LocalLightOutline 2026-06-28 (see [[project-photon-outline-switch-to-old]]). COUPLING (касается ВСЕХ 7 паков, не только Photon): IRL-инжект каждого пака живёт в ДВУХ патчах — bbs-irlights-addon/patches/<pack>.irlights И bbs-dof-addon/patches/<pack>-irl-dof.irlights (комбо IRL+DoF, применяется ВМЕСТО светового) — правки инжекта вносить в ОБА. Комбо-lib тела зеркалируются заменой +file-тела (генераторов в DoF-репо нет); проверка 2026-07-02: photon-комбо lib == photon.irlights lib, 6 остальных комбо отзеркалены cookie-восстановлением.
 
 Связь: shader-inject (содержимое .irlights / GLSL-инжект, авторинг в IRLite, синк в redactor через copy-patches.ps1). Дополняет [[project-port-1211]] (там photon_v1.3b лишь на уровне offline op-count=20) и [[reference-edit-routing-by-area]]. Спутник [[photon-bugfix]]. Источник: память IRLite.

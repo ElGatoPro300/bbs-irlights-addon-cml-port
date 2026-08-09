@@ -45,6 +45,16 @@ function AssertIncludeTriplet($lines, $anchorIdx, $defineLine) {
     if ($lines[$anchorIdx + 2] -cne $defineLine) { throw "expected $defineLine" }
     if ($lines[$anchorIdx + 3] -cne '#include "/lib/irlite/irlite_lights.glsl"') { throw "expected the irlite include line" }
 }
+# CR-gen: cluster (binding 6) + outline need viewWidth/viewHeight; these three hosts lack them, so the
+# include header injects the two uniform decls (composite1 already declares them and keeps the plain triplet).
+function AssertIncludeTripletVW($lines, $anchorIdx, $defineLine) {
+    if ($lines[$anchorIdx + 1] -cne '') { throw "expected blank after include anchor" }
+    if ($lines[$anchorIdx + 2] -cne 'uniform float viewWidth;') { throw "expected viewWidth decl" }
+    if ($lines[$anchorIdx + 3] -cne 'uniform float viewHeight;') { throw "expected viewHeight decl" }
+    if ($lines[$anchorIdx + 4] -cne $defineLine) { throw "expected $defineLine" }
+    if ($lines[$anchorIdx + 5] -cne '#include "/lib/irlite/irlite_lights.glsl"') { throw "expected the irlite include line" }
+}
+$INC_VW = @('', 'uniform float viewWidth;', 'uniform float viewHeight;')
 
 # ---- the lib (new file) ----
 $libText = FileText "$mod\lib\irlite\irlite_lights.glsl"
@@ -62,7 +72,7 @@ if ($c1Body[-2] -cne "`t`t#endif") { throw "c1Body tail unexpected" }
 # ---- all_translucent.fsh: include triplet + the post-FinalColor block ----
 $at = Lines "$mod\dimensions\all_translucent.fsh"
 $atInc = IndexOfLine $at '#include "/lib/diffuse_lighting.glsl"'
-AssertIncludeTriplet $at $atInc '#define IRLITE_SURFACE_PASS'
+AssertIncludeTripletVW $at $atInc '#define IRLITE_SURFACE_PASS'
 $F = IndexOfLine $at "`tvec3 FinalColor = (Indirect_lighting + Direct_lighting) * Albedo;"
 if ($at[$F + 1] -cne '') { throw "expected blank after FinalColor" }
 if ($at[$F + 2] -cne "`t#ifdef IRLITE_ACTIVE") { throw "all_translucent block head unexpected" }
@@ -76,7 +86,7 @@ $atBody = $at[($F + 1)..$atEnd]
 # ---- composite2.fsh: include triplet + two replace bodies ----
 $c2 = Lines "$mod\dimensions\composite2.fsh"
 $c2Inc = IndexOfLine $c2 '#include "/lib/waterBump.glsl"'
-AssertIncludeTriplet $c2 $c2Inc '#define IRLITE_VL_PASS'
+AssertIncludeTripletVW $c2 $c2Inc '#define IRLITE_VL_PASS'
 $A = IndexOfLine $c2 "`tgl_FragData[0] = clamp(VolumetricFog, 0.0, 65000.0);"
 if ($c2[$A + 1] -cne '') { throw "expected blank after the VolumetricFog write" }
 if ($c2[$A + 2] -cne "`t#if defined IRLITE_ACTIVE && defined IRLITE_VOLUMETRIC") { throw "c2 march block head unexpected" }
@@ -95,9 +105,9 @@ $c2BodyB = $c2[$B..($B + 4)]
 # ---- composite3.fsh: include triplet + the ink block (before the fog merge) ----
 $c3 = Lines "$mod\dimensions\composite3.fsh"
 $c3Inc = IndexOfLine $c3 '#include "/lib/DistantHorizons_projections.glsl"'
-AssertIncludeTriplet $c3 $c3Inc '#define IRLITE_COMPOSITE_PASS'
+AssertIncludeTripletVW $c3 $c3Inc '#define IRLITE_COMPOSITE_PASS'
 $V = IndexOfLine $c3 '  color *= vl.a*cloudAlpha ;'
-$S3 = IndexOfLine $c3 '  #if defined IRLITE_ACTIVE && defined IRLITE_OUTLINE'
+$S3 = IndexOfLine $c3 '  #ifdef IRLITE_ACTIVE'
 $c3Body = $c3[$S3..($V - 1)]
 if ($c3Body[-1] -cne '') { throw "expected trailing blank in c3Body" }
 if ($c3Body[-2] -cne '  #endif') { throw "c3Body tail unexpected" }
@@ -122,16 +132,17 @@ $M = IndexOfLine $pr '[Misc_Settings] [Mod_support] \'
 $miscBody = $pr[$M..($M + 2)]
 if ($miscBody[2] -cne '[IRLIGHTS] <empty> \') { throw "main-screen row unexpected" }
 $SB = IndexOfLine $pr '        screen.selection_box_outline = SELECT_BOX SELECT_BOX_COL_R SELECT_BOX_COL_G SELECT_BOX_COL_B'
-$endS = IndexOfLineStarting $pr '        screen.IRLIGHTS_OUTLINE = '
+$endS = IndexOfLineStarting $pr '    screen.IRLIGHTS = '
 $scrBody = $pr[($SB + 1)..$endS]
 if ($scrBody[0] -cne '' -or $scrBody[1] -cne '') { throw "expected 2 leading blanks in screens body" }
 if (-not $scrBody[2].StartsWith('######## IRLIGHTS')) { throw "screens banner unexpected" }
+if ($scrBody.Count -ne 4) { throw "flat screen block expected 4 lines (2 blank + banner + screen.IRLIGHTS), got $($scrBody.Count)" }
 $slIdx2 = IndexOfLineStarting $pr 'sliders = '
 $slTriple = 'LPV_SATURATION LPV_TINT_SATURATION LPV_NORMAL_STRENGTH'
 $slPos = $pr[$slIdx2].IndexOf($slTriple)
 if ($slPos -lt 0) { throw "sliders tail anchor not found" }
 $slBody = $pr[$slIdx2].Substring($slPos)
-if (-not $slBody.EndsWith('IRLITE_OUTLINE_GLOW_STRENGTH')) { throw "sliders body tail unexpected" }
+if (-not $slBody.EndsWith('IRLITE_TOON_SMOOTH')) { throw "sliders body tail unexpected" }
 
 # ---- lang: anchors and bodies read from the files (no cyrillic/section-sign
 # literals in this script - PS 5.1 source encoding dodge) ----
@@ -184,14 +195,14 @@ Emit ''
 Emit '# --- forward translucent diffuse + specular (water + translucent entities) ---'
 Emit '@file shaders/dimensions/all_translucent.fsh'
 Emit ('after "' + (EscAnchor '#include "/lib/diffuse_lighting.glsl"') + '"')
-EmitBody @('', '#define IRLITE_SURFACE_PASS', '#include "/lib/irlite/irlite_lights.glsl"')
+EmitBody ($INC_VW + @('#define IRLITE_SURFACE_PASS', '#include "/lib/irlite/irlite_lights.glsl"'))
 Emit ('after "' + (EscAnchor "`tvec3 FinalColor = (Indirect_lighting + Direct_lighting) * Albedo;") + '"')
 EmitBody $atBody
 Emit ''
 Emit '# --- volumetric march inside the pack''s reduced-res VL pass ---'
 Emit '@file shaders/dimensions/composite2.fsh'
 Emit ('after "' + (EscAnchor '#include "/lib/waterBump.glsl"') + '"')
-EmitBody @('', '#define IRLITE_VL_PASS', '#include "/lib/irlite/irlite_lights.glsl"')
+EmitBody ($INC_VW + @('#define IRLITE_VL_PASS', '#include "/lib/irlite/irlite_lights.glsl"'))
 Emit ('replace "' + (EscAnchor "`tgl_FragData[0] = clamp(VolumetricFog, 0.0, 65000.0);") + '"')
 EmitBody $c2BodyA
 Emit ('replace "' + (EscAnchor "`t`tgl_FragData[0] = clamp(vec4(vl,1.0),0.000001,65000.);") + '"')
@@ -200,7 +211,7 @@ Emit ''
 Emit '# --- rim outline ink in the merge pass (before the fog merge) ---'
 Emit '@file shaders/dimensions/composite3.fsh'
 Emit ('after "' + (EscAnchor '#include "/lib/DistantHorizons_projections.glsl"') + '"')
-EmitBody @('', '#define IRLITE_COMPOSITE_PASS', '#include "/lib/irlite/irlite_lights.glsl"')
+EmitBody ($INC_VW + @('#define IRLITE_COMPOSITE_PASS', '#include "/lib/irlite/irlite_lights.glsl"'))
 Emit ('before "' + (EscAnchor '  color *= vl.a*cloudAlpha ;') + '"')
 EmitBody $c3Body
 Emit ''

@@ -16,6 +16,8 @@
     "WorldBlockChangeMixin",
     "bbs.FilmsAccessor",
     "bbs.WorldBlockEntityTickersAccessor",
+    "iris.CapturedRenderingStateClusterMixin",
+    "iris.CompositeRendererTimerMixin",
     "iris.ProgramSamplersBuilderMixin",
     "iris.SamplerBindingCubeArrayMixin"
   ],
