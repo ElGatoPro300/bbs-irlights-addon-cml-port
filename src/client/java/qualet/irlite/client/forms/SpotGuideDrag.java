@@ -130,7 +130,7 @@ public final class SpotGuideDrag
 
         if (!tryStartWith(
             controller,
-            controller.getGizmoStencil(),
+            controller.getStencil(),
             controller.panel.getCamera(),
             controller.panel.preview.getViewport(),
             context
@@ -435,7 +435,7 @@ public final class SpotGuideDrag
      */
     private static UIFilmPanel filmPanel()
     {
-        UIDashboard dashboard = BBSModClient.getDashboardIfCreated();
+        UIDashboard dashboard = BBSModClient.getDashboard();
 
         if (dashboard == null || UIScreen.getCurrentMenu() != dashboard)
         {

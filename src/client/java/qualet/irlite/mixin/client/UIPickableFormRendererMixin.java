@@ -28,7 +28,7 @@ public abstract class UIPickableFormRendererMixin
         }
     }
 
-    @Inject(method = "subMouseReleased", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "subMouseReleased", at = @At("HEAD"), cancellable = true, require = 0)
     private void irlite$releaseGuideHandle(UIContext context, CallbackInfoReturnable<Boolean> cir)
     {
         if (SpotGuideDrag.mouseReleased())
