@@ -1,6 +1,7 @@
 package qualet.irlite.mixin.client;
 
 import mchorse.bbs_mod.settings.Settings;
+import mchorse.bbs_mod.settings.values.core.ValueGroup;
 import mchorse.bbs_mod.settings.ui.UISettingsOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.IUIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
@@ -19,8 +20,8 @@ import qualet.irlite.client.ui.presets.UIPresetSection;
 public abstract class UISettingsOverlayPanelMixin
 {
     @Shadow public UIScrollView options;
-    @Shadow public UITextbox search;
-    @Shadow private String selectedCategoryId;
+    @Shadow private ValueGroup category;
+    @Shadow private String filter;
     @Shadow private Settings settings;
 
     @Shadow public abstract void refresh();
@@ -28,19 +29,20 @@ public abstract class UISettingsOverlayPanelMixin
     @Inject(method = "refresh", at = @At("TAIL"))
     private void irlite$appendSections(CallbackInfo ci)
     {
-        String query = this.search == null ? "" : this.search.getText().trim();
-
-        if (!query.isEmpty() || this.selectedCategoryId == null)
+        if (this.filter == null || !this.filter.isEmpty() || this.category == null)
         {
             return;
         }
 
-        if (this.settings == null)
+        // Category ids are only unique within a module, so scope to ours —
+        // otherwise a "presets" category in any other mod's settings would get
+        // our widgets.
+        if (this.settings == null || !"irlights".equals(this.settings.getId()))
         {
             return;
         }
 
-        String id = this.selectedCategoryId;
+        String id = this.category.getId();
         if ("presets".equals(id))
         {
             // Presets go directly under the section header, above the knobs they

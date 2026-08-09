@@ -201,17 +201,19 @@ public abstract class AbstractLightFormRenderer<T extends Form> extends FormRend
         BBSModClient.getTextures().bindTexture(icon.texture);
         RenderSystem.setShader(GameRenderer::getPositionTexColorProgram);
 
-        BufferBuilder builder = Tessellator.getInstance().getBuffer();
-        builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_TEXTURE_COLOR);
+        // 1.21: begin() moved to Tessellator and returns the builder; per-vertex
+        // .next() is gone (vertex(...) auto-advances). Mirrors LightGuideRenderer.
+        BufferBuilder builder = Tessellator.getInstance()
+            .begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_TEXTURE_COLOR);
 
         /* Alpha forced to 1 — a light with a translucent colour must still show
          * a solid icon rather than a faint/invisible one. */
-        builder.vertex(matrix, x1, y1, z).texture(u1, v2).color(c.r, c.g, c.b, 1F).next();
-        builder.vertex(matrix, x2, y1, z).texture(u2, v2).color(c.r, c.g, c.b, 1F).next();
-        builder.vertex(matrix, x2, y2, z).texture(u2, v1).color(c.r, c.g, c.b, 1F).next();
-        builder.vertex(matrix, x1, y1, z).texture(u1, v2).color(c.r, c.g, c.b, 1F).next();
-        builder.vertex(matrix, x2, y2, z).texture(u2, v1).color(c.r, c.g, c.b, 1F).next();
-        builder.vertex(matrix, x1, y2, z).texture(u1, v1).color(c.r, c.g, c.b, 1F).next();
+        builder.vertex(matrix, x1, y1, z).texture(u1, v2).color(c.r, c.g, c.b, 1F);
+        builder.vertex(matrix, x2, y1, z).texture(u2, v2).color(c.r, c.g, c.b, 1F);
+        builder.vertex(matrix, x2, y2, z).texture(u2, v1).color(c.r, c.g, c.b, 1F);
+        builder.vertex(matrix, x1, y1, z).texture(u1, v2).color(c.r, c.g, c.b, 1F);
+        builder.vertex(matrix, x2, y2, z).texture(u2, v1).color(c.r, c.g, c.b, 1F);
+        builder.vertex(matrix, x1, y2, z).texture(u1, v1).color(c.r, c.g, c.b, 1F);
 
         BufferRenderer.drawWithGlobalProgram(builder.end());
 
