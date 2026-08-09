@@ -6,10 +6,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Strings for the IRLights settings module. Keys are
- *  {@code irlights.config.<category>.<value>} — the module id is the prefix, so
- *  these all moved off {@code bbs.config.irlite.*} when the settings became
- *  their own module (see IrlightsAddon). */
+/** Strings for the IRLights settings module. Keys are registered under both
+ *  {@code irlights.config.<category>.<value>} (for standard multi-module BBS) and
+ *  {@code bbs.config.<category>.<value>} (for CML where categories are in BBS settings). */
 @Mixin(L10n.class)
 public class L10nMixin
 {
