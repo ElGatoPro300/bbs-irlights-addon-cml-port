@@ -76,23 +76,12 @@ public class SpotlightFormRenderer extends AbstractLightFormRenderer<SpotlightFo
 
         // Direction: the spotlight's local +Z in WORLD space. Read it straight from
         // context.world — the same parallel world stack the position comes from — so it
-        // can't desync from the render stack the way rebuilding from camera.getRotation()
-        // did on 1.21 (the light drifted; see IRLightPositionResolver). Fallback keeps
-        // the camera rebuild for renders with no based world stack.
-        Vector3f fwd;
-        if (context.world != null && context.type == FormRenderType.ENTITY)
-        {
-            fwd = context.world.peek().getPositionMatrix().transformDirection(new Vector3f(0F, 0F, 1F));
-        }
-        else
-        {
-            Matrix4f matrix = new Matrix4f(new org.joml.Matrix3f().rotation(
-                net.minecraft.client.MinecraftClient.getInstance().gameRenderer.getCamera().getRotation()));
-            matrix.mul(context.stack.peek().getPositionMatrix());
-            Vector4f f = new Vector4f(0F, 0F, 1F, 0F);
-            matrix.transform(f);
-            fwd = new Vector3f(f.x, f.y, f.z);
-        }
+        Matrix4f matrix = new Matrix4f(new org.joml.Matrix3f().rotation(
+            net.minecraft.client.MinecraftClient.getInstance().gameRenderer.getCamera().getRotation()));
+        matrix.mul(context.stack.peek().getPositionMatrix());
+        Vector4f f = new Vector4f(0F, 0F, 1F, 0F);
+        matrix.transform(f);
+        Vector3f fwd = new Vector3f(f.x, f.y, f.z);
         Vector4f forward = new Vector4f();
         LightMath.normalizeDir(fwd.x, fwd.y, fwd.z, 0F, 0F, 1F, forward);
         float dx = forward.x, dy = forward.y, dz = forward.z;

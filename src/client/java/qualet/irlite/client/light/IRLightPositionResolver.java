@@ -34,18 +34,6 @@ public final class IRLightPositionResolver
 
     public static Vector3d resolve(FormRenderingContext context)
     {
-        // context.world carries the actor world base (pos + yaw) for ENTITY renders;
-        // the render path that calls this IS ENTITY (live actors / in-world film
-        // replays), so it is always based here. Read the form origin directly.
-        if (context.world != null && context.type == FormRenderType.ENTITY)
-        {
-            Vector3f p = context.world.peek().getPositionMatrix().transformPosition(new Vector3f());
-
-            return new Vector3d(p.x, p.y, p.z);
-        }
-
-        // Fallback (no based world stack): reconstruct the inverse view rotation from
-        // the camera, strip it off the render stack, then add the camera position.
         net.minecraft.client.render.Camera camera = MinecraftClient.getInstance().gameRenderer.getCamera();
         Matrix4f matrix = new Matrix4f(new org.joml.Matrix3f().rotation(camera.getRotation()));
         matrix.mul(context.stack.peek().getPositionMatrix());
