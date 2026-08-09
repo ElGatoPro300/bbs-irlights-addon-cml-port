@@ -130,7 +130,7 @@ public final class SpotGuideDrag
 
         if (!tryStartWith(
             controller,
-            controller.getStencil(),
+            controller.getGizmoStencil(),
             controller.panel.getCamera(),
             controller.panel.preview.getViewport(),
             context
@@ -239,18 +239,12 @@ public final class SpotGuideDrag
 
     /**
      * Per-frame drag update, driven from the host mixins (form editor:
-     * {@code renderUserModel} tail; film editor: {@code renderHUD} head).
+     * {@code renderUserModel} tail; film editor: {@code renderPickingPreview} head).
      */
     public static void update(Object host, UIContext context)
     {
         if (dragForm == null || dragHost != host)
         {
-            return;
-        }
-
-        if (!context.isHeld(0))
-        {
-            stop();
             return;
         }
 
@@ -441,7 +435,7 @@ public final class SpotGuideDrag
      */
     private static UIFilmPanel filmPanel()
     {
-        UIDashboard dashboard = BBSModClient.getDashboard();
+        UIDashboard dashboard = BBSModClient.getDashboardIfCreated();
 
         if (dashboard == null || UIScreen.getCurrentMenu() != dashboard)
         {
@@ -480,7 +474,8 @@ public final class SpotGuideDrag
 
         return film != null
             && film.replayEditor != null
-            && film.replayEditor.isVisible();
+            && film.replayEditor.isVisible()
+            && !film.replayEditor.isActionsMode();
     }
 
     public static boolean isHandle(String bone)
