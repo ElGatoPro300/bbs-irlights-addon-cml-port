@@ -1,15 +1,11 @@
 package qualet.irlite.client.forms;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.forms.renderers.FormRenderType;
 import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Color;
-import org.joml.Matrix3fc;
-import org.joml.Matrix4f;
 import org.joml.Vector3d;
-import org.joml.Vector3f;
 import org.joml.Vector4f;
 import qualet.irlite.client.light.IRLightPositionResolver;
 import org.qualet.irl.light.LightMath;
@@ -74,27 +70,10 @@ public class SpotlightFormRenderer extends AbstractLightFormRenderer<SpotlightFo
     {
         Vector3d p = IRLightPositionResolver.resolve(context);
 
-        // Direction: the spotlight's local +Z in WORLD space. Read it straight from
-        // context.world — the same parallel world stack the position comes from — so it
-        // can't desync from the render stack the way rebuilding from camera.getRotation()
-        // did on 1.21 (the light drifted; see IRLightPositionResolver). Fallback keeps
-        // the camera rebuild for renders with no based world stack.
-        Vector3f fwd;
-        if (context.world != null && context.type == FormRenderType.ENTITY)
-        {
-            fwd = context.world.peek().getPositionMatrix().transformDirection(new Vector3f(0F, 0F, 1F));
-        }
-        else
-        {
-            Matrix4f matrix = new Matrix4f(new org.joml.Matrix3f().rotation(
-                net.minecraft.client.MinecraftClient.getInstance().gameRenderer.getCamera().getRotation()));
-            matrix.mul(context.stack.peek().getPositionMatrix());
-            Vector4f f = new Vector4f(0F, 0F, 1F, 0F);
-            matrix.transform(f);
-            fwd = new Vector3f(f.x, f.y, f.z);
-        }
+        Vector4f f = new Vector4f(0F, 0F, 1F, 0F);
+        context.stack.peek().getPositionMatrix().transform(f);
         Vector4f forward = new Vector4f();
-        LightMath.normalizeDir(fwd.x, fwd.y, fwd.z, 0F, 0F, 1F, forward);
+        LightMath.normalizeDir(f.x, f.y, f.z, 0F, 0F, 1F, forward);
         float dx = forward.x, dy = forward.y, dz = forward.z;
 
         LightMath.Cone cone = LightMath.cone(this.form.radius.get(), this.form.innerRadius.get());
