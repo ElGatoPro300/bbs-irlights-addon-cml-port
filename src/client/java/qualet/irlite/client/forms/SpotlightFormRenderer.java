@@ -5,9 +5,12 @@ import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Color;
+import net.minecraft.client.util.math.MatrixStack;
 import org.joml.Vector3d;
+import org.joml.Vector3f;
 import org.joml.Vector4f;
 import qualet.irlite.client.light.IRLightPositionResolver;
+import qualet.irlite.mixin.client.bbs.IFormRenderingContext;
 import org.qualet.irl.light.LightMath;
 import org.qualet.irl.light.LightRegistry;
 import qualet.irlite.forms.SpotlightForm;
@@ -70,10 +73,21 @@ public class SpotlightFormRenderer extends AbstractLightFormRenderer<SpotlightFo
     {
         Vector3d p = IRLightPositionResolver.resolve(context);
 
-        Vector4f f = new Vector4f(0F, 0F, 1F, 0F);
-        context.stack.peek().getPositionMatrix().transform(f);
+        Vector3f fwd;
+        MatrixStack world = ((IFormRenderingContext) context).irlite$getWorld();
+        if (world != null && context.type == FormRenderType.ENTITY)
+        {
+            fwd = world.peek().getPositionMatrix().transformDirection(new Vector3f(0F, 0F, 1F));
+        }
+        else
+        {
+            Vector4f f = new Vector4f(0F, 0F, 1F, 0F);
+            context.stack.peek().getPositionMatrix().transform(f);
+            fwd = new Vector3f(f.x, f.y, f.z);
+        }
+
         Vector4f forward = new Vector4f();
-        LightMath.normalizeDir(f.x, f.y, f.z, 0F, 0F, 1F, forward);
+        LightMath.normalizeDir(fwd.x, fwd.y, fwd.z, 0F, 0F, 1F, forward);
         float dx = forward.x, dy = forward.y, dz = forward.z;
 
         LightMath.Cone cone = LightMath.cone(this.form.radius.get(), this.form.innerRadius.get());
