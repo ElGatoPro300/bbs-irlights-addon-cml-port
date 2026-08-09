@@ -16,6 +16,7 @@ import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
+import net.minecraft.client.gl.ShaderProgramKeys;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BufferRenderer;
 import net.minecraft.client.render.GameRenderer;
@@ -199,7 +200,7 @@ public abstract class AbstractLightFormRenderer<T extends Form> extends FormRend
 
         /* icons.png is loaded by BBS as a bare GL texture; bind its id to unit 0. */
         BBSModClient.getTextures().bindTexture(icon.texture);
-        RenderSystem.setShader(GameRenderer::getPositionTexColorProgram);
+        RenderSystem.setShader(ShaderProgramKeys.POSITION_COLOR);
 
         // 1.21: begin() moved to Tessellator and returns the builder; per-vertex
         // .next() is gone (vertex(...) auto-advances). Mirrors LightGuideRenderer.
@@ -240,7 +241,7 @@ public abstract class AbstractLightFormRenderer<T extends Form> extends FormRend
         CustomVertexConsumerProvider.hijackVertexFormat((layer) ->
         {
             this.setupTarget(context, BBSShaders.getPickerModelsProgram());
-            RenderSystem.setShader(BBSShaders::getPickerModelsProgram);
+            RenderSystem.setShader(BBSShaders.getPickerModelsProgram());
         });
 
         Draw.renderBox(context.stack, 0, 0, 0, 0.5, 0.5, 0.5, c.r, c.g, c.b);

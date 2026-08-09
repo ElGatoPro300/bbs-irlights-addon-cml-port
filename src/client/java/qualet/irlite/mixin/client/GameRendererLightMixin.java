@@ -50,7 +50,7 @@ public class GameRendererLightMixin
                      shift = At.Shift.AFTER,
                      ordinal = 0),
             require = 1)
-    private void irlite$uploadLights(float tickDelta, long limitTime, MatrixStack matrices, CallbackInfo ci)
+    private void irlite$uploadLights(RenderTickCounter tickCounter, CallbackInfo ci)
     {
         long uploadT0 = System.nanoTime();
         FramePipeline.uploadIfPending();
