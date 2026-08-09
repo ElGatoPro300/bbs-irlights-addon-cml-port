@@ -477,7 +477,8 @@ public final class SpotGuideDrag
 
         return film != null
             && film.replayEditor != null
-            && film.replayEditor.isVisible();
+            && film.replayEditor.isVisible()
+            && !film.replayEditor.isActionsMode();
     }
 
     public static boolean isHandle(String bone)
