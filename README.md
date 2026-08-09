@@ -138,6 +138,26 @@ Each Minecraft version produces its own jar (the `+mc<version>` suffix); the old
 
 ---
 
+## Releasing
+
+Cutting a release is one command:
+
+```powershell
+pwsh -File tools/release.ps1 -Version 1.1.2
+```
+
+It bumps `mod_version`, builds the `1.20.1` product jar, then creates the `v1.1.2`
+tag and a GitHub Release with the jar attached and notes generated from the commit
+log — all in one step. Add `-DryRun` to preview, `-Draft` to review before publishing.
+
+The jar is built **locally** on purpose: the addon links against the third-party BBS
+jar, which is not in git and cannot be republished, so it cannot be produced on a
+clean CI runner. The [`release.yml`](.github/workflows/release.yml) workflow is only a
+safety net — if a `v*` tag is ever pushed by hand, it creates a draft Release with
+notes (no jar) so the tag is not lost.
+
+---
+
 ## License
 
 Released under the [MIT License](LICENSE) — © 2026 qualet.

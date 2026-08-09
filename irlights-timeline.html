@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IRLights — таймлайн проекта</title>
+<style>
+:root{
+  --page-bg:#F7F6F2; --surface:#FFFFFF; --border:#E4E2DA; --border-strong:#CFCDC3;
+  --text-1:#1A1A18; --text-2:#57564F; --text-3:#8A897F;
+  --axis:#D85A30; --dot:#C24A24; --dot-text:#FFFFFF;
+  --amber-bg:#FAEEDA; --amber-border:#EAC57E; --amber-text:#633806;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --page-bg:#191814; --surface:#242320; --border:#38372F; --border-strong:#4B4940;
+    --text-1:#F2F0E9; --text-2:#B9B7AD; --text-3:#85847A;
+    --axis:#E8703F; --dot:#C24A24; --dot-text:#FFFFFF;
+    --amber-bg:#33290F; --amber-border:#6E561F; --amber-text:#FAC775;
+  }
+}
+:root[data-theme="dark"]{
+  --page-bg:#191814; --surface:#242320; --border:#38372F; --border-strong:#4B4940;
+  --text-1:#F2F0E9; --text-2:#B9B7AD; --text-3:#85847A;
+  --axis:#E8703F; --dot:#C24A24; --dot-text:#FFFFFF;
+  --amber-bg:#33290F; --amber-border:#6E561F; --amber-text:#FAC775;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--page-bg); color:var(--text-1);
+  font-family:-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  line-height:1.5; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:760px;margin:0 auto;padding:40px 24px 56px}
+.head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:24px}
+h1{font-size:26px;font-weight:600;margin:0 0 6px;letter-spacing:-.01em}
+.sub{margin:0;color:var(--text-2);font-size:14px}
+.theme-btn{flex:0 0 auto;width:38px;height:38px;border-radius:10px;border:1px solid var(--border);
+  background:var(--surface);color:var(--text-2);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.theme-btn:hover{border-color:var(--border-strong);color:var(--text-1)}
+.legend{display:flex;gap:18px;flex-wrap:wrap;margin:0 0 22px 2px;font-size:12.5px;color:var(--text-2)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.sw{width:12px;height:12px;display:inline-block}
+.sw-dot{border-radius:50%;background:var(--axis)}
+.sw-amber{border-radius:3px;background:var(--amber-bg);border:1px solid var(--amber-border)}
+.tl{position:relative;padding:6px 0 10px 44px}
+.tl-axis{position:absolute;left:21px;top:10px;bottom:42px;width:2px;background:var(--axis)}
+.tl-arrow{position:absolute;left:12px;bottom:8px;color:var(--axis)}
+.ph{position:relative;margin-bottom:22px}
+.ph::before{content:"";position:absolute;left:-19px;top:12px;width:19px;height:2px;background:var(--axis)}
+.ph-dot{position:absolute;left:-33px;top:0;width:26px;height:26px;border-radius:50%;background:var(--dot);
+  border:2px solid var(--dot);color:var(--dot-text);display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:600;z-index:1}
+.ph-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:11px 15px}
+.ph-title{font-size:15.5px;font-weight:600;color:var(--text-1)}
+.ph-date{font-size:12.5px;color:var(--text-3);margin-top:2px}
+.subs{margin:9px 0 0 14px;padding-left:15px;border-left:2px solid var(--amber-border);
+  display:flex;flex-direction:column;gap:7px}
+.sub{background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:9px;
+  padding:7px 11px;font-size:13px;line-height:1.45;color:var(--amber-text)}
+.ph-plan::before{background:var(--border-strong)}
+.ph-plan .ph-dot{background:transparent;border:2px dashed var(--border-strong);color:var(--text-3)}
+.ph-plan .ph-card{border-style:dashed;background:transparent}
+.ph-plan .ph-title{color:var(--text-2)}
+.ph-plan .subs{border-left-color:var(--border-strong);border-left-style:dashed}
+.ph-plan .sub{background:transparent;border-color:var(--border);border-style:dashed;color:var(--text-3)}
+.foot{margin-top:30px;padding-top:16px;border-top:1px solid var(--border);font-size:12px;color:var(--text-3)}
+@media (max-width:520px){.wrap{padding:28px 16px 40px}h1{font-size:22px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="head">
+    <div>
+      <h1>IRLights — таймлайн проекта</h1>
+      <p class="sub">От рефактора IRLEngine до унификации трилогии · 6 июн – 8 июл 2026</p>
+    </div>
+    <button id="themeBtn" class="theme-btn" aria-label="Сменить тему" title="Сменить тему">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor" stroke="none"/></svg>
+    </button>
+  </header>
+
+  <div class="legend">
+    <span><i class="sw sw-dot"></i>фаза (веха)</span>
+    <span><i class="sw sw-amber"></i>работы внутри фазы</span>
+    <span><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg>позже во времени</span>
+  </div>
+
+  <div class="tl">
+    <div class="tl-axis"></div>
+    <span class="tl-arrow"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
+
+    <div class="ph">
+      <div class="ph-dot">1</div>
+      <div class="ph-card"><div class="ph-title">Фундамент: IRLite ← IRLEngine</div><div class="ph-date">6–12 июн 2026</div></div>
+      <div class="subs">
+        <div class="sub">SSBO binding 7: uniform → std430 + анкорный патчер</div>
+        <div class="sub">Mixin-архитектура аддона: collect → bake → flush</div>
+        <div class="sub">DSL .irlights + PatchEngine (validate-first)</div>
+        <div class="sub">Модель форм света: PointLight / Spotlight</div>
+      </div>
+    </div>
+
+    <div class="ph">
+      <div class="ph-dot">2</div>
+      <div class="ph-card"><div class="ph-title">Порты шейдер-паков (7 шт.)</div><div class="ph-date">6–29 июн 2026</div></div>
+      <div class="subs">
+        <div class="sub">IterationRP (take-3), Photon, Complementary</div>
+        <div class="sub">BSL, Solas, Bliss — пакетно ~12 июн</div>
+        <div class="sub">RethinkingVoxels — 7-й пак (29 июн)</div>
+        <div class="sub">Outline → старый Fresnel-rim на всех паках</div>
+      </div>
+    </div>
+
+    <div class="ph">
+      <div class="ph-dot">3</div>
+      <div class="ph-card"><div class="ph-title">Редактор IRL-redactor (ImGui)</div><div class="ph-date">15–21 июн 2026</div></div>
+      <div class="subs">
+        <div class="sub">ImGui-прототип → провязка к пайплайну (гизмо, persist)</div>
+        <div class="sub">Движок света в редактор, полностью BBS-free</div>
+        <div class="sub">Оверлей в Replay Mod (raw GLFW keybind)</div>
+        <div class="sub">Фикс краша ImGui рядом с Axiom</div>
+      </div>
+    </div>
+
+    <div class="ph">
+      <div class="ph-dot">4</div>
+      <div class="ph-card"><div class="ph-title">Система теней</div><div class="ph-date">9–25 июн 2026</div></div>
+      <div class="subs">
+        <div class="sub">Аудиты бейка: perf + entity-parity</div>
+        <div class="sub">Shadow-seam: phase 1→4 + lockstep-верификатор</div>
+        <div class="sub">Оркестрация теней вынесена в irl-core (25 июн)</div>
+        <div class="sub">Бейк-движок: пресеты LOW–ULTRA, кэш, cull</div>
+      </div>
+    </div>
+
+    <div class="ph">
+      <div class="ph-dot">5</div>
+      <div class="ph-card"><div class="ph-title">Фичи света</div><div class="ph-date">18 июн – 2 июл 2026</div></div>
+      <div class="subs">
+        <div class="sub">Gobo/cookie-маска спота (6-й vec4 SSBO)</div>
+        <div class="sub">Авто-свет от эмиссивных блоков (MAX 2048)</div>
+        <div class="sub">Интерактивные гайды спота (форма + film-editor)</div>
+        <div class="sub">Диагностика GPU-bound лага GUI</div>
+      </div>
+    </div>
+
+    <div class="ph">
+      <div class="ph-dot">6</div>
+      <div class="ph-card"><div class="ph-title">Рефактор фильтрации теней</div><div class="ph-date">1–4 июл 2026</div></div>
+      <div class="subs">
+        <div class="sub">Research PCSS / EVSM / MSM → вердикт (1 июл)</div>
+        <div class="sub">Root cause «зернистого квадрата»: 512 vs 1024 (2 июл)</div>
+        <div class="sub">MSM4-Hamburger + seamless cube-view (3 июл)</div>
+        <div class="sub">Код-ревью 108 агентов, 0 блокеров (3 июл)</div>
+        <div class="sub">Ребрендинг IRLite → IRLights + тираж на 6 паков</div>
+      </div>
+    </div>
+
+    <div class="ph">
+      <div class="ph-dot">7</div>
+      <div class="ph-card"><div class="ph-title">Вынос в irl-core (v1.1)</div><div class="ph-date">4–5 июл 2026</div></div>
+      <div class="subs">
+        <div class="sub">Ревью 21 кандидата на вынос (4 июл)</div>
+        <div class="sub">Tier1+Tier2 → irl-core, tag v1.1 (5 июл)</div>
+        <div class="sub">Ре-синк .irlights: аддон → редактор</div>
+      </div>
+    </div>
+
+    <div class="ph">
+      <div class="ph-dot">8</div>
+      <div class="ph-card"><div class="ph-title">Мультиверсия + унификация</div><div class="ph-date">6–8 июл 2026</div></div>
+      <div class="subs">
+        <div class="sub">MC 1.21.1 на per-version ядре (6 июл)</div>
+        <div class="sub">MC 1.21.4 закрыт (7 июл)</div>
+        <div class="sub">MC 1.21.11 обновлён, RawOccluderBatch (8 июл)</div>
+        <div class="sub">Унификация трилогии + пуш на GitHub (8 июл)</div>
+      </div>
+    </div>
+
+    <div class="ph ph-plan">
+      <div class="ph-dot"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></div>
+      <div class="ph-card"><div class="ph-title">Запланировано</div><div class="ph-date">не начато</div></div>
+      <div class="subs">
+        <div class="sub">Аддон IRLights → Flashback replay (план)</div>
+        <div class="sub">Lens flare для IRL-источников (план)</div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="foot">Собрано из 100+ файлов памяти проекта (актив + архив) · сгенерировано 9 июл 2026</footer>
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  try{var s=localStorage.getItem('irl-theme'); if(s){root.setAttribute('data-theme',s);}}catch(e){}
+  btn.addEventListener('click',function(){
+    var cur=root.getAttribute('data-theme');
+    if(!cur){cur=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}
+    var next=cur==='dark'?'light':'dark';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('irl-theme',next);}catch(e){}
+  });
+})();
+</script>
+</body>
+</html>

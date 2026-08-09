@@ -16,6 +16,13 @@ import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
+import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.BufferRenderer;
+import net.minecraft.client.render.GameRenderer;
+import net.minecraft.client.render.Tessellator;
+import net.minecraft.client.render.VertexFormat;
+import net.minecraft.client.render.VertexFormats;
+import org.joml.Matrix4f;
 import qualet.irlite.IrliteConfig;
 import qualet.irlite.client.light.LightCollector;
 import org.qualet.irl.light.shadow.ShadowBakeState;
@@ -45,6 +52,17 @@ public abstract class AbstractLightFormRenderer<T extends Form> extends FormRend
         // form-tree would otherwise re-register every face/tile pass.
         if (ShadowBakeState.isBaking())
         {
+            return;
+        }
+
+        // A light form has no geometry, so a model-block item that uses one as
+        // its inventory form would render as an empty (transparent) icon. Draw
+        // the morph-list icon (point light / spotlight) instead so the item
+        // reads as a light in the inventory slot.
+        if (context.type == FormRenderType.ITEM_INVENTORY && !context.isPicking())
+        {
+            this.renderItemIcon(context);
+
             return;
         }
 
@@ -129,6 +147,80 @@ public abstract class AbstractLightFormRenderer<T extends Form> extends FormRend
     /** Override to add draggable guide handles to the editor-preview picking pass. */
     protected void renderStencilHandles(FormRenderingContext context)
     {}
+
+    /**
+     * Draw the light's morph-list icon as a flat, camera-facing quad in the
+     * inventory item slot. The model-block item model is {@code builtin/entity}
+     * with no display transform, so the GUI view is straight-on (no isometric
+     * tilt) and a quad on the block's local XY plane reads face-on. Uses BBS's
+     * own icons atlas (a raw GL texture, not a vanilla Identifier), so we bind
+     * it directly and draw with the vanilla position_tex_color program.
+     */
+    private void renderItemIcon(FormRenderingContext context)
+    {
+        Icon icon = this.icon();
+
+        if (icon == null || icon.texture == null)
+        {
+            return;
+        }
+
+        Color c = this.lightColor();
+
+        float u1 = icon.x / (float) icon.textureW;
+        float v1 = icon.y / (float) icon.textureH;
+        float u2 = (icon.x + icon.w) / (float) icon.textureW;
+        float v2 = (icon.y + icon.h) / (float) icon.textureH;
+
+        /* Quad centred on the block footprint (origin is block-centre XZ at
+         * y=0 after the item renderer's translate(0.5, 0, 0.5)), facing +Z. */
+        float x1 = -0.45F, x2 = 0.45F;
+        float y1 = 0.1F, y2 = 0.9F;
+        float z = 0F;
+
+        context.stack.push();
+
+        /* FormRenderer.render() has already baked the light form's OWN transform
+         * (its position/rotation/scale within the model block) onto the stack.
+         * Undo it so the inventory icon stays pinned to the block/slot instead of
+         * drifting by however far the light was moved inside the block. The form
+         * transform is right-multiplied as createTransform().createMatrix(), so
+         * multiplying by its inverse cancels it exactly. */
+        Matrix4f formMatrix = new Matrix4f(this.createTransform().createMatrix());
+        context.stack.peek().getPositionMatrix().mul(formMatrix.invert());
+
+        Matrix4f matrix = context.stack.peek().getPositionMatrix();
+
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.enableDepthTest();
+        RenderSystem.disableCull();
+        RenderSystem.setShaderColor(1F, 1F, 1F, 1F);
+
+        /* icons.png is loaded by BBS as a bare GL texture; bind its id to unit 0. */
+        BBSModClient.getTextures().bindTexture(icon.texture);
+        RenderSystem.setShader(GameRenderer::getPositionTexColorProgram);
+
+        // 1.21: begin() moved to Tessellator and returns the builder; per-vertex
+        // .next() is gone (vertex(...) auto-advances). Mirrors LightGuideRenderer.
+        BufferBuilder builder = Tessellator.getInstance()
+            .begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_TEXTURE_COLOR);
+
+        /* Alpha forced to 1 — a light with a translucent colour must still show
+         * a solid icon rather than a faint/invisible one. */
+        builder.vertex(matrix, x1, y1, z).texture(u1, v2).color(c.r, c.g, c.b, 1F);
+        builder.vertex(matrix, x2, y1, z).texture(u2, v2).color(c.r, c.g, c.b, 1F);
+        builder.vertex(matrix, x2, y2, z).texture(u2, v1).color(c.r, c.g, c.b, 1F);
+        builder.vertex(matrix, x1, y1, z).texture(u1, v2).color(c.r, c.g, c.b, 1F);
+        builder.vertex(matrix, x2, y2, z).texture(u2, v1).color(c.r, c.g, c.b, 1F);
+        builder.vertex(matrix, x1, y2, z).texture(u1, v1).color(c.r, c.g, c.b, 1F);
+
+        BufferRenderer.drawWithGlobalProgram(builder.end());
+
+        RenderSystem.enableCull();
+
+        context.stack.pop();
+    }
 
     private Color tintedColor(FormRenderingContext context)
     {

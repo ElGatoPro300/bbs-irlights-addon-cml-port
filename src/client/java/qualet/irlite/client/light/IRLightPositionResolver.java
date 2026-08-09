@@ -1,17 +1,18 @@
 package qualet.irlite.client.light;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
 import net.minecraft.client.MinecraftClient;
-import org.joml.Matrix3fc;
+import net.minecraft.client.render.Camera;
+import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 
 /**
- * Resolves a form's absolute world position from the render-path matrix stack.
- * inverseViewRot * stack.peek strips the view rotation (incl. BBS camera roll),
- * leaving the world-frame offset from the camera.
+ * Resolves the absolute world position of a light form during rendering.
+ *
+ * <p>In 1.21.1, {@code context.stack} is already in camera-relative world orientation,
+ * so adding {@code camera.getPos()} to its translation yields the exact world position.</p>
  */
 public final class IRLightPositionResolver
 {
@@ -20,16 +21,12 @@ public final class IRLightPositionResolver
 
     public static Vector3d resolve(FormRenderingContext context)
     {
-        net.minecraft.client.render.Camera camera = MinecraftClient.getInstance().gameRenderer.getCamera();
-        // 1.21: RenderSystem.getInverseViewRotationMatrix() is gone — rebuild the
-        // inverse view rotation from the camera orientation (incl. BBS roll), exactly
-        // as BBS itself does (new Matrix3f().rotation(camera.getRotation())).
-        Matrix4f matrix = new Matrix4f(new org.joml.Matrix3f().rotation(camera.getRotation()));
-        matrix.mul(context.stack.peek().getPositionMatrix());
-        Vector3f offset = matrix.getTranslation(new Vector3f());
+        Camera camera = MinecraftClient.getInstance().gameRenderer.getCamera();
+        Matrix4f worldMatrix = context.stack.peek().getPositionMatrix();
+        Vector3f offset = worldMatrix.getTranslation(new Vector3f());
 
-        net.minecraft.util.math.Vec3d cam = camera.getPos();
+        Vec3d camPos = camera.getPos();
 
-        return new Vector3d(cam.x + offset.x, cam.y + offset.y, cam.z + offset.z);
+        return new Vector3d(camPos.x + offset.x, camPos.y + offset.y, camPos.z + offset.z);
     }
 }

@@ -12,7 +12,8 @@
 	"entrypoints": {
 		"fabric-datagen": ["qualet.irlite.client.IrliteDataGenerator"],
 		"client": ["qualet.irlite.client.IrliteClient"],
-		"main": ["qualet.irlite.Irlite"]
+		"main": ["qualet.irlite.Irlite"],
+		"bbs-addon": ["qualet.irlite.IrlightsAddon"]
 	},
 	"mixins": [
 		"irlite.mixins.json",
@@ -27,13 +28,5 @@
 		"bbs": "*",
 		"minecraft": "~1.21.4",
 		"irl-core": "*"
-	},
-	"suggests": {
-		"irlcal_editor": "*"
-	},
-	"jars": [
-    {
-      "file": "META-INF/jars/irl-core-1.1.jar"
-    }
-  ]
+	}
 }

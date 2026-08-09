@@ -25,14 +25,19 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.chunk.BlockEntityTickInvoker;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
-import qualet.irlite.client.compat.IrliteCalCompat;
+import qualet.irlite.client.diag.VlProfiler;
 import qualet.irlite.client.light.cookie.CookieArray;
 import qualet.irlite.forms.PointLightForm;
 import qualet.irlite.forms.SpotlightForm;
 import qualet.irlite.mixin.client.bbs.WorldBlockEntityTickersAccessor;
 
+import org.qualet.irl.light.ClusterGridBuffer;
+import org.qualet.irl.light.LightBuffer;
 import org.qualet.irl.light.LightMath;
 import org.qualet.irl.light.LightRegistry;
+import org.qualet.irl.light.VlGlobalsBuffer;
+
+import qualet.irlite.IrliteConfig;
 
 import java.util.List;
 
@@ -45,8 +50,15 @@ import java.util.List;
  */
 public final class LightCollector
 {
-    private static final double MAX_DIST = 256.0;
+    /** Shared camera-space horizon for lights and the casters that may shadow them. */
+    public static final double MAX_DIST = 256.0;
     private static final double MAX_DIST_SQ = MAX_DIST * MAX_DIST;
+
+    /** VL depth-aware bilateral upsample (UBO flags bit6): always on, no UI knob —
+     *  at IRLITE_VL_RESOLUTION 1.0 it converges to plain bilinear, below 1.0 it is
+     *  what makes reduced res viable. Dev A/B kill-switch (needs restart):
+     *  -Dirlite.vlNoBilateral=true. Mirrored by VlSweep.overrideVlGlobals. */
+    public static final boolean VL_BILATERAL = !Boolean.getBoolean("irlite.vlNoBilateral");
 
     private LightCollector()
     {}
@@ -108,6 +120,65 @@ public final class LightCollector
 
     public static void collect(ClientWorld world, Vec3d cameraPos, float tickDelta)
     {
+        // Track the "max shader lights" slider each frame: caps how many lights the
+        // flush packs into the SSBO (registration + shadow caches still see them all).
+        LightRegistry.setUploadCap(IrliteConfig.maxShaderLights());
+        // Clustering has no knob: it is always on (core default), the image is
+        // identical either way and it only ever makes the per-pixel loop cheaper.
+        // For an A/B measurement, start with -Dirlite.noClustering=true.
+        // Track the VL intensity slider each frame: lands in the SSBO header on
+        // upload, so patched shaders read it live without a recompile.
+        LightBuffer.setVlGlobalIntensity(IrliteConfig.vlIntensity());
+        // Track the live VL toggles each frame: packed as header bit flags
+        // (bit0 = VL shadows, bit1 = VL noise) read by runtime-flag patches.
+        LightBuffer.setVlFlags((IrliteConfig.vlShadowsLive() ? 1 : 0) | (IrliteConfig.vlNoiseLive() ? 2 : 0));
+        // Track the full VL knob set each frame: lands in the globals UBO
+        // (binding 7) on upload, so UBO-era patches read every VL number and
+        // flag live without a recompile (bit0 = VL shadows, bit1 = VL noise,
+        // bit2 = blue-noise dither, bit3 = temporal dither rotation,
+        // bit4 = VL cluster culling, bit5 = Hi-Z skip, bit6 = bilateral
+        // upsample). The two header pushes above stay for pre-UBO patches
+        // until the fleet is regenerated.
+        VlGlobalsBuffer.set(
+            IrliteConfig.vlIntensity(),
+            IrliteConfig.vlMaxDist(),
+            IrliteConfig.vlTipBoost(),
+            IrliteConfig.vlTipRadius(),
+            IrliteConfig.vlNoiseAmount(),
+            IrliteConfig.vlNoiseScale(),
+            IrliteConfig.vlNoiseSpeed(),
+            IrliteConfig.vlNoiseMorph(),
+            IrliteConfig.vlSteps(),
+            IrliteConfig.vlShadowStride(),
+            IrliteConfig.vlNoiseStride(),
+            (IrliteConfig.vlShadowsLive() ? 1 : 0) | (IrliteConfig.vlNoiseLive() ? 2 : 0)
+                | (IrliteConfig.vlBlueNoise() ? 4 : 0) | (IrliteConfig.vlDitherTemporal() ? 8 : 0)
+                | (IrliteConfig.vlClusterCull() ? 16 : 0) | (IrliteConfig.vlShadowHiz() ? 32 : 0)
+                | (VL_BILATERAL ? 64 : 0)
+        );
+        // Outline knobs ride the same UBO but push separately: the sweep below
+        // rebuilds the VL flag word from the VL toggles alone, so folding the
+        // outline bits into that argument would let a sweep clear them. The core
+        // ORs the two flag words together at upload instead.
+        VlGlobalsBuffer.setOutline(
+            IrliteConfig.outline(),
+            IrliteConfig.outlineTarget(),
+            IrliteConfig.outlineStrength(),
+            IrliteConfig.outlineFresnelPower(),
+            IrliteConfig.outlineBack(),
+            IrliteConfig.outlineFront(),
+            IrliteConfig.outlineFrontStrength(),
+            IrliteConfig.outlineGlow(),
+            IrliteConfig.outlineGlowStrength(),
+            IrliteConfig.outlinePixelSize()
+        );
+        VlGlobalsBuffer.setShadow(IrliteConfig.shadowsLive(), IrliteConfig.shadowSoftness());
+        // Dev VL profiler sweep (-Dirlite.profileVl=true): may re-issue the push
+        // above with per-config flag overrides — last write wins before upload.
+        // New VlGlobalsBuffer.set args must be mirrored in VlSweep.overrideVlGlobals.
+        // setOutline is NOT mirrored there by design — the sweep only varies VL.
+        VlProfiler.overrideVlGlobals();
+
         if (world == null || cameraPos == null)
         {
             return;
@@ -392,9 +463,7 @@ public final class LightCollector
         // first use, cached after); -1 = no mask, so the cookie is OFF unless a
         // texture is picked. Rotation is stored in degrees on the form (UI/keyframe
         // friendly) -> radians for the SSBO. Cheap per-frame: a link->layer lookup.
-        int cookieLayer = IrliteCalCompat.isCalPresent()
-            ? IrliteCalCompat.resolveBbsCookie(form.cookie.get())
-            : CookieArray.resolve(form.cookie.get());
+        int cookieLayer = CookieArray.resolve(form.cookie.get());
         float cookieRot = (float) Math.toRadians(form.cookieRotation.get());
         float cookieFlags = form.cookieInvert.get() ? 1F : 0F;
 

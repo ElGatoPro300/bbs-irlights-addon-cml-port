@@ -72,18 +72,18 @@ $shAnchor = $shLine2.Substring(2)              # the pristine substring, tabs ex
 $shBody1  = $shLine1.Substring(2)              # replace keeps the original leading tabs
 $scAncText = 'screen.LIGHTING=[LIGHT_SOURCE] [HELDLIGHT] [SHADOW]'
 $scAnc = IndexOfLine $pr $scAncText
-$treeEnd = -1                                  # content-defined end: the outline screen tail line
-for ($i = $scAnc + 1; $i -lt $pr.Count; $i++) { if ($pr[$i].EndsWith('IRLITE_OUTLINE_GLOW IRLITE_OUTLINE_GLOW_STRENGTH')) { $treeEnd = $i; break } }
-if ($treeEnd -lt 0) { throw "screen tree tail (IRLITE_OUTLINE_GLOW_STRENGTH) not found" }
+$treeEnd = -1                                  # content-defined end: the flat screen.IRLIGHTS line (ends in IRLITE_SHADOWS)
+for ($i = $scAnc + 1; $i -lt $pr.Count; $i++) { if ($pr[$i].TrimStart($T).StartsWith('screen.IRLIGHTS ') -and $pr[$i].EndsWith('IRLITE_SHADOWS')) { $treeEnd = $i; break } }
+if ($treeEnd -lt 0) { throw "flat screen.IRLIGHTS line (ending IRLITE_SHADOWS) not found" }
 $prTree = $pr[($scAnc + 1)..$treeEnd]
 if ($prTree[0] -cne '') { throw "screen tree must start with a blank line" }
 if (-not $prTree[1].StartsWith($T + 'screen.IRLIGHTS')) { throw "screen tree head unexpected" }
-if (-not ($prTree -match 'IRLIGHTS_OUTLINE')) { throw "outline sub-screen missing from the screen tree" }
+if ($prTree -match 'screen\.IRLIGHTS_(SPECULAR|SHADOWS|TOON|VOLUMETRIC|OUTLINE)') { throw "flat screen must carry no IRLIGHTS sub-screens" }
 $slAncText = 'sliders=PT_VOXEL_RESOLUTION \'
 $slAnc = IndexOfLine $pr $slAncText
 $slBody = $pr[$slAnc + 1]
 if (-not $slBody.StartsWith($T + 'IRLITE_INTENSITY')) { throw "sliders body head unexpected" }
-if (-not $slBody.EndsWith('IRLITE_OUTLINE_GLOW_STRENGTH \')) { throw "sliders body tail unexpected" }
+if (-not $slBody.EndsWith('IRLITE_TOON_SMOOTH \')) { throw "sliders body tail unexpected" }
 
 # lang/en_us.lang: label block
 $lg  = Lines "$mod\lang\en_us.lang"

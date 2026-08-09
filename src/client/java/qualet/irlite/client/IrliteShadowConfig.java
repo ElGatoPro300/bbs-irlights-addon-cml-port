@@ -22,6 +22,12 @@ public final class IrliteShadowConfig
             .shadowBakeBudget(IrliteConfig::shadowBakeBudget)
             .shadowBlocks(IrliteConfig::shadowBlocks)
             .shadowBlockRadius(IrliteConfig::shadowBlockRadius)
+            .shadowPoseReach(IrliteConfig::shadowPoseReach)
+            // Bake stays alive while EITHER surface shadows or volumetric beam
+            // shadows are on — the VL pass samples the same maps (vlC.w bit0), so
+            // gating on shadowsLive() alone would blank beam shadows when a user
+            // only meant to drop surface shadows.
+            .shadowsEnabled(() -> IrliteConfig.shadowsLive() || IrliteConfig.vlShadowsLive())
             .build();
 
     private IrliteShadowConfig()

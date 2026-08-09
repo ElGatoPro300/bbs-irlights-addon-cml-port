@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IRLights — UX настроек v2 (пресеты + разделение Iris/BBS)</title>
+<style>
+  :root{
+    --bg:#14161a; --panel:#1c1f26; --panel2:#232733; --line:#2f3542;
+    --fg:#dfe3ea; --dim:#8d97a8; --gold:#ffd35c; --aqua:#5fd8e0; --pink:#e58fd8;
+    --green:#7fd67f; --yellow:#f0e07a; --teal:#4fb8c4; --red:#ff7a7a; --ok:#6fcf7a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+       font:14px/1.55 "Segoe UI",system-ui,sans-serif;padding:28px 22px 80px}
+  h1{font-size:22px;margin:0 0 4px}
+  h2{font-size:17px;margin:38px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+  h3{font-size:14px;margin:22px 0 8px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
+  .sub{color:var(--dim);margin:0 0 22px}
+  .wrap{max-width:1180px;margin:0 auto}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  @media(max-width:900px){.cols{grid-template-columns:1fr}}
+
+  /* ---- fake panel ---- */
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .panel .head{background:var(--panel2);padding:9px 13px;font-weight:600;font-size:13px;
+               border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+  .panel .head .tag{font-weight:400;font-size:11px;color:var(--dim)}
+  .panel .body{padding:12px 13px}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:12px;
+       padding:7px 8px;border-radius:5px}
+  .row+.row{margin-top:2px}
+  .row:hover{background:#00000030}
+  .row .lbl{flex:1;min-width:0}
+  .row .lbl small{display:block;color:var(--dim);font-size:11.5px;line-height:1.35}
+  .ctl{flex:0 0 auto;background:#0f1116;border:1px solid var(--line);border-radius:4px;
+       padding:3px 10px;font-size:12.5px;color:var(--fg);min-width:78px;text-align:center}
+  .ctl.on{color:var(--ok);border-color:#3a5a3f}
+  .ctl.off{color:var(--dim)}
+  .seg{display:flex;gap:0;flex:0 0 auto}
+  .seg span{background:#0f1116;border:1px solid var(--line);padding:3px 9px;font-size:12px;color:var(--dim)}
+  .seg span:first-child{border-radius:4px 0 0 4px}
+  .seg span:last-child{border-radius:0 4px 4px 0}
+  .seg span.sel{background:#2b3a52;color:#cfe4ff;border-color:#3f5b80}
+  .sep{height:1px;background:var(--line);margin:12px 2px}
+  .grouphead{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);
+             margin:14px 2px 6px;display:flex;align-items:center;gap:8px}
+  .grouphead::after{content:"";flex:1;height:1px;background:var(--line)}
+  .fold{padding:7px 8px;border:1px dashed var(--line);border-radius:5px;color:var(--dim);
+        font-size:12.5px;cursor:default;margin-top:4px}
+  .strike .lbl{text-decoration:line-through;color:#66707f}
+  .note{background:#1a2230;border-left:3px solid var(--teal);padding:9px 12px;border-radius:0 5px 5px 0;
+        color:#b9c6d8;font-size:12.5px;margin:10px 0}
+  .warn{background:#2a1f1a;border-left-color:#d99a4a;color:#e4c9a8}
+  .bad{background:#2a1a1d;border-left-color:var(--red);color:#eab6ba}
+
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin:8px 0 4px}
+  th,td{border:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);color:var(--dim);font-weight:600;font-size:11.5px;
+     text-transform:uppercase;letter-spacing:.04em}
+  td code{font-size:11.5px;color:#c9d4e4}
+  tr:nth-child(even) td{background:#00000020}
+  .k{color:var(--ok)}   .r{color:var(--red)}  .m{color:var(--gold)} .q{color:var(--pink)}
+  .pill{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;border:1px solid}
+  .pill.keep{color:var(--ok);border-color:#3a5a3f;background:#16241a}
+  .pill.rm{color:var(--red);border-color:#5a3a3a;background:#241616}
+  .pill.dbg{color:var(--gold);border-color:#5a4f2a;background:#241f10}
+  code{background:#0f1116;padding:1px 5px;border-radius:3px;font-family:Consolas,monospace}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--dim);font-size:12px;margin:6px 0 14px}
+  ol li,ul li{margin:4px 0}
+  .q-box{background:#20242e;border:1px solid var(--line);border-radius:6px;padding:12px 14px;margin:10px 0}
+  .q-box b{color:var(--gold)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>IRLights — UX настроек v2</h1>
+<p class="sub">Макет к утверждению · Complementary Reimagined · 2026-07-20</p>
+
+<div class="note bad">
+<b>Отправная точка (проверено grep'ом, не догадка).</b> Девять слайдеров в Iris-экране Volumetric
+(<code>IRLITE_VL_STEPS</code>, <code>_MAX_DIST</code>, <code>_TIP_BOOST</code>, <code>_TIP_RADIUS</code>,
+<code>_SHADOW_STRIDE</code>, <code>_NOISE_AMOUNT</code>, <code>_SCALE</code>, <code>_SPEED</code>, <code>_STRIDE</code>)
+объявлены как <code>#define</code>, зарегистрированы в UI — и <b>ни разу не читаются в GLSL</b>.
+Реальные значения приходят из UBO (binding 7), который каждый кадр пишет мод.
+В боевом <code>ComplementaryReimagined_IRLights.txt</code> лежат <code>IRLITE_VL_STEPS=64</code>,
+<code>NOISE_SPEED=3.0</code>, <code>NOISE_STRIDE=1</code> — ни одно из них ни на что не влияет.
+</div>
+
+<!-- ============================================================ -->
+<h2>Принцип раздела</h2>
+<p style="margin-top:0">Одна ручка живёт в одном месте. Граница — не «важное / неважное», а <b>физика</b>:</p>
+<table>
+<tr><th style="width:26%">Где</th><th>Что там живёт</th><th style="width:22%">Цена изменения</th></tr>
+<tr>
+  <td><b>Iris → Lighting → IRLights</b></td>
+  <td>Только то, что <b>компильное</b>: включение проходов и буферов, развёртка циклов, визуальные
+      скаляры, которых нет в моде (Specular, Toon, Outline, Shadow bias/size/normal-offset).</td>
+  <td>Рекомпиляция шейдера / F3+R</td>
+</tr>
+<tr>
+  <td><b>BBS → настройки → IRLights</b></td>
+  <td>Всё, что <b>рантайм</b> (UBO/SSBO): вся VL-математика, качество теней, лимит источников,
+      пресеты.</td>
+  <td>Мгновенно, следующий кадр</td>
+</tr>
+</table>
+<p>Побочный выигрыш: после раздела дубликатов не остаётся, и суффикс <b>«(live)»</b> из всех
+18 лейблов BBS можно убрать — он существовал только чтобы отличать ручку от её мёртвого
+Iris-двойника.</p>
+
+<!-- ============================================================ -->
+<h2>1. Экран BBS — как выглядит сейчас и как предлагается</h2>
+
+<div class="cols">
+
+  <!-- BEFORE -->
+  <div class="panel">
+    <div class="head"><span>СЕЙЧАС · BBS → IRLite</span><span class="tag">18 контролов, плоский список</span></div>
+    <div class="body">
+      <div class="row"><div class="lbl">Show light guides in world</div><div class="ctl off">OFF</div></div>
+      <div class="row"><div class="lbl">Shadow quality</div><div class="ctl">MEDIUM</div></div>
+      <div class="row"><div class="lbl">Block shadows</div><div class="ctl on">ON</div></div>
+      <div class="row"><div class="lbl">Max shader lights</div><div class="ctl">64</div></div>
+      <div class="row"><div class="lbl">VL intensity (live)</div><div class="ctl">1.00</div></div>
+      <div class="row"><div class="lbl">VL shadows (live)</div><div class="ctl on">ON</div></div>
+      <div class="row"><div class="lbl">VL noise (live)</div><div class="ctl on">ON</div></div>
+      <div class="row"><div class="lbl">VL march steps (live)</div><div class="ctl">48</div></div>
+      <div class="row"><div class="lbl">VL max distance (live)</div><div class="ctl">96</div></div>
+      <div class="row"><div class="lbl">VL shadow tap stride (live)</div><div class="ctl">2</div></div>
+      <div class="row"><div class="lbl">VL tip glow (live)</div><div class="ctl">1.50</div></div>
+      <div class="row"><div class="lbl">VL tip radius (live)</div><div class="ctl">1.50</div></div>
+      <div class="row"><div class="lbl">VL noise amount (live)</div><div class="ctl">0.60</div></div>
+      <div class="row"><div class="lbl">VL noise scale (live)</div><div class="ctl">2.00</div></div>
+      <div class="row"><div class="lbl">VL noise drift speed (live)</div><div class="ctl">0.25</div></div>
+      <div class="row"><div class="lbl">VL noise morph (live)</div><div class="ctl">0.00</div></div>
+      <div class="row"><div class="lbl">VL noise tap stride (live)</div><div class="ctl">2</div></div>
+      <div class="row"><div class="lbl">VL dither temporal rotation (live)</div><div class="ctl on">ON</div></div>
+      <div class="note" style="margin-top:14px">
+        13 из 18 строк — внутренняя кухня волюметрики. Новичок не знает, что такое
+        «tap stride», и не может собрать из этого «сделай красиво, но не тормозило».
+      </div>
+    </div>
+  </div>
+
+  <!-- AFTER -->
+  <div class="panel">
+    <div class="head"><span>ПРЕДЛОЖЕНИЕ · BBS → IRLights</span><span class="tag">6 строк сверху, детали свёрнуты</span></div>
+    <div class="body">
+
+      <div class="grouphead">Пресеты</div>
+      <div class="row">
+        <div class="lbl">Качество<small>Производительность ↔ картинка. Двигает шаги марша, страйды, дальность, качество теней, лимит источников.</small></div>
+        <div class="seg"><span>Perf</span><span class="sel">Balanced</span><span>Quality</span><span>Ultra</span><span>Custom</span></div>
+      </div>
+      <div class="row">
+        <div class="lbl">Стиль луча<small>Художественный характер тумана. Двигает шум и свечение у источника.</small></div>
+        <div class="seg"><span>Clean</span><span class="sel">Dusty</span><span>Smoky</span><span>Custom</span></div>
+      </div>
+
+      <div class="grouphead">Основное</div>
+      <div class="row"><div class="lbl">Яркость лучей<small>Общий множитель волюметрики. 0 = выключить лучи.</small></div><div class="ctl">1.00</div></div>
+      <div class="row"><div class="lbl">Тени от блоков<small>Блоки мира отбрасывают тень по реальной форме.</small></div><div class="ctl on">ON</div></div>
+      <div class="row"><div class="lbl">Гизмо источников в мире<small>Каркасные подсказки для расставленных ламп.</small></div><div class="ctl off">OFF</div></div>
+
+      <div class="fold">▸ &nbsp;<b>Дополнительно</b> &nbsp;<span style="opacity:.7">— 15 параметров, сворачивается по умолчанию</span></div>
+
+      <div class="sep"></div>
+      <div style="font-size:11.5px;color:var(--dim);margin:0 2px 8px">
+        Развёрнутый вид «Дополнительно»:
+      </div>
+
+      <div class="grouphead">Волюметрика · производительность</div>
+      <div class="row"><div class="lbl">Шаги марша</div><div class="ctl">32</div></div>
+      <div class="row"><div class="lbl">Максимальная дальность</div><div class="ctl">96</div></div>
+      <div class="row"><div class="lbl">Тени в лучах</div><div class="ctl on">ON</div></div>
+      <div class="row"><div class="lbl">Страйд теневых тапов</div><div class="ctl">2</div></div>
+      <div class="row"><div class="lbl">Страйд тапов шума</div><div class="ctl">2</div></div>
+      <div class="row"><div class="lbl">Временнáя ротация дизера</div><div class="ctl on">ON</div></div>
+
+      <div class="grouphead">Волюметрика · вид</div>
+      <div class="row"><div class="lbl">Шум в лучах</div><div class="ctl on">ON</div></div>
+      <div class="row"><div class="lbl">Количество шума</div><div class="ctl">0.60</div></div>
+      <div class="row"><div class="lbl">Размер клубов</div><div class="ctl">2.00</div></div>
+      <div class="row"><div class="lbl">Скорость дрейфа</div><div class="ctl">0.25</div></div>
+      <div class="row"><div class="lbl">Морфинг клубов</div><div class="ctl">0.00</div></div>
+      <div class="row"><div class="lbl">Свечение у лампы</div><div class="ctl">1.50</div></div>
+      <div class="row"><div class="lbl">Радиус свечения</div><div class="ctl">1.50</div></div>
+
+      <div class="grouphead">Тени и источники</div>
+      <div class="row"><div class="lbl">Качество теней</div><div class="ctl">MEDIUM</div></div>
+      <div class="row"><div class="lbl">Лимит источников в шейдере</div><div class="ctl">64</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+<b>Правило Custom.</b> Любая ручка из «Дополнительно», сдвинутая руками, переводит соответствующий
+пресет в <code>Custom</code> — но <i>не сбрасывает остальные значения</i>. Обратно выбранный пресет
+перезаписывает свою группу целиком. Две оси независимы: можно «Perf + Smoky».
+</div>
+
+<!-- ============================================================ -->
+<h2>2. Таблица пресетов (значения к утверждению)</h2>
+
+<h3>Ось «Качество»</h3>
+<table>
+<tr>
+  <th>Параметр</th><th>Performance</th><th>Balanced <span style="color:var(--dim)">(деф.)</span></th>
+  <th>Quality</th><th>Ultra</th>
+</tr>
+<tr><td>Шаги марша <code>vl_steps</code></td><td>16</td><td>32</td><td>48</td><td>64</td></tr>
+<tr><td>Дальность <code>vl_max_dist</code></td><td>48</td><td>96</td><td>128</td><td>192</td></tr>
+<tr><td>Страйд теней <code>vl_shadow_stride</code></td><td>4</td><td>2</td><td>1</td><td>1</td></tr>
+<tr><td>Страйд шума <code>vl_noise_stride</code></td><td>4</td><td>2</td><td>2</td><td>1</td></tr>
+<tr><td>Тени в лучах <code>vl_shadows_live</code></td><td>OFF</td><td>ON</td><td>ON</td><td>ON</td></tr>
+<tr><td>Качество теней <code>shadow_quality</code></td><td>LOW</td><td>MEDIUM</td><td>HIGH</td><td>HIGH <span class="r">*</span></td></tr>
+<tr><td>Лимит источников <code>max_shader_lights</code></td><td>32</td><td>64</td><td>96</td><td>128</td></tr>
+<tr><td>Тени от блоков <code>shadow_blocks</code></td><td>OFF</td><td>ON</td><td>ON</td><td>ON</td></tr>
+</table>
+<div class="note warn">
+<span class="r">*</span> <b>Ultra намеренно не ставит <code>shadow_quality=ULTRA</code>.</b> ULTRA = 4096²
+на точечные слои ≈ 4.6 GiB VRAM — это ровно тот VRAM-коллапс, который чинили 2026-07-19.
+ULTRA остаётся ручным выбором в «Дополнительно», ни один пресет его не включает.
+</div>
+
+<h3>Ось «Стиль луча»</h3>
+<table>
+<tr><th>Параметр</th><th>Clean</th><th>Dusty <span style="color:var(--dim)">(деф.)</span></th><th>Smoky</th></tr>
+<tr><td>Шум <code>vl_noise_live</code></td><td>OFF</td><td>ON</td><td>ON</td></tr>
+<tr><td>Количество <code>vl_noise_amount</code></td><td>—</td><td>0.6</td><td>1.0</td></tr>
+<tr><td>Размер клубов <code>vl_noise_scale</code></td><td>—</td><td>2.0</td><td>4.0</td></tr>
+<tr><td>Дрейф <code>vl_noise_speed</code></td><td>—</td><td>0.25</td><td>1.0</td></tr>
+<tr><td>Морфинг <code>vl_noise_morph</code></td><td>0.0</td><td>0.0</td><td>0.5 <span class="m">†</span></td></tr>
+<tr><td>Свечение <code>vl_tip_boost</code></td><td>1.0</td><td>1.5</td><td>2.0</td></tr>
+<tr><td>Радиус <code>vl_tip_radius</code></td><td>1.5</td><td>1.5</td><td>2.0</td></tr>
+</table>
+<div class="note warn">
+<span class="m">†</span> Морфинг — самый дорогой пункт VL (0.361 ms по замерам 2026-07-18, дороже самого шума).
+Единственный пресет, который его включает, — Smoky; в тултипе стоит это назвать явно.
+</div>
+
+<!-- ============================================================ -->
+<h2>3. Экран Iris — что остаётся, что уходит</h2>
+
+<div class="cols">
+  <div class="panel">
+    <div class="head"><span>БЫЛО · Iris → Lighting → IRLights → Volumetric</span><span class="tag">14 опций, 9 мёртвых</span></div>
+    <div class="body">
+      <div class="row"><div class="lbl" style="color:var(--pink)">Volumetric Light</div><div class="ctl on">ON</div></div>
+      <div class="row"><div class="lbl" style="color:var(--pink)">Beam Intensity</div><div class="ctl">1.0</div></div>
+      <div class="row"><div class="lbl" style="color:var(--pink)">Resolution</div><div class="ctl">Half</div></div>
+      <div class="row strike"><div class="lbl">March Steps</div><div class="ctl">64</div></div>
+      <div class="row strike"><div class="lbl">Max Distance</div><div class="ctl">96.0</div></div>
+      <div class="row strike"><div class="lbl">Beam Shadows</div><div class="ctl">ON</div></div>
+      <div class="row strike"><div class="lbl">Shadow Tap Stride</div><div class="ctl">1</div></div>
+      <div class="row strike"><div class="lbl">Tip Glow</div><div class="ctl">1.5</div></div>
+      <div class="row strike"><div class="lbl">Tip Radius</div><div class="ctl">1.5</div></div>
+      <div class="row strike"><div class="lbl">Beam Noise</div><div class="ctl">ON</div></div>
+      <div class="row strike"><div class="lbl">Noise Amount</div><div class="ctl">1.0</div></div>
+      <div class="row strike"><div class="lbl">Noise Scale</div><div class="ctl">4.0</div></div>
+      <div class="row strike"><div class="lbl">Drift Speed</div><div class="ctl">3.0</div></div>
+      <div class="row strike"><div class="lbl">Noise Tap Stride</div><div class="ctl">1</div></div>
+      <div class="note bad" style="margin-top:12px">Зачёркнутое — крутится вхолостую.</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="head"><span>СТАЛО · сделано 2026-07-20</span><span class="tag">5 опций + подсказка</span></div>
+    <div class="body">
+      <div class="row"><div class="lbl" style="color:var(--pink)">Volumetric Light<small>Включает проход VL целиком (deferred2 + colortex10).</small></div><div class="ctl on">ON</div></div>
+      <div class="row"><div class="lbl" style="color:var(--pink)">Resolution<small>Разрешение буфера лучей. Half + bilateral — рабочий дефолт.</small></div><div class="ctl">Half</div></div>
+      <div class="row"><div class="lbl" style="color:var(--pink)">Beam Intensity <span class="pill dbg">решение №1</span></div><div class="ctl">1.0</div></div>
+      <div class="row"><div class="lbl" style="color:var(--pink)">Beam Shadows <span class="pill dbg">решение №2</span></div><div class="ctl on">ON</div></div>
+      <div class="row"><div class="lbl" style="color:var(--pink)">Beam Noise <span class="pill dbg">решение №2</span></div><div class="ctl on">ON</div></div>
+      <div class="sep"></div>
+      <div style="padding:8px;color:var(--dim);font-size:12.5px;font-style:italic">
+        Подсказка в тултипе экрана: «beam look and cost are configured live in the mod,<br>
+        under BBS Settings §6IRLights§r, and apply without reloading the pack».
+      </div>
+      <div class="note" style="margin-top:14px">
+        Первые две опции — честно структурные: <code>IRLITE_VOLUMETRIC</code> гейтит
+        <code>program.deferred2.enabled</code>, <code>IRLITE_VL_RESOLUTION</code> задаёт
+        <code>size.buffer.colortex10</code>. Пресет из мода их подвинуть не может — и не должен.
+        Три помеченные останутся или уйдут по решениям №1/№2.
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3>Полный маппинг 36 Iris-опций</h3>
+<div class="legend">
+  <span><span class="pill keep">оставить</span> компильная, работает</span>
+  <span><span class="pill rm">убрать из UI</span> мёртвая, #define остаётся как fallback</span>
+  <span><span class="pill dbg">решение</span> нужен твой выбор</span>
+</div>
+<table>
+<tr><th style="width:32%">Опция</th><th style="width:15%">Экран</th><th style="width:16%">Вердикт</th><th>Почему</th></tr>
+
+<tr><td><code>IRLITE_DIFFUSE</code></td><td>корень</td><td><span class="pill keep">оставить</span></td><td>компиль-гейт диффузного вклада</td></tr>
+<tr><td><code>IRLITE_INTENSITY</code></td><td>корень</td><td><span class="pill keep">оставить</span></td><td>читается в GLSL, у мода дубля нет</td></tr>
+
+<tr><td><code>IRLITE_SPECULAR</code></td><td>Specular</td><td><span class="pill keep">оставить</span></td><td>—</td></tr>
+<tr><td><code>IRLITE_SPECULAR_INTENSITY</code></td><td>Specular</td><td><span class="pill keep">оставить</span></td><td>—</td></tr>
+
+<tr><td><code>IRLITE_SHADOWS</code></td><td>Shadows</td><td><span class="pill keep">оставить</span></td><td>снимает сэмплеры/биндинги — структурная</td></tr>
+<tr><td><code>IRLITE_SHADOW_QUALITY</code></td><td>Shadows</td><td><span class="pill keep">оставить</span></td><td>развёртка PCF-циклов; <b>не путать</b> с BBS <code>shadow_quality</code> (тот про разрешение карт) — стоит переименовать в <i>Filter Quality</i></td></tr>
+<tr><td><code>IRLITE_SHADOW_SIZE</code></td><td>Shadows</td><td><span class="pill keep">оставить</span></td><td>—</td></tr>
+<tr><td><code>IRLITE_SHADOW_BIAS</code></td><td>Shadows</td><td><span class="pill keep">оставить</span></td><td>—</td></tr>
+<tr><td><code>IRLITE_SHADOW_NORMAL_OFFSET</code></td><td>Shadows</td><td><span class="pill keep">оставить</span></td><td>—</td></tr>
+
+<tr><td><code>IRLITE_TOON</code> / <code>_BANDS</code> / <code>_SMOOTH</code></td><td>Toon</td><td><span class="pill keep">оставить</span></td><td>3 опции, дублей нет</td></tr>
+
+<tr><td><code>IRLITE_VOLUMETRIC</code></td><td>Volumetric</td><td><span class="pill keep">оставить</span></td><td>гейтит проход и буферы</td></tr>
+<tr><td><code>IRLITE_VL_RESOLUTION</code></td><td>Volumetric</td><td><span class="pill keep">оставить</span></td><td><code>size.buffer.colortex10</code></td></tr>
+<tr><td><code>IRLITE_VL_INTENSITY</code></td><td>Volumetric</td><td><span class="pill dbg">решение №1</span></td><td>читается <b>только</b> как fallback при незабинденном UBO. С модом всегда мёртвая → предлагаю убрать из UI, <code>#define</code> оставить</td></tr>
+<tr><td><code>IRLITE_VL_STEPS</code></td><td>Volumetric</td><td><span class="pill rm">убрать</span></td><td>0 использований в GLSL</td></tr>
+<tr><td><code>IRLITE_VL_MAX_DIST</code></td><td>Volumetric</td><td><span class="pill rm">убрать</span></td><td>0 использований</td></tr>
+<tr><td><code>IRLITE_VL_TIP_BOOST</code></td><td>Volumetric</td><td><span class="pill rm">убрать</span></td><td>0 использований</td></tr>
+<tr><td><code>IRLITE_VL_TIP_RADIUS</code></td><td>Volumetric</td><td><span class="pill rm">убрать</span></td><td>0 использований</td></tr>
+<tr><td><code>IRLITE_VL_SHADOW_STRIDE</code></td><td>Volumetric</td><td><span class="pill rm">убрать</span></td><td>0 использований</td></tr>
+<tr><td><code>IRLITE_VL_NOISE_AMOUNT</code></td><td>Volumetric</td><td><span class="pill rm">убрать</span></td><td>0 использований</td></tr>
+<tr><td><code>IRLITE_VL_NOISE_SCALE</code></td><td>Volumetric</td><td><span class="pill rm">убрать</span></td><td>0 использований</td></tr>
+<tr><td><code>IRLITE_VL_NOISE_SPEED</code></td><td>Volumetric</td><td><span class="pill rm">убрать</span></td><td>0 использований</td></tr>
+<tr><td><code>IRLITE_VL_NOISE_STRIDE</code></td><td>Volumetric</td><td><span class="pill rm">убрать</span></td><td>0 использований</td></tr>
+<tr><td><code>IRLITE_VL_SHADOWS</code></td><td>Volumetric</td><td><span class="pill dbg">решение №2</span></td><td>компиль-гейт, но вкл/выкл реально решает бит UBO. Убрать из UI = код теней в лучах всегда компилируется (цена — время компиляции, не кадр), рантайм-бит гейтит</td></tr>
+<tr><td><code>IRLITE_VL_NOISE</code></td><td>Volumetric</td><td><span class="pill dbg">решение №2</span></td><td>то же самое</td></tr>
+
+<tr><td><code>IRLITE_OUTLINE</code> + 9 опций</td><td>Outline</td><td><span class="pill keep">оставить</span></td><td>дублей в моде нет, всё читается</td></tr>
+</table>
+
+<p>Итог (пересчитано по факту): <b>36 → 27 опций</b> в Iris, экран Volumetric схлопнулся
+с <b>14 строк до 5</b>. Если решения №1/№2 уйдут в «убрать» — станет 24 и 2 соответственно.</p>
+
+<!-- ============================================================ -->
+<h2>4. Что остаётся скрытым — и это правильно</h2>
+<p>Три флага UBO не имеют и не должны иметь ручек (политика «технические фичи без кнобов», 2026-07-18):</p>
+<table>
+<tr><th style="width:30%">Флаг</th><th style="width:16%">Состояние</th><th>Почему без UI</th></tr>
+<tr><td>bit2 blue-noise dither</td><td>всегда ON</td><td>не режим, а способ убрать бандинг — выключать нечего</td></tr>
+<tr><td>bit4 cluster cull</td><td>всегда ON</td><td>чистая оптимизация, визуально идентична; A/B через <code>-Dirlite.noClustering</code></td></tr>
+<tr><td>bit5 shadow Hi-Z</td><td>всегда ON</td><td>то же</td></tr>
+<tr><td>bit6 bilateral upsample</td><td>всегда ON</td><td>делает полурез бесплатным; kill-switch <code>-Dirlite.vlNoBilateral</code></td></tr>
+</table>
+<div class="note warn">
+<b>Побочная находка.</b> Поля <code>vlBlueNoise</code> / <code>vlClusterCull</code> / <code>vlShadowHiz</code>
+объявлены в <code>IrliteConfig</code>, но <b>не зарегистрированы</b> в <code>BBSSettingsMixin</code> — их
+геттеры написаны как <code>field == null || field.get()</code>, поэтому молча возвращают <code>true</code>.
+Работает верно и соответствует политике, но выглядит как забытая половина фичи. Предлагаю
+дописать комментарий «намеренно без регистрации», чтобы это не «чинили» позже.
+</div>
+
+<!-- ============================================================ -->
+<h2>5. Порядок работ</h2>
+<ol>
+  <li><b>Чистка Iris</b> — убрать мёртвые опции из <code>screen.IRLIGHTS_VOLUMETRIC</code>,
+      <code>sliders=</code> и <code>en_US.lang</code>; реген <code>complementaryreimagined.irlights</code>;
+      byte-proof через PatchHarness.</li>
+  <li><b>Пресеты в BBS</b> — <code>IrliteConfig</code> + <code>BBSSettingsMixin</code> + <code>L10nMixin</code>:
+      две оси, правило Custom, свёрнутая секция «Дополнительно», снятие суффикса «(live)».</li>
+  <li><b>Прогон</b> в <code>runClient -Pmc=1.20.4</code> на Complementary — проверить, что пресеты
+      меняют картинку мгновенно и что чистка не выбила ни одной живой опции.</li>
+  <li><b>Тираж на остальные 6 паков</b> — отдельной сессией, строго по команде.</li>
+</ol>
+
+<h2>Три вопроса к утверждению</h2>
+<div class="q-box"><b>Решение №1.</b> <code>IRLITE_VL_INTENSITY</code> — убрать из Iris-UI
+(рекомендую: с модом она всегда мертва) или оставить как аварийный кноб на случай работы пака без мода?</div>
+<div class="q-box"><b>Решение №2.</b> <code>IRLITE_VL_SHADOWS</code> / <code>IRLITE_VL_NOISE</code> — убрать из
+Iris-UI и всегда компилировать (рекомендую), или оставить как «не компилировать вообще» для слабых машин?</div>
+<div class="q-box"><b>Значения пресетов.</b> Таблицы в разделе 2 — устраивают, или что-то подвинуть?
+Особенно: Performance выключает тени в лучах и тени от блоков — не слишком ли агрессивно.</div>
+
+</div>
+</body>
+</html>
