@@ -7,7 +7,6 @@ import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.events.BBSAddonMod;
 import mchorse.bbs_mod.events.Subscribe;
 import mchorse.bbs_mod.events.register.RegisterSettingsEvent;
-import mchorse.bbs_mod.events.register.RegisterBBSSettingsEvent;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.SettingsBuilder;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -31,12 +30,6 @@ public class IrlightsAddon implements BBSAddonMod
         event.register(Icons.LIGHT, MODULE, IrlightsAddon::build);
     }
 
-    @Subscribe
-    public void registerBBSSettings(RegisterBBSSettingsEvent event)
-    {
-        build(event.getBuilder());
-    }
-
     private static void build(SettingsBuilder builder)
     {
         MapType old = legacyDefaults();
@@ -44,12 +37,12 @@ public class IrlightsAddon implements BBSAddonMod
         // What most people ever touch: the two preset axes (drawn by
         // UIPresetSection, not registered values) and the few knobs that make
         // sense on their own.
-        builder.category("presets");
+        builder.category("presets", Icons.GEAR);
         IrliteConfig.vlIntensity = builder.getFloat("vl_intensity", old.getFloat("vl_intensity", 1F), 0F, 5F);
         IrliteConfig.maxShaderLights = builder.getInt("max_shader_lights", old.getInt("max_shader_lights", 0), 0, 2048);
         IrliteConfig.showGuides = builder.getBoolean("show_guides", old.getBool("show_guides", false));
 
-        builder.category("volumetric");
+        builder.category("volumetric", Icons.SUN);
         IrliteConfig.vlSteps = builder.getInt("vl_steps", old.getInt("vl_steps", 48), 8, 64);
         IrliteConfig.vlMaxDist = builder.getFloat("vl_max_dist", old.getFloat("vl_max_dist", 96F), 32F, 256F);
         IrliteConfig.vlShadowsLive = builder.getBoolean("vl_shadows_live", old.getBool("vl_shadows_live", true));
@@ -64,7 +57,7 @@ public class IrlightsAddon implements BBSAddonMod
         IrliteConfig.vlNoiseStride = builder.getInt("vl_noise_stride", old.getInt("vl_noise_stride", 2), 1, 4);
         IrliteConfig.vlDitherTemporal = builder.getBoolean("vl_dither_temporal", old.getBool("vl_dither_temporal", true));
 
-        builder.category("shadows");
+        builder.category("shadows", Icons.SPHERE);
         IrliteConfig.shadowQuality = builder.getInt("shadow_quality", old.getInt("shadow_quality", 1), 0, 3).modes(
             IKey.constant("LOW"),
             IKey.constant("MEDIUM"),
@@ -83,7 +76,7 @@ public class IrlightsAddon implements BBSAddonMod
         // Wave 1 (2026-07-21): these ten used to be Iris-screen #defines, each
         // costing a shaderpack recompile. They now ride the globals UBO, so they
         // are live here and gone from the pack's settings screen.
-        builder.category("outline");
+        builder.category("outline", Icons.OUTLINE);
         IrliteConfig.outline = builder.getBoolean("outline", old.getBool("outline", true));
         IrliteConfig.outlineTarget = builder.getInt("outline_target", old.getInt("outline_target", 1), 0, 2).modes(
             IKey.constant("ALL"),
@@ -101,7 +94,7 @@ public class IrlightsAddon implements BBSAddonMod
 
         // Empty category — its body is injected at runtime by
         // UISettingsOverlayPanelMixin. buildSections still lists it.
-        builder.category("patcher");
+        builder.category("patcher", Icons.WRENCH);
     }
 
     /** The settings used to live as an "irlite" category inside BBS's own
