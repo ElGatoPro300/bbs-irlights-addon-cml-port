@@ -108,7 +108,7 @@ public final class CookieArray extends CookieArrayBase
             uploadLayer(pixels, layer);
             layerByKey.put(key, layer);
             lastUse.put(key, ++useCounter);
-            LOG.debug("Cookie loaded '{}' -> layer {}", key, layer);
+            LOG.info("Cookie loaded '{}' -> layer {}", key, layer);
             return layer;
         }
         finally
@@ -134,7 +134,7 @@ public final class CookieArray extends CookieArrayBase
         }
         int layer = layerByKey.remove(lruKey);
         lastUse.remove(lruKey);
-        LOG.debug("Cookie evicted '{}' (array full) -> reusing layer {}", lruKey, layer);
+        LOG.info("Cookie evicted '{}' (array full) -> reusing layer {}", lruKey, layer);
         return layer;
     }
 

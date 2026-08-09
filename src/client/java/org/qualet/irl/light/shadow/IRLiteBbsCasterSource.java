@@ -330,7 +330,7 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
                 return null;
             }
 
-            UIDashboard dashboard = BBSModClient.getDashboard();
+            UIDashboard dashboard = BBSModClient.getDashboardIfCreated();
             if (dashboard == null)
             {
                 return null;

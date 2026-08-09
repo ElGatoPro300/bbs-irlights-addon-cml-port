@@ -184,11 +184,11 @@ public final class LightCollector
             return;
         }
 
-        scanBlockEntities(world, cameraPos, tickDelta);
+        scanBlockEntities(world, cameraPos);
         scanFilmReplays(cameraPos, tickDelta);
     }
 
-    private static void scanBlockEntities(ClientWorld world, Vec3d cameraPos, float tickDelta)
+    private static void scanBlockEntities(ClientWorld world, Vec3d cameraPos)
     {
         List<BlockEntityTickInvoker> tickers;
         try
@@ -262,107 +262,79 @@ public final class LightCollector
                 root.mul(propsM);
             }
 
-            walk(rootForm, root, pos.getX(), pos.getY(), pos.getZ(), tickDelta);
+            walk(rootForm, root, pos.getX(), pos.getY(), pos.getZ());
         }
     }
 
     /** {@code base[XYZ]} is the form tree's world origin, carried in double so a far-
      *  from-origin coordinate never enters the float {@code parent} matrix; it is added
      *  back to the matrix-local offset at emit. The matrix therefore only ever holds
-     *  small, block-local (or actor-local) values.
-     *
-     *  {@code transition} is the frame's partial tick, forwarded into
-     *  {@link Form#applyStates} so a form's animation states drive the light exactly
-     *  as they drive the visible render. */
-    private static void walk(Form form, Matrix4f parent, double baseX, double baseY, double baseZ, float transition)
+     *  small, block-local (or actor-local) values. */
+    private static void walk(Form form, Matrix4f parent, double baseX, double baseY, double baseZ)
     {
-        if (form == null)
+        if (form == null || !form.visible.get())
         {
             return;
         }
 
-        // Overlay this form's animation states before reading its transform, exactly
-        // as FormRenderer.render() does (applyStates -> read transforms + walk the
-        // subtree -> unapplyStates). BBS lays an animation frame onto a form's Value
-        // fields (transform, visible, ...) as a transient runtime override that lives
-        // ONLY inside that render window; the scanner runs at renderWorld HEAD, wholly
-        // outside it, so without this it would read the static base pose and a
-        // ModelBlock-placed light would never follow its form's animation. No-op for
-        // a form with no active state players. unapplyStates() sits in finally so the
-        // pair stays balanced (including the early returns below), leaving a clean
-        // base for the later real render to re-apply from. States are re-applied per
-        // form on the recursion, matching the render's per-form apply nesting.
-        form.applyStates(transition);
-        try
+        Matrix4f local = new Matrix4f(parent);
+        Transform t = form.transform.get();
+        if (t != null)
         {
-            if (!form.visible.get())
-            {
-                return;
-            }
-
-            Matrix4f local = new Matrix4f(parent);
-            Transform t = form.transform.get();
-            if (t != null)
-            {
-                Matrix4f tm = new Matrix4f();
-                t.setupMatrix(tm);
-                local.mul(tm);
-            }
-
-            if (form instanceof PointLightForm point)
-            {
-                emitPoint(point, local, baseX, baseY, baseZ);
-            }
-            else if (form instanceof SpotlightForm spot)
-            {
-                emitSpot(spot, local, baseX, baseY, baseZ);
-            }
-
-            if (form.parts == null)
-            {
-                return;
-            }
-            List<BodyPart> parts = form.parts.getAllTyped();
-            if (parts == null)
-            {
-                return;
-            }
-
-            for (int i = 0, n = parts.size(); i < n; i++)
-            {
-                BodyPart part = parts.get(i);
-                if (part == null)
-                {
-                    continue;
-                }
-
-                String bone = part.bone.get();
-                if (bone != null && !bone.isEmpty())
-                {
-                    continue;
-                }
-
-                Form child = part.getForm();
-                if (child == null)
-                {
-                    continue;
-                }
-
-                Matrix4f childM = new Matrix4f(local);
-                Transform pt = part.transform.get();
-                if (pt != null)
-                {
-                    Matrix4f ptm = new Matrix4f();
-                    pt.setupMatrix(ptm);
-                    childM.mul(ptm);
-                }
-
-                walk(child, childM, baseX, baseY, baseZ, transition);
-            }
+            Matrix4f tm = new Matrix4f();
+            t.setupMatrix(tm);
+            local.mul(tm);
         }
-        finally
+
+        if (form instanceof PointLightForm point)
         {
-            form.unapplyStates();
+            emitPoint(point, local, baseX, baseY, baseZ);
+        }
+        else if (form instanceof SpotlightForm spot)
+        {
+            emitSpot(spot, local, baseX, baseY, baseZ);
+        }
+
+        if (form.parts == null)
+        {
+            return;
+        }
+        List<BodyPart> parts = form.parts.getAllTyped();
+        if (parts == null)
+        {
+            return;
+        }
+
+        for (int i = 0, n = parts.size(); i < n; i++)
+        {
+            BodyPart part = parts.get(i);
+            if (part == null)
+            {
+                continue;
+            }
+
+            String bone = part.bone.get();
+            if (bone != null && !bone.isEmpty())
+            {
+                continue;
+            }
+
+            Form child = part.getForm();
+            if (child == null)
+            {
+                continue;
+            }
+
+            Matrix4f childM = new Matrix4f(local);
+            Transform pt = part.transform.get();
+            if (pt != null)
+            {
+                Matrix4f ptm = new Matrix4f();
+                pt.setupMatrix(ptm);
+                childM.mul(ptm);
+            }
+
+            walk(child, childM, baseX, baseY, baseZ);
         }
     }
 
@@ -432,7 +404,7 @@ public final class LightCollector
             Matrix4f root = new Matrix4f().identity();
             root.rotateY((float) Math.toRadians(-bodyYaw));
 
-            walk(rootForm, root, wx, wy, wz, tickDelta);
+            walk(rootForm, root, wx, wy, wz);
         }
     }
 
@@ -446,7 +418,7 @@ public final class LightCollector
                 return null;
             }
 
-            UIDashboard dashboard = BBSModClient.getDashboard();
+            UIDashboard dashboard = BBSModClient.getDashboardIfCreated();
             if (dashboard == null || !(dashboard.getPanels().panel instanceof UIFilmPanel filmPanel))
             {
                 return null;
