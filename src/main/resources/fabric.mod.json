@@ -4,7 +4,7 @@
 	"version": "${version}",
 	"name": "IRLite",
 	"description": "",
-	"authors": ["wemppy", "qualet"],
+	"authors": ["qualet", "ElGatoPro300"],
 	"contact": {},
 	"license": "CC-BY-ND-4.0",
 	"icon": "assets/irlite/icon.png",
