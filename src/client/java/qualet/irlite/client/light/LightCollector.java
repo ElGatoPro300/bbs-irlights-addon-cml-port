@@ -446,7 +446,7 @@ public final class LightCollector
                 return null;
             }
 
-            UIDashboard dashboard = BBSModClient.getDashboardIfCreated();
+            UIDashboard dashboard = BBSModClient.getDashboard();
             if (dashboard == null || !(dashboard.getPanels().panel instanceof UIFilmPanel filmPanel))
             {
                 return null;
