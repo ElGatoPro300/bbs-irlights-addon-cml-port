@@ -1,6 +1,6 @@
 ---
 name: project-irl-sync-strategy
-description: "Карта дрейфа аддон<->редактор: что SHAREABLE (свет/патчер/тени-оркестрация -> общий irl-core) vs форк (касты/UI/Iris-миксины per-mod). Ф0+Ф2 done, Ф1 отменён, Stonecutter не внедряется. Единственный недовынесенный шов = CookieArray. Версии = per-MC ветки (универс-jar отменён)."
+description: "Карта дрейфа аддон<->редактор: что SHAREABLE (свет/патчер/тени-оркестрация -> общий irl-core) vs форк (касты/UI/Iris-миксины per-mod). Ф0+Ф2 done, Ф1 отменён, Stonecutter не внедряется. Версии = per-MC ветки. УСТАРЕВШЕЕ скорректировано ревью 2026-07-04 -> plan-irl-core-library-extraction (швов 8, не один CookieArray; .irlights разъехались; editor пин 1.0-obt)."
 metadata:
   node_type: memory
   type: project
@@ -22,7 +22,7 @@ metadata:
 - Ф1 (бэкпорт 6 перф-опт redactor->IRLite) — ОТМЕНЁН: общая оркестрация теней даёт аддону перф даром.
 - Ф3 / Stonecutter — НЕ внедряются (версии-линии живут отдельными ветками; per-version убил Loom-трение, ради которого Stonecutter рассматривался).
 
-ОСТАВШИЙСЯ ШОВ (durable): единственная реально невынесенная экстракция = CookieArray (~150 строк GL, байт-идентичный дубль addon<->redactor, GPU-only, ROI > риск) — кандидат в core. НЕ выносить: .irlights-дедуп (противоречит IRLite-владению генерацией, п.5); IrisShadersState за интерфейс (добавило бы зависимость core->Iris). Тот факт, что addon-jar (306KB) > core (69KB) — СТРУКТУРНО (JiJ + контент), не недоделка.
+ОСТАВШИЙСЯ ШОВ — СЕКЦИЯ ОПРОВЕРГНУТА ревью 2026-07-04 ([[plan-irl-core-library-extraction]], adversarial 83 агента): общих файлов ВОСЕМЬ, не один CookieArray (плюс IrisShadersState байт-идентичен, GameRendererLightMixin >90% общего тела, WorldBlockChangeMixin, оба Iris-миксина почти идентичны); CookieArray к 2026-07 уже НЕ байт-идентичен (addon 32+LRU vs editor 16 без эвикции); п.5 ".irlights контент идентичен" тоже устарел — все 6 пар различаются на десятки КБ (editor заморожен fix-only-main, editor пинит irl-core:1.0-obt при core 1.1 = компайл-брейк). Актуальный план выносов и поправки = plan-irl-core-library-extraction. Осталось верным: addon-jar (306KB) > core (69KB) — СТРУКТУРНО (JiJ + контент), не недоделка.
 
 ВЕРСИОНИРОВАНИЕ (итог): единый универс-jar (Route A -Pmc=) СНЯТ — заменён per-MC ветками после Ф2-shadow: MC-типизированный core => per-MC (на каждую MC свой core через publishToMavenLocal; intermediary версионно-специфичны). Карта версий×модов = [[reference-edit-routing-by-area]]; сборка = [[tool-build-trilogy-script]].
 

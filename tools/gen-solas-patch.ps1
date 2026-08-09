@@ -58,7 +58,7 @@ $c1Inc = $c1[$CS..($G - 1)]
 if ($c1Inc[-1] -ne '') { throw "expected trailing blank in c1Inc" }
 if ($c1Inc[-2] -ne '#include "/lib/irlite/irlite_lights.glsl"') { throw "c1Inc include line unexpected" }
 $D = IndexOfLine $c1 "`t/* DRAWBUFFERS:0 */"
-$IS = IndexOfLine $c1 "`t#if defined IRLITE_ACTIVE && defined IRLITE_OUTLINE"
+$IS = IndexOfLine $c1 "`t#ifdef IRLITE_ACTIVE"   # outline block gate (UBO-driven post CR-sync; was `&& defined IRLITE_OUTLINE`)
 $c1Body = $c1[$IS..($D - 1)]
 if ($c1Body[-1] -ne '') { throw "expected trailing blank in c1Body" }
 
@@ -79,15 +79,15 @@ $tIdx = $pr[$SL].IndexOf('VANILLA_AO SSAO AO_STRENGTH')
 if ($tIdx -lt 0) { throw "screen.LIGHTING tail anchor not found" }
 $screenTail = $pr[$SL].Substring($tIdx)
 if (-not $screenTail.EndsWith('[IRLIGHTS]')) { throw "screen.LIGHTING tail unexpected" }
-$screens = $pr[($SL + 1)..($SL + 6)]
+$screens = @($pr[$SL + 1])   # flat single screen post CR-sync (the 5 sub-screens were folded in)
 if (-not $screens[0].StartsWith('screen.IRLIGHTS=')) { throw "screens block head unexpected" }
-if (-not $screens[5].StartsWith('screen.IRLIGHTS_OUTLINE=')) { throw "screens block tail unexpected" }
+if ($pr[$SL + 2].StartsWith('screen.IRLIGHTS_')) { throw "flat screen expected, found a leftover IRLIGHTS sub-screen" }
 $slLine = $pr | Where-Object { $_.StartsWith('sliders=') }
 if (@($slLine).Count -ne 1) { throw "sliders line not unique" }
 $slIdx = $slLine.IndexOf('BLOOM_STRENGTH_END WAVING_AMPLITUDE')
 if ($slIdx -lt 0) { throw "sliders tail anchor not found" }
 $slBody = $slLine.Substring($slIdx)
-if (-not $slBody.EndsWith('IRLITE_OUTLINE_GLOW_STRENGTH')) { throw "sliders body tail unexpected" }
+if (-not $slBody.EndsWith('IRLITE_TOON_SMOOTH')) { throw "sliders body tail unexpected" }
 
 # lang: everything after the pack's true last line, both locales. The ru anchor
 # line is taken from the file itself (no cyrillic literals in this script).

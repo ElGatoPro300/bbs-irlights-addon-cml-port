@@ -1,0 +1,40 @@
+name: Release on tag
+
+# The product jar links against a third-party BBS jar that is NOT in git, so the
+# jar can only be built on a dev machine. The normal way to cut a release is
+# `tools/release.ps1`, which builds locally and creates the Release (with the jar
+# attached) in the same call that pushes the tag.
+#
+# This workflow is only a SAFETY NET: if a v* tag ever gets pushed by hand without
+# a matching Release, it creates a DRAFT release with auto-generated notes so the
+# tag is not silently lost. It never overwrites an existing Release, and it does
+# not build or attach a jar. Attach the jar afterwards and publish with:
+#
+#     gh release upload vX.Y.Z build/libs/irlite-X.Y.Z+mc1.20.1.jar
+#     gh release edit   vX.Y.Z --draft=false
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  ensure-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create draft release if one is missing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            echo "Release $TAG already exists (cut by tools/release.ps1). Nothing to do."
+          else
+            echo "No Release for $TAG - creating a draft with generated notes (no jar)."
+            gh release create "$TAG" --repo "$REPO" --title "$TAG" --generate-notes --draft
+            echo "::notice::Draft $TAG created. Attach the jar and publish - see release.yml header."
+          fi

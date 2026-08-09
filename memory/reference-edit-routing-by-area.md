@@ -16,14 +16,16 @@ metadata:
 | bbs-irlights-addon | Fabric (Loom 1.9 master / 1.15 port-1.21.1) | BBS-аддон: свет от BBS Form/Film/Morph, тени с BBS-кастером | jar в mods/ |
 | irlights | Fabric (Loom 1.9 main / 1.15 port-1.21.1 / 1.14 port-1.21.11) | standalone ImGui-редактор того же света + патчер-UI | jar в mods/ |
 
-Версии × присутствие модов (актуально 2026-06-18):
-| MC | irl-core | аддон (BBS) | редактор |
+Версии × присутствие модов (актуально 2026-07-08, [[project-trilogy-unify-11]]):
+| MC | irl-core (ветка) | аддон (BBS) | редактор |
 |---|---|---|---|
-| 1.20.x (1.20.1/1.20.4) | да | да, master (универс. jar -Pmc) | да, main (1.20.4) + port/1.20.1 |
-| 1.21.1 | да | да, port/1.21.1 — ФИНАЛ для аддона | да, port/1.21.1 |
-| 1.21.11 | да | НЕТ, BBS не существует на этих версиях | да, port/1.21.11 (редактор-онли) |
+| 1.20.4 | main | master -Pmc=1.20.4 | main |
+| 1.20.1 | main (отд. ветки НЕТ — совместим) | master -Pmc=1.20.1 | port/1.20.1 |
+| 1.21.1 | 1.21.1 | port/1.21.1 — ФИНАЛ для аддона | port/1.21.1 |
+| 1.21.4 | 1.21.4 | НЕТ (BBS макс 1.21.1) | port/1.21.4 |
+| 1.21.11 | 1.21.11 | НЕТ | port/1.21.11 |
 
-Все три версии-линии потребляют общий irl-core (Ф2-миграция закрыта на ВСЕХ линиях redactor: main@348261b, port/1.21.1@77de503, port/1.21.11@1093f64). BBS-аддон остановлен на 1.21.1 — дальше (1.21.11+) только редактор.
+ВСЕ линии ОБОИХ модов на per-version ядре из mavenLocal (JiJ; вклеенных копий движка НЕ осталось — E3 закрыт 2026-07-08). Версия всей трилогии = 1.1; jar = <name>-1.1+mc<ver>.jar. Сборка/раздача = BBS/build-trilogy.ps1 ([[tool-build-trilogy-script]]).
 
 Папки переименованы 2026-06-18: IRLite->bbs-irlights-addon, IRL-redactor->irlights (имена модов в прозе сохранены).
 
@@ -32,7 +34,7 @@ metadata:
 |---|---|---|
 | Логика parse/validate/apply | irl-core | org.qualet.irl.patcher.{IrlPatchParser, IrlPatchApplier, PatchEngine, IrlPatch, PatchResult, PatchLibrary, Shaderpacks, Patcher} |
 | Биндинг к окружению (gameDir / Iris API / openFolder) | per-mod host | IRLite -> BbsPatcherHost (UIUtils, BBS Iris-аксессоры) • redactor -> RedactorPatcherHost (Util.getOperatingSystem().open, MC Iris API) |
-| Содержимое .irlights (ops в shaders.properties, новые паки) | только IRLite (источник правды) | bbs-irlights-addon/Shadres/Original\|Modification/<pack>/ + bbs-irlights-addon/tools/gen-<pack>-patch.ps1 -> артефакт bbs-irlights-addon/patches/<pack>.irlights. Затем синк в redactor: irlights/tools/copy-patches.ps1 (одно-направл.). |
+| Содержимое .irlights (ops в shaders.properties, новые паки) | только IRLite (источник правды) | bbs-irlights-addon/Shadres/Original\|Modification/<pack>/ + bbs-irlights-addon/tools/gen-<pack>-patch.ps1 -> артефакт bbs-irlights-addon/patches/<pack>.irlights. Затем синк в redactor: pwsh irlights/tools/copy-patches.ps1 (одно-направл.; СОЗДАН 2026-07-05 — до этого скрипта не существовало и патчи редактора замерзали с 2026-06-20) -> irlights/src/client/resources/assets/irl-redactor/patches/ (бандл в jar). НОВЫЙ пак дополнительно требует строку в RedactorPatcherHost.BUNDLED (захардкоженный List.of; UI PatcherPanel динамический через PatchLibrary.list). Извлечение PatchLibrary.extractBundled в run/irl-redactor/patches/ = refresh-on-mismatch (byte-compare + перезапись), stale-кэш сам обновится. iterationrp.irlights gitignored в редакторе (.gitignore:30) — синкается локально, не коммитится. |
 | UI-панель патчера | per-mod | IRLite -> BBS UI • redactor -> org.qualet.irlredactor.editor.PatcherPanel (ImGui) |
 | .gitattributes для .irlights | оба мода (* text eol=lf) — пресечь EOL-дрейф |
 
@@ -82,14 +84,14 @@ Quick rules (запомнить дословно):
 - Содержимое .irlights -> правишь в IRLite (Shadres + gen-*.ps1), затем irlights/tools/copy-patches.ps1.
 - UI / гайды / gizmo / ImGui -> только redactor.
 - Iris-миксины -> per-mod, версионные; не пытайся шарить.
-- port/1.21.11 для теней — отдельный мир (raw-GL); не «прихватывай заодно» при правке main. port/1.21.1 — наоборот near-lockstep с main (реал-модельные тени).
-- Java toolchain: irl-core теперь per-version Loom-модуль (Ф2-shadow): эталон 1.20.4 = Java17 / Loom 1.9 (наистарший Loom среди потребителей — артефакт принимают и Loom 1.15.5-потребители; Gradle 9.2.0). Аддон 1.20.x = Loom 1.15.5; редактор 1.20.x = Loom 1.9. 1.21.1 = Java 21 / Loom 1.15. 1.21.11 = Java 21 / Loom 1.14. (Прежний вердикт «общий shadow-модуль отклонён, тени через lockstep» ОТМЕНЁН — per-version убил Loom-трение; см. [[plan-irl-core-shadow-extraction]].)
+- Тени на 1.21.11 — отдельный мир на уровне ЯДРА (ветка core 1.21.11 = raw-GL бэкенд + шов RawOccluderBatch вместо Immediate; см. [[project-port-12111-refresh]]); у редакторских порт-веток СВОИХ shadow-деревьев больше нет (E3 закрыт). port/1.21.1 — near-lockstep с main.
+- Java toolchain: core main 1.20.4 = Java17 / Loom 1.9; ветки core 1.21.x = Java 21 / Loom 1.15.5. Редактор: main+port/1.20.1 = Loom 1.9, порты 1.21.x = Loom 1.15.5. Аддон = Loom 1.15.5. JDK 21 = C:/Program Files/Eclipse Adoptium/jdk-21.0.11.10-hotspot (системный JAVA_HOME = JVM 8 — gradlew всегда запускать с явным JAVA_HOME).
 
 Ключевые инструменты:
 | Команда | Цель |
 |---|---|
 | <BBS>/irl-core/gradlew publishToMavenLocal | Опубликовать core (remapped) в mavenLocal — ОБЯЗАТЕЛЬНО перед сборкой модов (свет/патчер/тени в core). verify-shadow-lockstep.py RETIRED (Ф2). |
-| pwsh <BBS>/irlights/tools/copy-patches.ps1 | Однонапр. синк .irlights из IRLite в redactor (после регенерации в IRLite) |
+| pwsh <BBS>/irlights/tools/copy-patches.ps1 | Однонапр. синк .irlights из IRLite в redactor (после регенерации в IRLite). Создан 2026-07-05; новый пак = ещё +строка в RedactorPatcherHost.BUNDLED |
 | <BBS>/irl-core/gradlew build | Компиляция core без публикации (для потребления модами нужен publishToMavenLocal, см. выше) |
 | <BBS>/bbs-irlights-addon/gradlew build -Pmc=1.20.4 --refresh-dependencies | Сборка IRLite 1.20.4 (MC-версионный core => per-MC: -Pmc обязан совпасть с опубликованной core-версией; универсальный jar 1.20.1+1.20.4 БОЛЬШЕ НЕ работает на per-MC core линиях; нужен core-1.20.1 для 1.20.1) |
 | <BBS>/irlights/gradlew build | Сборка redactor (текущая ветка = MC-версия: main=1.20.4, port/1.21.1=1.21.1, port/1.21.11=1.21.11) |
