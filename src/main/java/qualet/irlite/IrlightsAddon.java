@@ -7,6 +7,7 @@ import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.events.BBSAddonMod;
 import mchorse.bbs_mod.events.Subscribe;
 import mchorse.bbs_mod.events.register.RegisterSettingsEvent;
+import mchorse.bbs_mod.events.register.RegisterBBSSettingsEvent;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.SettingsBuilder;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -28,6 +29,12 @@ public class IrlightsAddon implements BBSAddonMod
     public void registerSettings(RegisterSettingsEvent event)
     {
         event.register(Icons.LIGHT, MODULE, IrlightsAddon::build);
+    }
+
+    @Subscribe
+    public void registerBBSSettings(RegisterBBSSettingsEvent event)
+    {
+        build(event.getBuilder());
     }
 
     private static void build(SettingsBuilder builder)
