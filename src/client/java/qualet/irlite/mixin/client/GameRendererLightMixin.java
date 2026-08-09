@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.qualet.irl.light.FramePipeline;
 import org.qualet.irl.light.iris.IrisShadersState;
-import qualet.irlite.client.light.IrliteLightPipeline;
+import qualet.irlite.client.light.LightCollector;
 
 @Mixin(GameRenderer.class)
 public class GameRendererLightMixin
@@ -16,11 +16,6 @@ public class GameRendererLightMixin
     @Inject(method = "renderWorld", at = @At("HEAD"))
     private void irlite$collectLights(float tickDelta, long limitTime, MatrixStack matrices, CallbackInfo ci)
     {
-        FramePipeline.frame(
-            tickDelta,
-            IrisShadersState::shadersDisabled,
-            IrliteLightPipeline::collect,
-            IrliteLightPipeline::afterFrame
-        );
+        FramePipeline.frame(tickDelta, IrisShadersState::shadersDisabled, LightCollector::collect, () -> {});
     }
 }
