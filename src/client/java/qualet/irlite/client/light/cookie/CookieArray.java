@@ -117,6 +117,55 @@ public final class CookieArray extends CookieArrayBase
         }
     }
 
+    /** Resolve a raw pixel buffer (e.g. from CAL gobos) into an array layer under a string key. */
+    public static int resolveRaw(String key, ByteBuffer pixels)
+    {
+        return INSTANCE.resolveRaw0(key, pixels);
+    }
+
+    private int resolveRaw0(String key, ByteBuffer pixels)
+    {
+        if (key == null || key.isEmpty() || pixels == null)
+        {
+            return -1;
+        }
+        Integer cached = layerByKey.get(key);
+        if (cached != null)
+        {
+            lastUse.put(key, ++useCounter);
+            return cached;
+        }
+        try
+        {
+            int layer = (nextLayer < MAX_LAYERS) ? nextLayer++ : evictLru();
+            uploadLayer(pixels, layer);
+            layerByKey.put(key, layer);
+            lastUse.put(key, ++useCounter);
+            LOG.debug("Cookie (raw) loaded '{}' -> layer {}", key, layer);
+            return layer;
+        }
+        finally
+        {
+            MemoryUtil.memFree(pixels);
+        }
+    }
+
+    public static boolean hasLayer(String key)
+    {
+        return INSTANCE.layerByKey.containsKey(key);
+    }
+
+    public static int getLayer(String key)
+    {
+        Integer l = INSTANCE.layerByKey.get(key);
+        if (l != null)
+        {
+            INSTANCE.lastUse.put(key, ++INSTANCE.useCounter);
+            return l;
+        }
+        return -1;
+    }
+
     /** Drop the least-recently-used cookie and hand its layer to the caller. Only
      *  called with a full array, which always has (way) more layers than there are
      *  cookies used in a single frame — the evicted key is never in active use. */
