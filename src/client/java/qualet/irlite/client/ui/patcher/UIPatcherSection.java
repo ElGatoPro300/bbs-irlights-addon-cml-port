@@ -1,5 +1,6 @@
 package qualet.irlite.client.ui.patcher;
 
+import mchorse.bbs_mod.l10n.L10n;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
@@ -70,12 +71,12 @@ public final class UIPatcherSection
                 rebuild.run();
             }
         });
-        refresh.tooltip(IKey.constant("Refresh lists"));
+        refresh.tooltip(L10n.lang("irlite.ui.patcher.refresh"));
 
         UIIcon openPacks = new UIIcon(Icons.FOLDER, (b) -> Shaderpacks.openFolder());
-        openPacks.tooltip(IKey.constant("Open shaderpacks folder"));
+        openPacks.tooltip(L10n.lang("irlite.ui.patcher.open_folder"));
 
-        options.add(headerRow("Shaderpacks", refresh, openPacks));
+        options.add(headerRow(L10n.lang("irlite.ui.patcher.shaderpacks"), refresh, openPacks));
 
         UILabelList<String> packList = new UILabelList<>((selected) ->
         {
@@ -99,9 +100,9 @@ public final class UIPatcherSection
 
         // --- patch list (header row: label + open folder) ---
         UIIcon openPatches = new UIIcon(Icons.FOLDER, (b) -> PatchLibrary.openFolder());
-        openPatches.tooltip(IKey.constant("Open patches folder"));
+        openPatches.tooltip(L10n.lang("irlite.ui.patcher.open_patches_folder"));
 
-        options.add(headerRow("Patches", openPatches));
+        options.add(headerRow(L10n.lang("irlite.ui.patcher.patches"), openPatches));
 
         UILabelList<Path> patchList = new UILabelList<>((selected) ->
         {
@@ -129,13 +130,13 @@ public final class UIPatcherSection
         updateMeta(packList);
 
         // --- options + primary actions ---
-        UIToggle createNewToggle = new UIToggle(IKey.constant("Create new pack each time"), (t) -> createNew = t.getValue());
+        UIToggle createNewToggle = new UIToggle(L10n.lang("irlite.ui.patcher.create_copy"), (t) -> createNew = t.getValue());
         createNewToggle.setValue(createNew);
         options.add(createNewToggle);
 
-        UIButton validate = new UIButton(IKey.constant("Validate"), (b) -> runValidate());
-        validate.tooltip(IKey.constant("Dry-run: check every op against the selected pack, write nothing"));
-        UIButton patch = new UIButton(IKey.constant("Patch"), (b) -> runPatch());
+        UIButton validate = new UIButton(L10n.lang("irlite.ui.patcher.validate"), (b) -> runValidate());
+        validate.tooltip(L10n.lang("irlite.ui.patcher.validate_tooltip"));
+        UIButton patch = new UIButton(L10n.lang("irlite.ui.patcher.apply"), (b) -> runPatch());
         options.add(UI.row(validate, patch));
 
         statusLabel = new UIText(IKey.constant(status)).color(statusColor, true);
@@ -332,7 +333,7 @@ public final class UIPatcherSection
     }
 
     /** A header row with the label flexing on the left and fixed icon buttons on the right (icons vertically centered with the text). */
-    private static UIElement headerRow(String text, UIIcon... icons)
+    private static UIElement headerRow(IKey text, UIIcon... icons)
     {
         int rowH = 18;
 
@@ -344,7 +345,7 @@ public final class UIPatcherSection
         // Vertically center the label text so it lines up with the centered icons.
         // anchorY centers within (area.h - fontHeight), so the label must span the
         // full row height — UILabel otherwise auto-sizes to the font height.
-        UILabel header = UI.label(IKey.constant(text));
+        UILabel header = UI.label(text);
         header.labelAnchor(0F, 0.5F);
         header.h(rowH);
         row.add(header);

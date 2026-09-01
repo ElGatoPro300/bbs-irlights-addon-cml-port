@@ -1,5 +1,6 @@
 package qualet.irlite.client.ui.forms.editors.panels;
 
+import mchorse.bbs_mod.l10n.L10n;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
 import mchorse.bbs_mod.ui.forms.editors.panels.UIFormPanel;
@@ -47,7 +48,7 @@ public class UISpotlightFormPanel extends UIFormPanel<SpotlightForm>
         this.vlDensity = IrliteTrackpads.create((v) -> this.form.vlDensity.set(v.floatValue())).limit(0.005, 0.5);
         this.bulbSize = IrliteTrackpads.create((v) -> this.form.bulbSize.set(v.floatValue())).limit(0, 2);
         // "Entities only" and "Blocks only" are mutually exclusive (both on = light lights nothing).
-        this.entitiesOnly = new UIToggle(IKey.constant("Entities only"), (b) -> {
+        this.entitiesOnly = new UIToggle(L10n.lang("irlite.forms.entities_only"), (b) -> {
             this.form.entitiesOnly.set(b.getValue());
             if (b.getValue())
             {
@@ -55,7 +56,7 @@ public class UISpotlightFormPanel extends UIFormPanel<SpotlightForm>
                 this.blocksOnly.setValue(false);
             }
         });
-        this.blocksOnly = new UIToggle(IKey.constant("Blocks only"), (b) -> {
+        this.blocksOnly = new UIToggle(L10n.lang("irlite.forms.blocks_only"), (b) -> {
             this.form.blocksOnly.set(b.getValue());
             if (b.getValue())
             {
@@ -63,63 +64,63 @@ public class UISpotlightFormPanel extends UIFormPanel<SpotlightForm>
                 this.entitiesOnly.setValue(false);
             }
         });
-        this.shadows = new UIToggle(IKey.constant("Shadows"), (b) -> this.form.shadows.set(b.getValue()));
+        this.shadows = new UIToggle(L10n.lang("irlite.forms.shadows"), (b) -> this.form.shadows.set(b.getValue()));
 
         // Gobo / cookie: a projected grayscale mask (white = pass, black = block).
         // OFF until a texture is picked. All four fields keyframe in the film editor.
-        this.cookiePick = new UIButton(IKey.constant("Cookie texture (gobo)"), (b) ->
+        this.cookiePick = new UIButton(L10n.lang("irlite.forms.cookie_texture"), (b) ->
             UITexturePicker.open(this.getContext(), this.form.cookie.get(), (l) -> this.form.cookie.set(l)));
         this.cookieRotation = IrliteTrackpads.create((v) -> this.form.cookieRotation.set(v.floatValue())).limit(0, 360);
         this.cookieScale = IrliteTrackpads.create((v) -> this.form.cookieScale.set(v.floatValue())).limit(0.1, 4);
-        this.cookieInvert = new UIToggle(IKey.constant("Invert gobo"), (b) -> this.form.cookieInvert.set(b.getValue()));
+        this.cookieInvert = new UIToggle(L10n.lang("irlite.forms.cookie_invert"), (b) -> this.form.cookieInvert.set(b.getValue()));
 
         // Collapsible sections need BBS's UISection (newer 2.3.x builds only). On older
         // BBS the class is absent, so fall back to a flat option list — see IrliteBbsCompat.
         if (IrliteBbsCompat.SECTIONS)
         {
             this.options.add(
-                IrliteFormSections.section("Light",
-                    UI.label(IKey.constant("Color")), this.color,
-                    UI.label(IKey.constant("Intensity")), this.intensity,
-                    UI.label(IKey.constant("Range")), this.range,
-                    UI.label(IKey.constant("Radius")), this.radius,
-                    UI.label(IKey.constant("Inner radius")), this.innerRadius
+                IrliteFormSections.section(L10n.lang("irlite.forms.light").get(),
+                    UI.label(L10n.lang("irlite.forms.color")), this.color,
+                    UI.label(L10n.lang("irlite.forms.intensity")), this.intensity,
+                    UI.label(L10n.lang("irlite.forms.range")), this.range,
+                    UI.label(L10n.lang("irlite.forms.radius")), this.radius,
+                    UI.label(L10n.lang("irlite.forms.inner_radius")), this.innerRadius
                 ),
-                IrliteFormSections.spaced("Volumetric beam",
-                    UI.label(IKey.constant("Beam strength")), this.beamStrength,
-                    UI.label(IKey.constant("Anisotropy")), this.anisotropy,
-                    UI.label(IKey.constant("VL density")), this.vlDensity
+                IrliteFormSections.spaced(L10n.lang("irlite.forms.volumetric_beam").get(),
+                    UI.label(L10n.lang("irlite.forms.beam_strength")), this.beamStrength,
+                    UI.label(L10n.lang("irlite.forms.anisotropy")), this.anisotropy,
+                    UI.label(L10n.lang("irlite.forms.vl_density")), this.vlDensity
                 ),
-                IrliteFormSections.spaced("Shadows",
+                IrliteFormSections.spaced(L10n.lang("irlite.forms.shadows").get(),
                     this.shadows,
-                    UI.label(IKey.constant("Bulb size (shadow softness)")), this.bulbSize
+                    UI.label(L10n.lang("irlite.forms.bulb_size")), this.bulbSize
                 ),
-                IrliteFormSections.spaced("Affects", this.entitiesOnly, this.blocksOnly),
-                IrliteFormSections.spaced("Cookie / gobo (spot mask)",
+                IrliteFormSections.spaced(L10n.lang("irlite.forms.affects").get(), this.entitiesOnly, this.blocksOnly),
+                IrliteFormSections.spaced(L10n.lang("irlite.forms.cookie_section").get(),
                     this.cookiePick,
-                    UI.label(IKey.constant("Cookie rotation")), this.cookieRotation,
-                    UI.label(IKey.constant("Cookie scale")), this.cookieScale,
+                    UI.label(L10n.lang("irlite.forms.cookie_rotation")), this.cookieRotation,
+                    UI.label(L10n.lang("irlite.forms.cookie_scale")), this.cookieScale,
                     this.cookieInvert
                 )
             );
         }
         else
         {
-            this.options.add(UI.label(IKey.constant("Color")), this.color);
-            this.options.add(UI.label(IKey.constant("Intensity")), this.intensity);
-            this.options.add(UI.label(IKey.constant("Range")), this.range);
-            this.options.add(UI.label(IKey.constant("Radius")), this.radius);
-            this.options.add(UI.label(IKey.constant("Inner radius")), this.innerRadius);
-            this.options.add(UI.label(IKey.constant("Beam strength")), this.beamStrength);
-            this.options.add(UI.label(IKey.constant("Anisotropy")), this.anisotropy);
-            this.options.add(UI.label(IKey.constant("VL density")), this.vlDensity);
-            this.options.add(UI.label(IKey.constant("Bulb size (shadow softness)")), this.bulbSize);
+            this.options.add(UI.label(L10n.lang("irlite.forms.color")), this.color);
+            this.options.add(UI.label(L10n.lang("irlite.forms.intensity")), this.intensity);
+            this.options.add(UI.label(L10n.lang("irlite.forms.range")), this.range);
+            this.options.add(UI.label(L10n.lang("irlite.forms.radius")), this.radius);
+            this.options.add(UI.label(L10n.lang("irlite.forms.inner_radius")), this.innerRadius);
+            this.options.add(UI.label(L10n.lang("irlite.forms.beam_strength")), this.beamStrength);
+            this.options.add(UI.label(L10n.lang("irlite.forms.anisotropy")), this.anisotropy);
+            this.options.add(UI.label(L10n.lang("irlite.forms.vl_density")), this.vlDensity);
+            this.options.add(UI.label(L10n.lang("irlite.forms.bulb_size")), this.bulbSize);
             this.options.add(this.entitiesOnly);
             this.options.add(this.blocksOnly);
             this.options.add(this.shadows);
-            this.options.add(UI.label(IKey.constant("Cookie / gobo (spot mask)")), this.cookiePick);
-            this.options.add(UI.label(IKey.constant("Cookie rotation")), this.cookieRotation);
-            this.options.add(UI.label(IKey.constant("Cookie scale")), this.cookieScale);
+            this.options.add(UI.label(L10n.lang("irlite.forms.cookie_section")), this.cookiePick);
+            this.options.add(UI.label(L10n.lang("irlite.forms.cookie_rotation")), this.cookieRotation);
+            this.options.add(UI.label(L10n.lang("irlite.forms.cookie_scale")), this.cookieScale);
             this.options.add(this.cookieInvert);
         }
     }

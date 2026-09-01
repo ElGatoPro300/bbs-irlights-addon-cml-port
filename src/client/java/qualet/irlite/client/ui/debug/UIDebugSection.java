@@ -1,5 +1,6 @@
 package qualet.irlite.client.ui.debug;
 
+import mchorse.bbs_mod.l10n.L10n;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
@@ -26,14 +27,16 @@ public final class UIDebugSection
             return;
         }
 
-        UILabel header = UI.label(IKey.constant("Debug"));
+        UILabel header = UI.label(L10n.lang("irlite.ui.debug.title"));
         header.marginTop(6);
         options.add(header);
 
         boolean on = VlProfiler.isEnabledOrPending();
-        UIButton button = new UIButton(IKey.constant(on
-            ? "Hide performance overlay"
-            : "Show performance overlay"), (b) ->
+        IKey labelKey = on
+            ? L10n.lang("irlite.ui.debug.hide_overlay")
+            : L10n.lang("irlite.ui.debug.show_overlay");
+
+        UIButton button = new UIButton(labelKey, (b) ->
         {
             VlProfiler.toggle();
 
@@ -43,10 +46,7 @@ public final class UIDebugSection
             }
         });
 
-        button.tooltip(IKey.constant("Per-pass GPU milliseconds in the top-left corner: the shadow "
-            + "bake segments, every Iris fullscreen pass and the VL march, plus CPU frame time and "
-            + "VRAM residency. Costs a GL timer query per pass, so leave it off for recording. "
-            + "Takes effect on the next frame."));
+        button.tooltip(L10n.lang("irlite.ui.debug.tooltip"));
         options.add(button);
     }
 }

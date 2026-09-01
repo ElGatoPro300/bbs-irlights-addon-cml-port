@@ -1,6 +1,7 @@
 package qualet.irlite.mixin.client;
 
 import mchorse.bbs_mod.l10n.L10n;
+import mchorse.bbs_mod.resources.Link;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -22,6 +23,9 @@ public class L10nMixin
     private void irlite$registerStrings(CallbackInfo ci)
     {
         L10n self = (L10n) (Object) this;
+
+        self.registerOne((lang) -> new Link("irlite", "assets/strings/" + lang + ".json"));
+        self.registerOne((lang) -> Link.assets("strings/" + lang + ".json"));
 
         // Tooltip of the module icon in the settings overlay's right-hand strip.
         self.getKey("irlights.config.title", "IRLights");
