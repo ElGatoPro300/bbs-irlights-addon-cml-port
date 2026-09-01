@@ -1,6 +1,6 @@
 package qualet.irlite.client.ui.forms.editors.panels;
 
-import mchorse.bbs_mod.l10n.keys.IKey;
+import mchorse.bbs_mod.l10n.L10n;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
 import mchorse.bbs_mod.ui.forms.editors.panels.UIFormPanel;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
@@ -35,7 +35,7 @@ public class UIPointLightFormPanel extends UIFormPanel<PointLightForm>
         this.vlDensity = IrliteTrackpads.create((v) -> this.form.vlDensity.set(v.floatValue())).limit(0.005, 0.5);
         this.bulbSize = IrliteTrackpads.create((v) -> this.form.bulbSize.set(v.floatValue())).limit(0, 2);
         // "Entities only" and "Blocks only" are mutually exclusive (both on = light lights nothing).
-        this.entitiesOnly = new UIToggle(IKey.constant("Entities only"), (b) -> {
+        this.entitiesOnly = new UIToggle(L10n.lang("irlite.forms.entities_only"), (b) -> {
             this.form.entitiesOnly.set(b.getValue());
             if (b.getValue())
             {
@@ -43,7 +43,7 @@ public class UIPointLightFormPanel extends UIFormPanel<PointLightForm>
                 this.blocksOnly.setValue(false);
             }
         });
-        this.blocksOnly = new UIToggle(IKey.constant("Blocks only"), (b) -> {
+        this.blocksOnly = new UIToggle(L10n.lang("irlite.forms.blocks_only"), (b) -> {
             this.form.blocksOnly.set(b.getValue());
             if (b.getValue())
             {
@@ -51,17 +51,17 @@ public class UIPointLightFormPanel extends UIFormPanel<PointLightForm>
                 this.entitiesOnly.setValue(false);
             }
         });
-        this.shadows = new UIToggle(IKey.constant("Shadows"), (b) -> this.form.shadows.set(b.getValue()));
+        this.shadows = new UIToggle(L10n.lang("irlite.forms.shadows"), (b) -> this.form.shadows.set(b.getValue()));
 
         // 1.21.1: BBS 2.2.1-1.21.1 has no UISection (a BBS 2.3.1 addition), so the
         // controls are laid out flat rather than in collapsible sections.
-        this.options.add(UI.label(IKey.constant("Color")), this.color);
-        this.options.add(UI.label(IKey.constant("Intensity")), this.intensity);
-        this.options.add(UI.label(IKey.constant("Radius")), this.radius);
-        this.options.add(UI.label(IKey.constant("Beam strength")), this.beamStrength);
-        this.options.add(UI.label(IKey.constant("Anisotropy")), this.anisotropy);
-        this.options.add(UI.label(IKey.constant("VL density")), this.vlDensity);
-        this.options.add(UI.label(IKey.constant("Bulb size (shadow softness)")), this.bulbSize);
+        this.options.add(UI.label(L10n.lang("irlite.forms.color")), this.color);
+        this.options.add(UI.label(L10n.lang("irlite.forms.intensity")), this.intensity);
+        this.options.add(UI.label(L10n.lang("irlite.forms.radius")), this.radius);
+        this.options.add(UI.label(L10n.lang("irlite.forms.beam_strength")), this.beamStrength);
+        this.options.add(UI.label(L10n.lang("irlite.forms.anisotropy")), this.anisotropy);
+        this.options.add(UI.label(L10n.lang("irlite.forms.vl_density")), this.vlDensity);
+        this.options.add(UI.label(L10n.lang("irlite.forms.bulb_size")), this.bulbSize);
         this.options.add(this.entitiesOnly);
         this.options.add(this.blocksOnly);
         this.options.add(this.shadows);

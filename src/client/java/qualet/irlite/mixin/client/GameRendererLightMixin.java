@@ -32,7 +32,12 @@ public class GameRendererLightMixin
         VlProfiler.frameTick();
         VlProfiler.beginPass(VlProfiler.PASS_BAKE);
         long pipelineT0 = System.nanoTime();
-        FramePipeline.frame(tickDelta, IrisShadersState::shadersDisabled, LightCollector::collect, () -> {});
+        FramePipeline.frame(
+            tickDelta,
+            IrisShadersState::shadersDisabled,
+            LightCollector::collect,
+            qualet.irlite.client.compat.IrliteCalCompat::resetCalAutoShadowRamp
+        );
         VlProfiler.cpuSample("pipeline", System.nanoTime() - pipelineT0);
         VlProfiler.endPass();
     }
