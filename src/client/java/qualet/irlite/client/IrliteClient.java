@@ -45,5 +45,9 @@ public class IrliteClient implements ClientModInitializer {
         // Register the per-mod gobo/cookie mask array into the shared sampler registry;
         // rebound from its 2D registration to GL_TEXTURE_2D_ARRAY at bind time.
         IrlSamplers.register("irl_cookieArray", CookieArray::getGlTextureId, GL30.GL_TEXTURE_2D_ARRAY);
+
+        if (qualet.irlite.client.compat.IrliteCalCompat.isCalPresent()) {
+            qualet.irlite.client.compat.IrliteCalCompat.ensureCookiesReady();
+        }
     }
 }

@@ -24,28 +24,31 @@ def mcVersions = [
         minecraft: '1.21.1',
         yarn     : '1.21.1+build.3',
         fabricApi: '0.116.12+1.21.1',
-        bbs      : '2.0-beta-1-1.21.1',
+        bbs      : '2.1-1.21.1',
         // Iris 1.8.8 keeps the 2-arg addDynamicSampler (4-arg arrives in 1.9+/1.10.7).
         sodium   : 'mc1.21.1-0.6.13-fabric',
         iris     : '1.8.8+1.21.1-fabric',
+        calEditor: '1.2.1-1.21.1',
         lwjglPin : null,
     ],
     '1.20.1': [
         minecraft: '1.20.1',
         yarn     : '1.20.1+build.10',
         fabricApi: '0.92.9+1.20.1',
-        bbs      : '2.0-beta-1-1.20.1',
+        bbs      : '2.1-1.20.1',
         sodium   : 'mc1.20.1-0.5.11',
         iris     : '1.7.2+1.20.1',
+        calEditor: '1.2.1-1.20.1',
         lwjglPin : '3.3.1',
     ],
     '1.20.4': [
         minecraft: '1.20.4',
         yarn     : '1.20.4+build.1',
         fabricApi: '0.91.1+1.20.4',
-        bbs      : '2.0-beta-1-1.20.4',
+        bbs      : '2.1-1.20.4',
         sodium   : 'mc1.20.4-0.5.8',
         iris     : '1.7.2+1.20.4',
+        calEditor: '1.2.1-1.20.4',
         lwjglPin : null,
     ],
 ]
@@ -54,6 +57,9 @@ if (!mcVersions.containsKey(mcTarget)) {
 }
 def V = mcVersions[mcTarget]
 logger.lifecycle("IRLite build target: Minecraft ${V.minecraft} (yarn ${V.yarn})")
+
+def irlCoreVersion = project.hasProperty("irl_core_version") ? project.property("irl_core_version") : "1.1.5"
+def irlCoreJar = "irl-core-${irlCoreVersion}-${V.minecraft}.jar"
 
 version = "${project.mod_version}+mc${V.minecraft}"
 group = project.maven_group
@@ -141,16 +147,13 @@ dependencies {
     modImplementation "net.fabricmc.fabric-api:fabric-api:${V.fabricApi}"
 
     // --- Shared BBS-free engine: light SSBO + .irlights patcher (irl-core) ---
-    // Per-version Loom module from mavenLocal: modClientImplementation remaps it from
-    // intermediary to this mod's named mappings; `include` bundles it (JiJ). Publish it
-    // with `gradlew publishToMavenLocal` in ../irl-core before building this mod.
-    modClientImplementation "org.qualet:irl-core:1.1.4"
-    include "org.qualet:irl-core:1.1.4"
+    modImplementation files("libs/${irlCoreJar}")
 
     // Iris is referenced at compile time (sampler mixins). Sodium is runtime-only.
     modImplementation "maven.modrinth:iris:${V.iris}"
     modImplementation "maven.modrinth:sodium:${V.sodium}"
     modImplementation "maven.modrinth:bbs-cml-edition:${V.bbs}"
+    modImplementation "maven.modrinth:irl-cal-editor:${V.calEditor}"
 
     // Iris runtime dependencies (not auto-pulled from the Modrinth artifact).
     modRuntimeOnly "org.anarres:jcpp:1.4.14"
@@ -161,12 +164,14 @@ processResources {
     inputs.property "version", project.version
     inputs.property "minecraft_version", project.minecraft_version
     inputs.property "loader_version", project.loader_version
+    inputs.property "irl_core_jar", irlCoreJar
     filteringCharset "UTF-8"
 
     filesMatching("fabric.mod.json") {
         expand "version": project.version,
                 "minecraft_version": project.minecraft_version,
-                "loader_version": project.loader_version
+                "loader_version": project.loader_version,
+                "irl_core_jar": irlCoreJar
     }
 
     // Embed the canonical .irlights (source of truth = patches/) so BbsPatcherHost
@@ -201,6 +206,10 @@ java {
 jar {
     from("LICENSE") {
         rename { "${it}_${project.archives_base_name}" }
+    }
+
+    from("libs/${irlCoreJar}") {
+        into "META-INF/jars"
     }
 }
 

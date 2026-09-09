@@ -1,5 +1,6 @@
 package qualet.irlite.client.ui.presets;
 
+import mchorse.bbs_mod.l10n.L10n;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UICirculate;
@@ -9,6 +10,7 @@ import qualet.irlite.IrlitePresets;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /** The two preset rows drawn at the top of the IRLite settings section, above
  *  the individual knobs they drive.
@@ -27,7 +29,7 @@ public final class UIPresetSection
     {
         List<UIElement> elements = new ArrayList<>();
 
-        UILabel header = UI.label(IKey.constant("Presets"));
+        UILabel header = UI.label(L10n.lang("irlite.ui.presets"));
         header.marginTop(6);
         elements.add(header);
 
@@ -43,17 +45,17 @@ public final class UIPresetSection
 
         for (String label : IrlitePresets.QUALITY_LABELS)
         {
-            quality.addLabel(IKey.constant(label));
+            quality.addLabel(L10n.lang("irlite.ui.preset." + label.toLowerCase(Locale.ROOT)));
         }
 
         quality.setValue(IrlitePresets.quality());
         quality.w(90);
 
-        elements.add(row(IKey.constant("Quality"), quality, IKey.constant(
-            "Cost of the lighting: march steps, ray distance, shadow and noise tap strides, "
-                + "shadow map resolution and the shader light cap. Custom means the knobs below "
-                + "no longer match any preset — pick one to overwrite them. "
-                + "No preset selects ULTRA shadows; that one stays a deliberate choice.")));
+        elements.add(row(
+            L10n.lang("irlite.ui.quality"),
+            quality,
+            L10n.lang("irlite.ui.quality_tooltip")
+        ));
 
         UICirculate style = new UICirculate((b) ->
         {
@@ -67,16 +69,17 @@ public final class UIPresetSection
 
         for (String label : IrlitePresets.STYLE_LABELS)
         {
-            style.addLabel(IKey.constant(label));
+            style.addLabel(L10n.lang("irlite.ui.preset." + label.toLowerCase(Locale.ROOT)));
         }
 
         style.setValue(IrlitePresets.style());
         style.w(90);
 
-        elements.add(row(IKey.constant("Beam style"), style, IKey.constant(
-            "Look of the volumetric beams: noise, drift and the glow around the lamp itself. "
-                + "Clean is uniform beams, Dusty is drifting puffs, Smoky is heavy morphing haze "
-                + "(the priciest of the three — it is the only one that turns morph on).")));
+        elements.add(row(
+            L10n.lang("irlite.ui.beam_style"),
+            style,
+            L10n.lang("irlite.ui.beam_style_tooltip")
+        ));
 
         return elements;
     }

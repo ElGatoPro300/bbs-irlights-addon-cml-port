@@ -186,6 +186,7 @@ public final class LightCollector
 
         scanBlockEntities(world, cameraPos);
         scanFilmReplays(cameraPos, tickDelta);
+        qualet.irlite.client.compat.IrliteCalCompat.collectCalLights(world, cameraPos, tickDelta);
     }
 
     private static void scanBlockEntities(ClientWorld world, Vec3d cameraPos)
