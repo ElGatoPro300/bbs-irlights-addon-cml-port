@@ -4,35 +4,38 @@ import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.data.DataToString;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.MapType;
-import mchorse.bbs_mod.events.BBSAddonMod;
-import mchorse.bbs_mod.events.Subscribe;
-import mchorse.bbs_mod.events.register.RegisterSettingsEvent;
+import mchorse.bbs_mod.addons.BBSAddon;
 import mchorse.bbs_mod.events.register.RegisterBBSSettingsEvent;
+import mchorse.bbs_mod.events.register.RegisterFormsEvent;
+import mchorse.bbs_mod.events.register.RegisterSourcePacksEvent;
 import mchorse.bbs_mod.l10n.keys.IKey;
+import mchorse.bbs_mod.resources.packs.InternalAssetsSourcePack;
 import mchorse.bbs_mod.settings.SettingsBuilder;
-import mchorse.bbs_mod.ui.utils.icons.Icons;
+import qualet.irlite.forms.PointLightForm;
+import qualet.irlite.forms.SpotlightForm;
 
 import java.io.File;
 
-/** Registers IRLights as its own settings module: an own icon in the overlay's
- *  module strip and an own config/bbs/settings/irlights.json, instead of two
- *  categories bolted onto the end of BBS's own settings list.
- *
- *  The subscriber method must stay public and take exactly one parameter —
- *  BBS's EventBus reflects over getDeclaredMethods() and invokes without
- *  setAccessible, and it dispatches by exact event class. */
-public class IrlightsAddon implements BBSAddonMod
+/** Registers IRLights as its own settings module and forms provider for BBS CML. */
+public class IrlightsAddon extends BBSAddon
 {
     private static final String MODULE = "irlights";
 
-    @Subscribe
-    public void registerSettings(RegisterSettingsEvent event)
+    @Override
+    protected void registerForms(RegisterFormsEvent event)
     {
-        event.register(Icons.LIGHT, MODULE, IrlightsAddon::build);
+        event.getForms().register(PointLightForm.FORM_ID, PointLightForm.class, null);
+        event.getForms().register(SpotlightForm.FORM_ID, SpotlightForm.class, null);
     }
 
-    @Subscribe
-    public void registerBBSSettings(RegisterBBSSettingsEvent event)
+    @Override
+    protected void registerSourcePacks(RegisterSourcePacksEvent event)
+    {
+        event.provider.register(new InternalAssetsSourcePack("irlite", "assets/irlite/assets", IrlightsAddon.class));
+    }
+
+    @Override
+    protected void registerBBSSettings(RegisterBBSSettingsEvent event)
     {
         build(event.getBuilder());
     }
@@ -104,16 +107,10 @@ public class IrlightsAddon implements BBSAddonMod
         builder.category("patcher");
     }
 
-    /** The settings used to live as an "irlite" category inside BBS's own
-     *  bbs.json. BBS has no cross-module migration, and once this module writes
-     *  its file that orphaned block is dropped on the next bbs.json save — so
-     *  read it once and use it as the defaults the builder registers.
-     *
-     *  One-shot: the guard is our own file already carrying this layout, not
-     *  merely existing — a leftover irlights.json from an older experiment has
-     *  the name but not the categories, and must not be mistaken for a
-     *  completed migration. Settings.toData writes every registered category,
-     *  so "volumetric" is present in any file this build ever saved. */
+    /**
+     * Reads saved settings from prior formats (standalone irlights.json or legacy "irlite" block in bbs.json)
+     * if bbs.json does not yet have our categories registered.
+     */
     private static MapType legacyDefaults()
     {
         if (alreadyMigrated())
@@ -121,25 +118,50 @@ public class IrlightsAddon implements BBSAddonMod
             return new MapType();
         }
 
-        File bbs = new File(BBSMod.getSettingsFolder(), "bbs.json");
-
-        if (!bbs.exists())
+        File own = new File(BBSMod.getSettingsFolder(), MODULE + ".json");
+        if (own.exists())
         {
-            return new MapType();
-        }
-
-        try
-        {
-            BaseType data = DataToString.read(bbs);
-
-            if (data != null && data.isMap() && data.asMap().has("irlite"))
+            try
             {
-                return data.asMap().getMap("irlite");
+                BaseType data = DataToString.read(own);
+                if (data != null && data.isMap())
+                {
+                    MapType res = new MapType();
+                    for (String key : data.asMap().keys())
+                    {
+                        BaseType cat = data.asMap().get(key);
+                        if (cat != null && cat.isMap())
+                        {
+                            res.combine(cat.asMap());
+                        }
+                    }
+                    if (!res.isEmpty())
+                    {
+                        return res;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                // Fall through
             }
         }
-        catch (Exception e)
+
+        File bbs = new File(BBSMod.getSettingsFolder(), "bbs.json");
+        if (bbs.exists())
         {
-            // Unreadable or malformed bbs.json — fall through to plain defaults.
+            try
+            {
+                BaseType data = DataToString.read(bbs);
+                if (data != null && data.isMap() && data.asMap().has("irlite"))
+                {
+                    return data.asMap().getMap("irlite");
+                }
+            }
+            catch (Exception e)
+            {
+                // Fall through
+            }
         }
 
         return new MapType();
@@ -147,17 +169,15 @@ public class IrlightsAddon implements BBSAddonMod
 
     private static boolean alreadyMigrated()
     {
-        File own = new File(BBSMod.getSettingsFolder(), MODULE + ".json");
-
-        if (!own.exists())
+        File bbs = new File(BBSMod.getSettingsFolder(), "bbs.json");
+        if (!bbs.exists())
         {
             return false;
         }
 
         try
         {
-            BaseType data = DataToString.read(own);
-
+            BaseType data = DataToString.read(bbs);
             return data != null && data.isMap() && data.asMap().has("volumetric");
         }
         catch (Exception e)

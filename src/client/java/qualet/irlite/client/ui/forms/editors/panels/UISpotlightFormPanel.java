@@ -71,26 +71,55 @@ public class UISpotlightFormPanel extends UIFormPanel<SpotlightForm>
             UITexturePicker.open(this.getContext(), this.form.cookie.get(), (l) -> this.form.cookie.set(l)));
         this.cookieRotation = IrliteTrackpads.create((v) -> this.form.cookieRotation.set(v.floatValue())).limit(0, 360);
         this.cookieScale = IrliteTrackpads.create((v) -> this.form.cookieScale.set(v.floatValue())).limit(0.1, 4);
-        this.cookieInvert = new UIToggle(L10n.lang("irlite.forms.cookie_invert"), (b) -> this.form.cookieInvert.set(b.getValue()));
-
-        // 1.21.1: BBS 2.2.1-1.21.1 has no UISection (a BBS 2.3.1 addition), so the
-        // controls are laid out flat rather than in collapsible sections.
-        this.options.add(UI.label(L10n.lang("irlite.forms.color")), this.color);
-        this.options.add(UI.label(L10n.lang("irlite.forms.intensity")), this.intensity);
-        this.options.add(UI.label(L10n.lang("irlite.forms.range")), this.range);
-        this.options.add(UI.label(L10n.lang("irlite.forms.radius")), this.radius);
-        this.options.add(UI.label(L10n.lang("irlite.forms.inner_radius")), this.innerRadius);
-        this.options.add(UI.label(L10n.lang("irlite.forms.beam_strength")), this.beamStrength);
-        this.options.add(UI.label(L10n.lang("irlite.forms.anisotropy")), this.anisotropy);
-        this.options.add(UI.label(L10n.lang("irlite.forms.vl_density")), this.vlDensity);
-        this.options.add(UI.label(L10n.lang("irlite.forms.bulb_size")), this.bulbSize);
-        this.options.add(this.entitiesOnly);
-        this.options.add(this.blocksOnly);
-        this.options.add(this.shadows);
-        this.options.add(UI.label(L10n.lang("irlite.forms.cookie_section")), this.cookiePick);
-        this.options.add(UI.label(L10n.lang("irlite.forms.cookie_rotation")), this.cookieRotation);
-        this.options.add(UI.label(L10n.lang("irlite.forms.cookie_scale")), this.cookieScale);
-        this.options.add(this.cookieInvert);
+        // Collapsible sections need BBS's UISection. On older BBS without it,
+        // fall back to a flat option list — see IrliteBbsCompat.
+        if (IrliteBbsCompat.SECTIONS)
+        {
+            this.options.add(
+                IrliteFormSections.section(L10n.lang("irlite.forms.light"),
+                    UI.label(L10n.lang("irlite.forms.color")), this.color,
+                    UI.label(L10n.lang("irlite.forms.intensity")), this.intensity,
+                    UI.label(L10n.lang("irlite.forms.range")), this.range,
+                    UI.label(L10n.lang("irlite.forms.radius")), this.radius,
+                    UI.label(L10n.lang("irlite.forms.inner_radius")), this.innerRadius
+                ),
+                IrliteFormSections.spaced(L10n.lang("irlite.forms.volumetric_beam"),
+                    UI.label(L10n.lang("irlite.forms.beam_strength")), this.beamStrength,
+                    UI.label(L10n.lang("irlite.forms.anisotropy")), this.anisotropy,
+                    UI.label(L10n.lang("irlite.forms.vl_density")), this.vlDensity
+                ),
+                IrliteFormSections.spaced(L10n.lang("irlite.forms.shadows"),
+                    this.shadows,
+                    UI.label(L10n.lang("irlite.forms.bulb_size")), this.bulbSize
+                ),
+                IrliteFormSections.spaced(L10n.lang("irlite.forms.affects"), this.entitiesOnly, this.blocksOnly),
+                IrliteFormSections.spaced(L10n.lang("irlite.forms.cookie_section"),
+                    this.cookiePick,
+                    UI.label(L10n.lang("irlite.forms.cookie_rotation")), this.cookieRotation,
+                    UI.label(L10n.lang("irlite.forms.cookie_scale")), this.cookieScale,
+                    this.cookieInvert
+                )
+            );
+        }
+        else
+        {
+            this.options.add(UI.label(L10n.lang("irlite.forms.color")), this.color);
+            this.options.add(UI.label(L10n.lang("irlite.forms.intensity")), this.intensity);
+            this.options.add(UI.label(L10n.lang("irlite.forms.range")), this.range);
+            this.options.add(UI.label(L10n.lang("irlite.forms.radius")), this.radius);
+            this.options.add(UI.label(L10n.lang("irlite.forms.inner_radius")), this.innerRadius);
+            this.options.add(UI.label(L10n.lang("irlite.forms.beam_strength")), this.beamStrength);
+            this.options.add(UI.label(L10n.lang("irlite.forms.anisotropy")), this.anisotropy);
+            this.options.add(UI.label(L10n.lang("irlite.forms.vl_density")), this.vlDensity);
+            this.options.add(UI.label(L10n.lang("irlite.forms.bulb_size")), this.bulbSize);
+            this.options.add(this.entitiesOnly);
+            this.options.add(this.blocksOnly);
+            this.options.add(this.shadows);
+            this.options.add(UI.label(L10n.lang("irlite.forms.cookie_section")), this.cookiePick);
+            this.options.add(UI.label(L10n.lang("irlite.forms.cookie_rotation")), this.cookieRotation);
+            this.options.add(UI.label(L10n.lang("irlite.forms.cookie_scale")), this.cookieScale);
+            this.options.add(this.cookieInvert);
+        }
     }
 
     /** Live-sync of the shape trackpads while a guide handle is dragged in the viewport. */

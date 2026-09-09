@@ -51,20 +51,41 @@ public class UIPointLightFormPanel extends UIFormPanel<PointLightForm>
                 this.entitiesOnly.setValue(false);
             }
         });
-        this.shadows = new UIToggle(L10n.lang("irlite.forms.shadows"), (b) -> this.form.shadows.set(b.getValue()));
-
-        // 1.21.1: BBS 2.2.1-1.21.1 has no UISection (a BBS 2.3.1 addition), so the
-        // controls are laid out flat rather than in collapsible sections.
-        this.options.add(UI.label(L10n.lang("irlite.forms.color")), this.color);
-        this.options.add(UI.label(L10n.lang("irlite.forms.intensity")), this.intensity);
-        this.options.add(UI.label(L10n.lang("irlite.forms.radius")), this.radius);
-        this.options.add(UI.label(L10n.lang("irlite.forms.beam_strength")), this.beamStrength);
-        this.options.add(UI.label(L10n.lang("irlite.forms.anisotropy")), this.anisotropy);
-        this.options.add(UI.label(L10n.lang("irlite.forms.vl_density")), this.vlDensity);
-        this.options.add(UI.label(L10n.lang("irlite.forms.bulb_size")), this.bulbSize);
-        this.options.add(this.entitiesOnly);
-        this.options.add(this.blocksOnly);
-        this.options.add(this.shadows);
+        // Collapsible sections need BBS's UISection. On older BBS without it,
+        // fall back to a flat option list — see IrliteBbsCompat.
+        if (IrliteBbsCompat.SECTIONS)
+        {
+            this.options.add(
+                IrliteFormSections.section(L10n.lang("irlite.forms.light"),
+                    UI.label(L10n.lang("irlite.forms.color")), this.color,
+                    UI.label(L10n.lang("irlite.forms.intensity")), this.intensity,
+                    UI.label(L10n.lang("irlite.forms.radius")), this.radius
+                ),
+                IrliteFormSections.spaced(L10n.lang("irlite.forms.volumetric_beam"),
+                    UI.label(L10n.lang("irlite.forms.beam_strength")), this.beamStrength,
+                    UI.label(L10n.lang("irlite.forms.anisotropy")), this.anisotropy,
+                    UI.label(L10n.lang("irlite.forms.vl_density")), this.vlDensity
+                ),
+                IrliteFormSections.spaced(L10n.lang("irlite.forms.shadows"),
+                    this.shadows,
+                    UI.label(L10n.lang("irlite.forms.bulb_size")), this.bulbSize
+                ),
+                IrliteFormSections.spaced(L10n.lang("irlite.forms.affects"), this.entitiesOnly, this.blocksOnly)
+            );
+        }
+        else
+        {
+            this.options.add(UI.label(L10n.lang("irlite.forms.color")), this.color);
+            this.options.add(UI.label(L10n.lang("irlite.forms.intensity")), this.intensity);
+            this.options.add(UI.label(L10n.lang("irlite.forms.radius")), this.radius);
+            this.options.add(UI.label(L10n.lang("irlite.forms.beam_strength")), this.beamStrength);
+            this.options.add(UI.label(L10n.lang("irlite.forms.anisotropy")), this.anisotropy);
+            this.options.add(UI.label(L10n.lang("irlite.forms.vl_density")), this.vlDensity);
+            this.options.add(UI.label(L10n.lang("irlite.forms.bulb_size")), this.bulbSize);
+            this.options.add(this.entitiesOnly);
+            this.options.add(this.blocksOnly);
+            this.options.add(this.shadows);
+        }
     }
 
     @Override
