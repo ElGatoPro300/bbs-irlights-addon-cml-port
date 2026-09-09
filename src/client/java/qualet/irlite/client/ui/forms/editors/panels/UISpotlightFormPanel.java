@@ -79,24 +79,24 @@ public class UISpotlightFormPanel extends UIFormPanel<SpotlightForm>
         if (IrliteBbsCompat.SECTIONS)
         {
             this.options.add(
-                IrliteFormSections.section(L10n.lang("irlite.forms.light").get(),
+                IrliteFormSections.section(L10n.lang("irlite.forms.light"),
                     UI.label(L10n.lang("irlite.forms.color")), this.color,
                     UI.label(L10n.lang("irlite.forms.intensity")), this.intensity,
                     UI.label(L10n.lang("irlite.forms.range")), this.range,
                     UI.label(L10n.lang("irlite.forms.radius")), this.radius,
                     UI.label(L10n.lang("irlite.forms.inner_radius")), this.innerRadius
                 ),
-                IrliteFormSections.spaced(L10n.lang("irlite.forms.volumetric_beam").get(),
+                IrliteFormSections.spaced(L10n.lang("irlite.forms.volumetric_beam"),
                     UI.label(L10n.lang("irlite.forms.beam_strength")), this.beamStrength,
                     UI.label(L10n.lang("irlite.forms.anisotropy")), this.anisotropy,
                     UI.label(L10n.lang("irlite.forms.vl_density")), this.vlDensity
                 ),
-                IrliteFormSections.spaced(L10n.lang("irlite.forms.shadows").get(),
+                IrliteFormSections.spaced(L10n.lang("irlite.forms.shadows"),
                     this.shadows,
                     UI.label(L10n.lang("irlite.forms.bulb_size")), this.bulbSize
                 ),
-                IrliteFormSections.spaced(L10n.lang("irlite.forms.affects").get(), this.entitiesOnly, this.blocksOnly),
-                IrliteFormSections.spaced(L10n.lang("irlite.forms.cookie_section").get(),
+                IrliteFormSections.spaced(L10n.lang("irlite.forms.affects"), this.entitiesOnly, this.blocksOnly),
+                IrliteFormSections.spaced(L10n.lang("irlite.forms.cookie_section"),
                     this.cookiePick,
                     UI.label(L10n.lang("irlite.forms.cookie_rotation")), this.cookieRotation,
                     UI.label(L10n.lang("irlite.forms.cookie_scale")), this.cookieScale,

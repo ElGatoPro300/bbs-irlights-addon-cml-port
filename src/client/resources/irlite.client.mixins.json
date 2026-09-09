@@ -5,13 +5,9 @@
   "compatibilityLevel": "JAVA_17",
   "client": [
     "ExtraFormSectionMixin",
-    "FormUtilsClientMixin",
     "GameRendererLightMixin",
-    "L10nMixin",
     "UIFilmControllerMixin",
-    "UIFormEditorMixin",
     "UIPickableFormRendererMixin",
-    "UIReplaysEditorColorMixin",
     "UISettingsOverlayPanelMixin",
     "WorldBlockChangeMixin",
     "bbs.FilmsAccessor",
