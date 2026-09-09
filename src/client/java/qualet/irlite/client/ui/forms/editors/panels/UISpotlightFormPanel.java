@@ -71,6 +71,8 @@ public class UISpotlightFormPanel extends UIFormPanel<SpotlightForm>
             UITexturePicker.open(this.getContext(), this.form.cookie.get(), (l) -> this.form.cookie.set(l)));
         this.cookieRotation = IrliteTrackpads.create((v) -> this.form.cookieRotation.set(v.floatValue())).limit(0, 360);
         this.cookieScale = IrliteTrackpads.create((v) -> this.form.cookieScale.set(v.floatValue())).limit(0.1, 4);
+        this.cookieInvert = new UIToggle(L10n.lang("irlite.forms.cookie_invert"), (b) -> this.form.cookieInvert.set(b.getValue()));
+
         // Collapsible sections need BBS's UISection. On older BBS without it,
         // fall back to a flat option list — see IrliteBbsCompat.
         if (IrliteBbsCompat.SECTIONS)

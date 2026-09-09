@@ -51,6 +51,8 @@ public class UIPointLightFormPanel extends UIFormPanel<PointLightForm>
                 this.entitiesOnly.setValue(false);
             }
         });
+        this.shadows = new UIToggle(L10n.lang("irlite.forms.shadows"), (b) -> this.form.shadows.set(b.getValue()));
+
         // Collapsible sections need BBS's UISection. On older BBS without it,
         // fall back to a flat option list — see IrliteBbsCompat.
         if (IrliteBbsCompat.SECTIONS)
