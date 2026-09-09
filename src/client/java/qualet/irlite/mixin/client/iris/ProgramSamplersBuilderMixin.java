@@ -6,6 +6,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.qualet.irl.light.iris.IrlSamplersBind;
+import qualet.irlite.client.compat.IrliteCalCompat;
 
 /**
  * Binds IRLite shadow textures into every Iris-compiled program. Iris calls
@@ -24,6 +25,10 @@ public class ProgramSamplersBuilderMixin
     @Inject(method = "build", at = @At("HEAD"))
     private void irlite$bindShadowSamplers(CallbackInfoReturnable<ProgramSamplers> cir)
     {
+        if (IrliteCalCompat.isCalPresent())
+        {
+            return;
+        }
         IrlSamplersBind.bindAll((ProgramSamplers.Builder) (Object) this);
     }
 }
