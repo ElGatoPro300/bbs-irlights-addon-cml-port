@@ -22,11 +22,19 @@
 			"environment": "client"
 		}
 	],
+	"jars": [
+		{
+			"file": "META-INF/jars/${irl_core_jar}"
+		}
+	],
 	"depends": {
 		"fabricloader": ">=0.15.0",
 		"fabric-api": "*",
 		"bbs": "*",
 		"minecraft": ">=1.20.1 <1.20.5",
 		"irl-core": "*"
+	},
+	"suggests": {
+		"irlcal_editor": "*"
 	}
 }
