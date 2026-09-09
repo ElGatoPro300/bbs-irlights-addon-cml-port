@@ -58,12 +58,12 @@ public class CompositeRendererTimerMixin
 
     @Redirect(method = "renderAll",
               at = @At(value = "INVOKE",
-                       target = "Lnet/irisshaders/iris/pathways/FullScreenQuadRenderer;renderQuad()V"),
-              require = 0, expect = 1,
+                       target = "Lcom/mojang/blaze3d/systems/RenderPass;drawIndexed(IIII)V"),
+              require = 0,
               remap = false)
-    private void irlite$endTimedPass(FullScreenQuadRenderer instance)
+    private void irlite$endTimedPass(com.mojang.blaze3d.systems.RenderPass instance, int baseVertex, int firstIndex, int indexCount, int instanceCount)
     {
-        instance.renderQuad();
+        instance.drawIndexed(baseVertex, firstIndex, indexCount, instanceCount);
         VlProfiler.endPass();
     }
 }

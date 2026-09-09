@@ -21,7 +21,7 @@ public class GameRendererLightMixin
         // MatrixStack) parameters are gone, so derive the partial tick here
         // (ignoreFreeze=true matches the previous always-advancing behaviour).
         // NB: 1.21.1 still names this getTickDelta(boolean); getTickProgress is later.
-        float tickDelta = tickCounter.getTickDelta(true);
+        float tickDelta = tickCounter.getTickProgress(true);
         // Dev VL profiler (-Dirlite.profileVl=true): the shadow bake below runs
         // strictly before the Iris pass sequence, so its GL_TIME_ELAPSED bracket
         // never nests with the per-pass brackets. collect/prioritize inside
@@ -43,15 +43,12 @@ public class GameRendererLightMixin
     }
 
     /**
-     * Deferred SSBO upload, injected just AFTER this frame's Camera.update (offset ~187
-     * in renderWorld, still well before WorldRenderer.render / Iris activation): the origin
-     * the light SSBO is made relative to must be the post-update, current-frame eye that the
-     * shaderpack reconstructs fragments against, not the stale HEAD camera. The Camera.update
-     * descriptor is unchanged on 1.21.1; only renderWorld's own params differ (RenderTickCounter).
+     * Deferred SSBO upload, injected just AFTER this frame's Camera update
+     * in renderWorld, still well before WorldRenderer.render / Iris activation.
      */
     @Inject(method = "renderWorld",
             at = @At(value = "INVOKE",
-                     target = "Lnet/minecraft/client/render/Camera;update(Lnet/minecraft/world/BlockView;Lnet/minecraft/entity/Entity;ZZF)V",
+                     target = "Lnet/minecraft/client/render/GameRenderer;updateCameraState(F)V",
                      shift = At.Shift.AFTER,
                      ordinal = 0),
             require = 1)

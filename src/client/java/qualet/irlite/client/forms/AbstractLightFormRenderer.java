@@ -1,6 +1,5 @@
 package qualet.irlite.client.forms;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.BBSShaders;
@@ -12,19 +11,19 @@ import mchorse.bbs_mod.forms.renderers.FormRenderType;
 import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
 import mchorse.bbs_mod.graphics.Draw;
 import mchorse.bbs_mod.graphics.texture.Texture;
+import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
-import net.minecraft.client.gl.ShaderProgramKeys;
+import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.render.BufferBuilder;
-import net.minecraft.client.render.BufferRenderer;
-import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.Tessellator;
-import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
+import net.minecraft.util.Identifier;
 import org.joml.Matrix4f;
 import qualet.irlite.IrliteConfig;
+import qualet.irlite.client.graphics.IrliteLayers;
 import qualet.irlite.client.light.LightCollector;
 import org.qualet.irl.light.shadow.ShadowBakeState;
 
@@ -192,15 +191,10 @@ public abstract class AbstractLightFormRenderer<T extends Form> extends FormRend
 
         Matrix4f matrix = context.stack.peek().getPositionMatrix();
 
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.enableDepthTest();
-        RenderSystem.disableCull();
-        RenderSystem.setShaderColor(1F, 1F, 1F, 1F);
-
-        /* icons.png is loaded by BBS as a bare GL texture; bind its id to unit 0. */
-        BBSModClient.getTextures().bindTexture(icon.texture);
-        RenderSystem.setShader(ShaderProgramKeys.POSITION_COLOR);
+        Identifier textureId = Identifier.of(
+            icon.texture.source.equals(Link.ASSETS) ? "bbs" : icon.texture.source,
+            icon.texture.path
+        );
 
         // 1.21: begin() moved to Tessellator and returns the builder; per-vertex
         // .next() is gone (vertex(...) auto-advances). Mirrors LightGuideRenderer.
@@ -216,9 +210,7 @@ public abstract class AbstractLightFormRenderer<T extends Form> extends FormRend
         builder.vertex(matrix, x2, y2, z).texture(u2, v1).color(c.r, c.g, c.b, 1F);
         builder.vertex(matrix, x1, y2, z).texture(u1, v1).color(c.r, c.g, c.b, 1F);
 
-        BufferRenderer.drawWithGlobalProgram(builder.end());
-
-        RenderSystem.enableCull();
+        IrliteLayers.flush(builder, IrliteLayers.getPositionTexColorTrisNoDepthLayer(textureId));
 
         context.stack.pop();
     }
@@ -241,13 +233,13 @@ public abstract class AbstractLightFormRenderer<T extends Form> extends FormRend
         CustomVertexConsumerProvider.hijackVertexFormat((layer) ->
         {
             this.setupTarget(context, BBSShaders.getPickerModelsProgram());
-            RenderSystem.setShader(BBSShaders.getPickerModelsProgram());
+            BBSRendering.bindProgram(BBSShaders.getPickerModelsProgram());
         });
 
         Draw.renderBox(context.stack, 0, 0, 0, 0.5, 0.5, 0.5, c.r, c.g, c.b);
 
         CustomVertexConsumerProvider.clearRunnables();
-        RenderSystem.enableDepthTest();
+        BBSRendering.enableDepthTest();
 
         context.stack.pop();
     }

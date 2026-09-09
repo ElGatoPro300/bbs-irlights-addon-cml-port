@@ -25,7 +25,7 @@ public final class IRLightPositionResolver
         Matrix4f worldMatrix = context.stack.peek().getPositionMatrix();
         Vector3f offset = worldMatrix.getTranslation(new Vector3f());
 
-        Vec3d camPos = camera.getPos();
+        Vec3d camPos = camera.getCameraPos();
 
         return new Vector3d(camPos.x + offset.x, camPos.y + offset.y, camPos.z + offset.z);
     }
