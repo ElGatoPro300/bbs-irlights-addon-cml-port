@@ -8,8 +8,19 @@ plugins {
 // the target version. This branch (port/1.21.1) defaults to and is built for
 // MC 1.21.1 (Java 21) — the FINAL addon-supported MC version. The 1.20.x entries
 // stay for reference; they require Java 17 (gated by targetJavaVersion below).
-def mcTarget = (project.findProperty('mc') ?: '1.21.4').toString()
+def mcTarget = (project.findProperty('mc') ?: '1.21.11').toString()
 def mcVersions = [
+    '1.21.11': [
+        minecraft: '1.21.11',
+        yarn     : '1.21.11+build.6',
+        fabricApi: '0.141.6+1.21.11',
+        bbsJar   : 'bbs-cml-2.1-1.21.11.jar',
+        sodium   : 'mc1.21.11-0.8.12-fabric',
+        iris     : '1.10.7+1.21.11-fabric',
+        calEditor: '1.2.1-1.21.11',
+        glsl     : '3.0.0-pre3',
+        lwjglPin : null,
+    ],
     '1.21.4': [
         minecraft: '1.21.4',
         yarn     : '1.21.4+build.6',
@@ -54,7 +65,7 @@ def mcVersions = [
     ],
 ]
 if (!mcVersions.containsKey(mcTarget)) {
-    throw new GradleException("Unknown -Pmc=${mcTarget}; expected 1.21.4, 1.21.1, 1.20.4 or 1.20.1")
+    throw new GradleException("Unknown -Pmc=${mcTarget}; expected 1.21.11, 1.21.4, 1.21.1, 1.20.4 or 1.20.1")
 }
 def V = mcVersions[mcTarget]
 logger.lifecycle("IRLite build target: Minecraft ${V.minecraft} (yarn ${V.yarn})")
@@ -153,12 +164,16 @@ dependencies {
     // Iris is referenced at compile time (sampler mixins). Sodium is runtime-only.
     modImplementation "maven.modrinth:iris:${V.iris}"
     modImplementation "maven.modrinth:sodium:${V.sodium}"
-    modImplementation "maven.modrinth:bbs-cml-edition:${V.bbs}"
+    if (V.bbsJar != null) {
+        modImplementation files("libs/${V.bbsJar}")
+    } else {
+        modImplementation "maven.modrinth:bbs-cml-edition:${V.bbs}"
+    }
     modImplementation "maven.modrinth:irl-cal-editor:${V.calEditor}"
 
     // Iris runtime dependencies (not auto-pulled from the Modrinth artifact).
     modRuntimeOnly "org.anarres:jcpp:1.4.14"
-    modRuntimeOnly "io.github.douira:glsl-transformer:2.0.0-pre13"
+    modRuntimeOnly "io.github.douira:glsl-transformer:${V.glsl ?: '2.0.0-pre13'}"
 }
 
 processResources {
@@ -180,8 +195,8 @@ processResources {
     from("patches") { into "assets/irlite/patches" }
 }
 
-// 1.21.1 is Java 21 (since 1.20.5); the 1.20.x reference profiles stay on 17.
-def targetJavaVersion = (mcTarget == '1.21.4') ? 21 : 17
+// 1.21.11 / 1.21.4 / 1.21.1 are Java 21; the 1.20.x reference profiles stay on 17.
+def targetJavaVersion = (mcTarget == '1.21.11' || mcTarget == '1.21.4' || mcTarget == '1.21.1') ? 21 : 17
 tasks.withType(JavaCompile).configureEach {
     // ensure that the encoding is set to UTF-8, no matter what the system default is
     // this fixes some edge cases with special characters not displaying correctly
