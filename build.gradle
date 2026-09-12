@@ -14,7 +14,7 @@ def mcVersions = [
         minecraft: '1.21.11',
         yarn     : '1.21.11+build.6',
         fabricApi: '0.141.6+1.21.11',
-        bbsJar   : 'bbs-cml-2.1-1.21.11.jar',
+        bbs      : '2.1.1-1.21.11',
         sodium   : 'mc1.21.11-0.8.12-fabric',
         iris     : '1.10.7+1.21.11-fabric',
         calEditor: '1.2.1-1.21.11',
@@ -164,11 +164,7 @@ dependencies {
     // Iris is referenced at compile time (sampler mixins). Sodium is runtime-only.
     modImplementation "maven.modrinth:iris:${V.iris}"
     modImplementation "maven.modrinth:sodium:${V.sodium}"
-    if (V.bbsJar != null) {
-        modImplementation files("libs/${V.bbsJar}")
-    } else {
-        modImplementation "maven.modrinth:bbs-cml-edition:${V.bbs}"
-    }
+    modImplementation "maven.modrinth:bbs-cml-edition:${V.bbs}"
     modImplementation "maven.modrinth:irl-cal-editor:${V.calEditor}"
 
     // Iris runtime dependencies (not auto-pulled from the Modrinth artifact).
