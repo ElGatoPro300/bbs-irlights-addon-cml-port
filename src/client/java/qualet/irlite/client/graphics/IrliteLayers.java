@@ -1,5 +1,7 @@
 package qualet.irlite.client.graphics;
 
+import mchorse.bbs_mod.client.BBSRendering;
+import mchorse.bbs_mod.utils.iris.IrisFormPipelines;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BuiltBuffer;
@@ -79,6 +81,19 @@ public final class IrliteLayers
             .withCull(false)
             .build()
     );
+
+    static
+    {
+        if (BBSRendering.isIrisLoaded())
+        {
+            IrisFormPipelines.registerColor(POSITION_COLOR_LINES);
+            IrisFormPipelines.registerColor(POSITION_COLOR_TRIS);
+            IrisFormPipelines.registerColor(POSITION_COLOR_TRIS_NO_DEPTH);
+            IrisFormPipelines.registerColor(POSITION_COLOR_TRIS_STENCIL);
+            IrisFormPipelines.register(POSITION_TEX_COLOR_QUADS_NO_DEPTH, null, false);
+            IrisFormPipelines.register(POSITION_TEX_COLOR_TRIS_NO_DEPTH, null, false);
+        }
+    }
 
     private static RenderLayer positionColorLinesLayer;
     private static RenderLayer positionColorLayer;
