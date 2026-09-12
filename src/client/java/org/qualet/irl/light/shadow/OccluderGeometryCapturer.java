@@ -1,12 +1,52 @@
 package org.qualet.irl.light.shadow;
 
+import it.unimi.dsi.fastutil.floats.FloatArrayList;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import mchorse.bbs_mod.cubic.animation.IAnimator;
+import mchorse.bbs_mod.cubic.IModel;
+import mchorse.bbs_mod.cubic.ModelInstance;
+import mchorse.bbs_mod.cubic.data.model.Model;
+import mchorse.bbs_mod.cubic.data.model.ModelCube;
+import mchorse.bbs_mod.cubic.data.model.ModelData;
+import mchorse.bbs_mod.cubic.data.model.ModelGroup;
+import mchorse.bbs_mod.cubic.data.model.ModelMesh;
+import mchorse.bbs_mod.cubic.data.model.ModelQuad;
+import mchorse.bbs_mod.cubic.data.model.ModelVertex;
+import mchorse.bbs_mod.cubic.render.CubicCubeRenderer;
+import mchorse.bbs_mod.cubic.render.CubicRenderer;
+import mchorse.bbs_mod.cubic.render.ICubicRenderer;
+import mchorse.bbs_mod.forms.FormUtilsClient;
+import mchorse.bbs_mod.forms.entities.IEntity;
+import mchorse.bbs_mod.forms.forms.BillboardForm;
+import mchorse.bbs_mod.forms.forms.BlockForm;
+import mchorse.bbs_mod.forms.forms.BodyPart;
+import mchorse.bbs_mod.forms.forms.ExtrudedForm;
+import mchorse.bbs_mod.forms.forms.Form;
+import mchorse.bbs_mod.forms.forms.ItemForm;
+import mchorse.bbs_mod.forms.forms.MobForm;
+import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.forms.ShapeForm;
+import mchorse.bbs_mod.forms.forms.StructureForm;
+import mchorse.bbs_mod.forms.renderers.FormRenderer;
+import mchorse.bbs_mod.forms.renderers.MobFormRenderer;
+import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
+import mchorse.bbs_mod.forms.renderers.StructureFormRenderer;
+import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
+import mchorse.bbs_mod.forms.renderers.utils.MatrixCacheEntry;
+import mchorse.bbs_mod.forms.renderers.utils.StructureData;
+import mchorse.bbs_mod.settings.values.core.ValuePose;
+import mchorse.bbs_mod.utils.MatrixStackUtils;
+import mchorse.bbs_mod.utils.pose.Pose;
 import net.minecraft.block.BlockRenderType;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.model.Model;
+import net.minecraft.client.item.ItemModelManager;
 import net.minecraft.client.model.ModelPart;
+import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.Camera;
+import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.block.BlockModelRenderer;
@@ -25,21 +65,30 @@ import net.minecraft.client.render.state.CameraRenderState;
 import net.minecraft.client.texture.Sprite;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.item.ItemDisplayContext;
+import net.minecraft.item.ItemStack;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.BlockRenderView;
-
+import org.joml.Matrix4f;
 import org.joml.Quaternionf;
+import org.joml.Vector3f;
+import org.joml.Vector4f;
+import qualet.irlite.mixin.client.bbs.FormRendererAccessor;
+import qualet.irlite.mixin.client.bbs.MobFormRendererAccessor;
+import qualet.irlite.mixin.client.bbs.StructureFormRendererAccessor;
+import mchorse.bbs_mod.BBSModClient;
+import mchorse.bbs_mod.client.ItemUseRenderState;
+import mchorse.bbs_mod.graphics.texture.Texture;
+import mchorse.bbs_mod.resources.Link;
 
 import java.util.List;
-
-import it.unimi.dsi.fastutil.floats.FloatArrayList;
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 
 public final class OccluderGeometryCapturer
 {
@@ -52,6 +101,7 @@ public final class OccluderGeometryCapturer
     private static final IntOpenHashSet failedEntities = new IntOpenHashSet();
 
     private static final float[] EMPTY = new float[0];
+    private static final int FULL_LIGHT = LightmapTextureManager.pack(15, 15);
 
     public static float[] captureEntityTris(Entity entity, float tickDelta)
     {
@@ -135,6 +185,515 @@ public final class OccluderGeometryCapturer
         catch (Throwable t)
         {
             return EMPTY;
+        }
+    }
+
+    public static float[] captureFormTris(Form form, IEntity stub, MatrixStack matrices, Camera camera, float tickDelta)
+    {
+        if (form == null)
+        {
+            return EMPTY;
+        }
+        if (camera != null)
+        {
+            CAMERA_STATE.pos = camera.getCameraPos();
+            CAMERA_STATE.orientation.set(camera.getRotation());
+            CAMERA_STATE.initialized = true;
+        }
+        else
+        {
+            MinecraftClient mc = MinecraftClient.getInstance();
+            if (mc != null && mc.gameRenderer != null && mc.gameRenderer.getCamera() != null)
+            {
+                Camera cam = mc.gameRenderer.getCamera();
+                CAMERA_STATE.pos = cam.getCameraPos();
+                CAMERA_STATE.orientation.set(cam.getRotation());
+                CAMERA_STATE.initialized = true;
+            }
+        }
+        CAPTURE.reset();
+        try
+        {
+            captureFormRecursive(form, stub, matrices, camera, tickDelta);
+            return CAPTURE.toTris(false);
+        }
+        catch (Throwable t)
+        {
+            System.err.println("[IRLite-Shadow] captureFormTris failed for form " + form.getClass().getSimpleName() + ": " + t);
+            t.printStackTrace();
+            return EMPTY;
+        }
+    }
+
+    private static void captureFormRecursive(Form form, IEntity stub, MatrixStack matrices, Camera camera, float tickDelta)
+    {
+        if (form == null)
+        {
+            return;
+        }
+        if (form.render != null && !form.render.get())
+        {
+            return;
+        }
+        form.applyStates(tickDelta);
+        if (form.visible != null && !form.visible.get())
+        {
+            form.unapplyStates();
+            return;
+        }
+
+        matrices.push();
+        FormRenderer<?> renderer = FormUtilsClient.getRenderer(form);
+        if (renderer != null)
+        {
+            ((FormRendererAccessor) renderer).irlite$applyTransforms(matrices, false, tickDelta);
+        }
+
+        if (form instanceof ModelForm modelForm && renderer instanceof ModelFormRenderer mfr)
+        {
+            mfr.ensureAnimator(tickDelta);
+            ModelInstance modelInstance = mfr.getModel() != null ? mfr.getModel() : ModelFormRenderer.getModel(modelForm);
+            if (modelInstance != null && modelInstance.model != null)
+            {
+                IModel model = modelInstance.model;
+                model.resetPose();
+                IAnimator animator = mfr.getAnimator();
+                if (animator != null && stub != null)
+                {
+                    animator.applyActions(stub, modelInstance, tickDelta);
+                }
+                Pose pose = mfr.getPose();
+                if (pose != null)
+                {
+                    model.applyPose(pose);
+                }
+                if (modelForm.poseOverlay != null && modelForm.poseOverlay.get() != null)
+                {
+                    model.applyPose(modelForm.poseOverlay.get());
+                }
+                if (modelForm.additionalOverlays != null)
+                {
+                    for (int i = 0, n = modelForm.additionalOverlays.size(); i < n; i++)
+                    {
+                        ValuePose vp = modelForm.additionalOverlays.get(i);
+                        if (vp != null && vp.get() != null)
+                        {
+                            model.applyPose(vp.get());
+                        }
+                    }
+                }
+
+                matrices.push();
+                matrices.multiply(RotationAxis.POSITIVE_Y.rotation(MathHelper.PI));
+                if (model instanceof Model cubicModel)
+                {
+                    ShadowCubicRenderer scr = new ShadowCubicRenderer(CAPTURE);
+                    CubicRenderer.processRenderModel(scr, null, matrices, cubicModel);
+                }
+                matrices.pop();
+            }
+        }
+        else if (form instanceof StructureForm sf && renderer instanceof StructureFormRenderer sfr)
+        {
+            ((StructureFormRendererAccessor) sfr).irlite$ensureLoaded();
+            StructureData data = ((StructureFormRendererAccessor) sfr).irlite$getData();
+            if (data != null)
+            {
+                List<StructureData.BlockEntry> blocks = data.getBlocks();
+                if (blocks != null && !blocks.isEmpty())
+                {
+                    MinecraftClient mc = MinecraftClient.getInstance();
+                    BlockRenderManager brm = mc.getBlockRenderManager();
+                    BlockRenderView view = data.getCachedView() != null ? data.getCachedView() : mc.world;
+                    Random random = Random.create();
+
+                    BlockPos min = data.getBoundsMin();
+                    BlockPos max = data.getBoundsMax();
+                    float pivotX, pivotY, pivotZ;
+                    if (min != null && max != null)
+                    {
+                        float px = (min.getX() + max.getX()) / 2.0f;
+                        float py = min.getY();
+                        float pz = (min.getZ() + max.getZ()) / 2.0f;
+                        int w = max.getX() - min.getX() + 1;
+                        int d = max.getZ() - min.getZ() + 1;
+                        float sx = (w % 2 == 1) ? -0.5f : 0.0f;
+                        float sz = (d % 2 == 1) ? -0.5f : 0.0f;
+                        pivotX = px - sx;
+                        pivotY = py;
+                        pivotZ = pz - sz;
+                    }
+                    else
+                    {
+                        BlockPos size = data.getSize();
+                        pivotX = size != null ? size.getX() / 2.0f : 0.0f;
+                        pivotY = 0.0f;
+                        pivotZ = size != null ? size.getZ() / 2.0f : 0.0f;
+                    }
+
+                    matrices.push();
+                    float sx = sf.scaleX.get();
+                    float sy = sf.scaleY.get();
+                    float sz = sf.scaleZ.get();
+                    if (Math.abs(sx - 1.0f) > 0.001f || Math.abs(sy - 1.0f) > 0.001f || Math.abs(sz - 1.0f) > 0.001f)
+                    {
+                        matrices.scale(sx, sy, sz);
+                    }
+
+                    for (int i = 0, n = blocks.size(); i < n; i++)
+                    {
+                        StructureData.BlockEntry entry = blocks.get(i);
+                        if (entry == null || entry.state == null || entry.state.isAir())
+                        {
+                            continue;
+                        }
+                        BlockPos bp = entry.pos;
+                        BlockState bs = entry.state;
+                        BlockStateModel bsm = brm.getModel(bs);
+                        if (bsm != null)
+                        {
+                            random.setSeed(bs.getRenderingSeed(bp));
+                            List<BlockModelPart> parts = bsm.getParts(random);
+                            if (parts != null && !parts.isEmpty())
+                            {
+                                matrices.push();
+                                matrices.translate(bp.getX() - pivotX, bp.getY() - pivotY, bp.getZ() - pivotZ);
+                                brm.renderBlock(bs, bp, view, matrices, CAPTURE, false, parts);
+                                matrices.pop();
+                            }
+                        }
+                    }
+                    matrices.pop();
+                }
+            }
+        }
+        else if (form instanceof BlockForm bf)
+        {
+            BlockState bs = bf.blockState.get();
+            if (bs != null && !bs.isAir())
+            {
+                MinecraftClient mc = MinecraftClient.getInstance();
+                BlockRenderManager brm = mc.getBlockRenderManager();
+                BlockStateModel bsm = brm.getModel(bs);
+                if (bsm != null)
+                {
+                    Random random = Random.create();
+                    random.setSeed(bs.getRenderingSeed(BlockPos.ORIGIN));
+                    List<BlockModelPart> parts = bsm.getParts(random);
+                    if (parts != null && !parts.isEmpty())
+                    {
+                        int rx = Math.max(1, bf.repeatX.get());
+                        int ry = Math.max(1, bf.repeatY.get());
+                        int rz = Math.max(1, bf.repeatZ.get());
+                        int sx = BlockForm.repeatAxisStart(rx, bf.repeatCenterX.get());
+                        int sy = BlockForm.repeatAxisStart(ry, bf.repeatCenterY.get());
+                        int sz = BlockForm.repeatAxisStart(rz, bf.repeatCenterZ.get());
+                        for (int y = 0; y < ry; y++)
+                        {
+                            for (int z = 0; z < rz; z++)
+                            {
+                                for (int x = 0; x < rx; x++)
+                                {
+                                    matrices.push();
+                                    matrices.translate(sx + x - 0.5f, sy + y, sz + z - 0.5f);
+                                    brm.renderBlock(bs, BlockPos.ORIGIN, mc.world, matrices, CAPTURE, false, parts);
+                                    matrices.pop();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else if (form instanceof ItemForm itemForm)
+        {
+            ItemStack stack = itemForm.stack.get();
+            if (stack != null && !stack.isEmpty())
+            {
+                MinecraftClient mc = MinecraftClient.getInstance();
+                ItemModelManager imm = mc.getItemModelManager();
+                ItemRenderState itemState = new ItemRenderState();
+                ItemDisplayContext displayContext = itemForm.modelTransform != null && itemForm.modelTransform.get() != null
+                    ? itemForm.modelTransform.get()
+                    : ItemDisplayContext.FIXED;
+                imm.clearAndUpdate(itemState, stack, displayContext, mc.world, null, 0);
+                itemState.render(matrices, QUEUE, FULL_LIGHT, OverlayTexture.DEFAULT_UV, 0);
+            }
+        }
+        else if (form instanceof MobForm mobForm && renderer instanceof MobFormRenderer mfr)
+        {
+            mfr.ensureRenderEntity();
+            Entity mobEnt = mfr.getRenderEntity();
+            if (mobEnt != null)
+            {
+                if (mobEnt instanceof LivingEntity living)
+                {
+                    living.deathTime = 0;
+                    if (stub != null)
+                    {
+                        ((MobFormRendererAccessor) mfr).irlite$prepareMorphRenderState(living, stub);
+                        ItemUseRenderState.syncEquipment(living, stub);
+                        ((MobFormRendererAccessor) mfr).irlite$applyLivingAnimationState(living, stub);
+                        living.hurtTime = stub.getHurtTimer();
+                        living.maxHurtTime = living.hurtTime > 0 ? Math.max(stub.getHurtTimer(), living.maxHurtTime) : 0;
+                        if (stub.getMountTarget() != null)
+                        {
+                            MobFormRendererAccessor.irlite$zeroLimbAnimator(living);
+                        }
+                        else
+                        {
+                            MobFormRendererAccessor.irlite$copyLimbAnimator(living, stub);
+                        }
+                    }
+                    else
+                    {
+                        living.setYaw(0);
+                        living.setBodyYaw(0);
+                        living.setHeadYaw(0);
+                        living.setPitch(0);
+                        living.lastYaw = 0;
+                        living.lastBodyYaw = 0;
+                        living.lastHeadYaw = 0;
+                        living.lastPitch = 0;
+                        living.hurtTime = 0;
+                        living.maxHurtTime = 0;
+                    }
+                }
+
+                matrices.push();
+                if ("minecraft:ender_dragon".equals(mobForm.mobID.get()))
+                {
+                    matrices.multiply(RotationAxis.POSITIVE_Y.rotation(MathHelper.PI));
+                }
+                MobFormRendererAccessor.irlite$setCurrentPose(mobForm.pose.get());
+                MobFormRendererAccessor.irlite$setCurrentPoseOverlay(mobForm.poseOverlay.get());
+                try
+                {
+                    MinecraftClient mc = MinecraftClient.getInstance();
+                    EntityRenderManager erm = mc.getEntityRenderDispatcher();
+                    EntityRenderState ers = erm.getAndUpdateRenderState(mobEnt, tickDelta);
+                    if (ers != null)
+                    {
+                        ers.shadowRadius = 0;
+                        if (ers.shadowPieces != null)
+                        {
+                            ers.shadowPieces.clear();
+                        }
+                        erm.render(ers, CAMERA_STATE, 0, 0, 0, matrices, QUEUE);
+                    }
+                }
+                finally
+                {
+                    MobFormRendererAccessor.irlite$setCurrentPose(null);
+                    MobFormRendererAccessor.irlite$setCurrentPoseOverlay(null);
+                    matrices.pop();
+                }
+            }
+        }
+        else if (form instanceof ShapeForm shapeForm)
+        {
+            float sx = shapeForm.sizeX.get();
+            float sy = shapeForm.sizeY.get();
+            float sz = shapeForm.sizeZ.get();
+            emitBox(matrices, -sx * 0.5f, -sy * 0.5f, -sz * 0.5f, sx * 0.5f, sy * 0.5f, sz * 0.5f);
+        }
+        else if (form instanceof BillboardForm billboardForm)
+        {
+            float aspectX = 1.0f;
+            float aspectY = 1.0f;
+            Link link = billboardForm.texture.get();
+            if (link != null)
+            {
+                try
+                {
+                    Texture tex = BBSModClient.getTextures().getTexture(link);
+                    if (tex != null && tex.width > 0 && tex.height > 0)
+                    {
+                        float tw = tex.width;
+                        float th = tex.height;
+                        Vector4f crop = billboardForm.crop.get();
+                        if (billboardForm.resizeCrop != null && billboardForm.resizeCrop.get() && crop != null)
+                        {
+                            tw = Math.max(1f, tw - crop.x - crop.z);
+                            th = Math.max(1f, th - crop.y - crop.w);
+                        }
+                        aspectX = th > tw ? tw / th : 1.0f;
+                        aspectY = tw > th ? th / tw : 1.0f;
+                    }
+                }
+                catch (Throwable ignored)
+                {}
+            }
+
+            float hx = 0.5f * aspectX;
+            float hy = 0.5f * aspectY;
+
+            matrices.push();
+            if (billboardForm.billboard != null && billboardForm.billboard.get())
+            {
+                if (camera != null)
+                {
+                    matrices.multiply(camera.getRotation());
+                }
+            }
+            emitQuad(matrices, -hx, -hy, 0f, hx, -hy, 0f, hx, hy, 0f, -hx, hy, 0f);
+            matrices.pop();
+        }
+        else if (form instanceof ExtrudedForm)
+        {
+            emitQuad(matrices, -0.5f, -0.5f, 0f, 0.5f, -0.5f, 0f, 0.5f, 0.5f, 0f, -0.5f, 0.5f, 0f);
+        }
+
+        List<BodyPart> parts = form.parts.getAllTyped();
+        if (parts != null && !parts.isEmpty())
+        {
+            MatrixCache cache = renderer == null ? null : renderer.collectMatrices(stub, tickDelta);
+            for (int i = 0, n = parts.size(); i < n; i++)
+            {
+                BodyPart bp = parts.get(i);
+                if (bp == null || bp.getForm() == null)
+                {
+                    continue;
+                }
+                matrices.push();
+                if (cache != null && bp.bone != null && !bp.bone.get().isEmpty())
+                {
+                    MatrixCacheEntry entry = cache.get(bp.bone.get());
+                    if (entry != null && entry.matrix() != null)
+                    {
+                        matrices.peek().getPositionMatrix().mul(entry.matrix());
+                    }
+                }
+                if (bp.transform != null && bp.transform.get() != null)
+                {
+                    MatrixStackUtils.applyTransform(matrices, bp.transform.get());
+                }
+                captureFormRecursive(bp.getForm(), stub, matrices, camera, tickDelta);
+                matrices.pop();
+            }
+        }
+
+        matrices.pop();
+        form.unapplyStates();
+    }
+
+    private static void emitQuad(MatrixStack matrices,
+                                 float x0, float y0, float z0,
+                                 float x1, float y1, float z1,
+                                 float x2, float y2, float z2,
+                                 float x3, float y3, float z3)
+    {
+        Matrix4f mat = matrices.peek().getPositionMatrix();
+        Vector4f v = new Vector4f();
+
+        v.set(x0, y0, z0, 1.0f); mat.transform(v); CAPTURE.vertex(v.x, v.y, v.z);
+        v.set(x1, y1, z1, 1.0f); mat.transform(v); CAPTURE.vertex(v.x, v.y, v.z);
+        v.set(x2, y2, z2, 1.0f); mat.transform(v); CAPTURE.vertex(v.x, v.y, v.z);
+        v.set(x3, y3, z3, 1.0f); mat.transform(v); CAPTURE.vertex(v.x, v.y, v.z);
+    }
+
+    private static void emitBox(MatrixStack matrices, float minX, float minY, float minZ, float maxX, float maxY, float maxZ)
+    {
+        emitQuad(matrices, minX, minY, maxZ, maxX, minY, maxZ, maxX, maxY, maxZ, minX, maxY, maxZ);
+        emitQuad(matrices, maxX, minY, minZ, minX, minY, minZ, minX, maxY, minZ, maxX, maxY, minZ);
+        emitQuad(matrices, maxX, minY, maxZ, maxX, minY, minZ, maxX, maxY, minZ, maxX, maxY, maxZ);
+        emitQuad(matrices, minX, minY, minZ, minX, minY, maxZ, minX, maxY, maxZ, minX, maxY, minZ);
+        emitQuad(matrices, minX, maxY, maxZ, maxX, maxY, maxZ, maxX, maxY, minZ, minX, maxY, minZ);
+        emitQuad(matrices, minX, minY, minZ, maxX, minY, minZ, maxX, minY, maxZ, minX, minY, maxZ);
+    }
+
+    public static final class ShadowCubicRenderer implements ICubicRenderer
+    {
+        private final VertexConsumer consumer;
+        private final Vector4f v4 = new Vector4f();
+
+        public ShadowCubicRenderer(VertexConsumer consumer)
+        {
+            this.consumer = consumer;
+        }
+
+        @Override
+        public boolean renderGroup(BufferBuilder buffer, MatrixStack matrices, ModelGroup group, Model model)
+        {
+            if (group.cubes != null && !group.cubes.isEmpty())
+            {
+                for (int i = 0, n = group.cubes.size(); i < n; i++)
+                {
+                    ModelCube cube = group.cubes.get(i);
+                    if (cube == null || !cube.visible)
+                    {
+                        continue;
+                    }
+                    matrices.push();
+                    CubicCubeRenderer.moveToPivot(matrices, cube.pivot);
+                    CubicCubeRenderer.rotate(matrices, cube.rotate);
+                    CubicCubeRenderer.moveBackFromPivot(matrices, cube.pivot);
+                    if (cube.quads == null || cube.quads.isEmpty())
+                    {
+                        cube.generateQuads(model == null ? 64 : model.textureWidth, model == null ? 64 : model.textureHeight);
+                    }
+                    if (cube.quads != null)
+                    {
+                        Matrix4f posMat = matrices.peek().getPositionMatrix();
+                        for (int qi = 0, qn = cube.quads.size(); qi < qn; qi++)
+                        {
+                            ModelQuad quad = cube.quads.get(qi);
+                            if (quad != null && quad.vertices != null)
+                            {
+                                for (int vi = 0, vn = quad.vertices.size(); vi < vn; vi++)
+                                {
+                                    ModelVertex mv = quad.vertices.get(vi);
+                                    if (mv != null && mv.vertex != null)
+                                    {
+                                        v4.set(mv.vertex.x, mv.vertex.y, mv.vertex.z, 1.0f);
+                                        posMat.transform(v4);
+                                        consumer.vertex(v4.x, v4.y, v4.z);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    matrices.pop();
+                }
+            }
+            if (group.meshes != null && !group.meshes.isEmpty())
+            {
+                for (int i = 0, n = group.meshes.size(); i < n; i++)
+                {
+                    ModelMesh mesh = group.meshes.get(i);
+                    if (mesh == null)
+                    {
+                        continue;
+                    }
+                    ModelData md = mesh.baseData;
+                    if (md != null && md.vertices != null && !md.vertices.isEmpty())
+                    {
+                        matrices.push();
+                        if (mesh.origin != null)
+                        {
+                            matrices.translate(mesh.origin.x, mesh.origin.y, mesh.origin.z);
+                        }
+                        if (mesh.rotate != null)
+                        {
+                            CubicCubeRenderer.rotate(matrices, mesh.rotate);
+                        }
+                        Matrix4f posMat = matrices.peek().getPositionMatrix();
+                        List<Vector3f> verts = md.vertices;
+                        for (int vi = 0, vn = verts.size(); vi + 2 < vn; vi += 3)
+                        {
+                            Vector3f v0 = verts.get(vi);
+                            Vector3f v1 = verts.get(vi + 1);
+                            Vector3f v2 = verts.get(vi + 2);
+                            v4.set(v0.x, v0.y, v0.z, 1.0f); posMat.transform(v4); consumer.vertex(v4.x, v4.y, v4.z);
+                            v4.set(v1.x, v1.y, v1.z, 1.0f); posMat.transform(v4); consumer.vertex(v4.x, v4.y, v4.z);
+                            v4.set(v2.x, v2.y, v2.z, 1.0f); posMat.transform(v4); consumer.vertex(v4.x, v4.y, v4.z);
+                            v4.set(v2.x, v2.y, v2.z, 1.0f); posMat.transform(v4); consumer.vertex(v4.x, v4.y, v4.z);
+                        }
+                        matrices.pop();
+                    }
+                }
+            }
+            return false;
         }
     }
 
@@ -287,7 +846,7 @@ public final class OccluderGeometryCapturer
         }
 
         @Override
-        public <S> void submitModel(Model<? super S> model, S state, MatrixStack matrices, RenderLayer renderLayer,
+        public <S> void submitModel(net.minecraft.client.model.Model<? super S> model, S state, MatrixStack matrices, RenderLayer renderLayer,
                                     int light, int overlay, int tintedColor, Sprite sprite, int outlineColor,
                                     ModelCommandRenderer.CrumblingOverlayCommand crumblingOverlay)
         {

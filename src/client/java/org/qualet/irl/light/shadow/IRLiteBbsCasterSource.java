@@ -4,17 +4,15 @@ import io.netty.util.collection.IntObjectMap;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.blocks.entities.ModelBlockEntity;
 import mchorse.bbs_mod.blocks.entities.ModelProperties;
-import mchorse.bbs_mod.client.renderer.MorphRenderer;
 import mchorse.bbs_mod.film.BaseFilmController;
 import mchorse.bbs_mod.film.Films;
 import mchorse.bbs_mod.film.replays.Replay;
-import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
-import mchorse.bbs_mod.forms.renderers.FormRenderer;
-import mchorse.bbs_mod.forms.renderers.FormRenderType;
-import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
+import mchorse.bbs_mod.morphing.Morph;
+import mchorse.bbs_mod.selectors.ISelectorOwnerProvider;
+import mchorse.bbs_mod.selectors.SelectorOwner;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.film.controller.FilmEditorController;
@@ -25,10 +23,6 @@ import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.render.Camera;
-import net.minecraft.client.render.LightmapTextureManager;
-import net.minecraft.client.render.OverlayTexture;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.entity.EntityRenderManager;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
@@ -41,6 +35,9 @@ import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.chunk.BlockEntityTickInvoker;
 import org.joml.Matrix3f;
+import org.joml.Matrix4f;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import net.minecraft.world.chunk.WorldChunk;
 import qualet.irlite.IrliteConfig;
 import qualet.irlite.client.light.LightCollector;
 import qualet.irlite.forms.PointLightForm;
@@ -71,7 +68,6 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
      *  intentionally camera-prioritized for casters beyond this horizon. */
     private static final double COLLECT_DIST = LightCollector.MAX_DIST;
     private static final double COLLECT_DIST_SQ = COLLECT_DIST * COLLECT_DIST;
-    private static final int FULL_LIGHT = LightmapTextureManager.pack(15, 15);
 
     private static final long FNV_OFFSET = 1469598103934665603L;
     private static final long FNV_PRIME = 1099511628211L;
@@ -125,63 +121,66 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
 
     private static void collectModelBlocks(ClientWorld world, double camX, double camY, double camZ, OccluderSink sink)
     {
-        List<BlockEntityTickInvoker> tickers;
-        try
-        {
-            tickers = ((WorldBlockEntityTickersAccessor) (Object) world).irlite$getBlockEntityTickers();
-        }
-        catch (Throwable t)
-        {
-            return;
-        }
-        if (tickers == null)
+        if (world == null || world.getChunkManager() == null)
         {
             return;
         }
 
-        for (int idx = 0, n = tickers.size(); idx < n; idx++)
+        int minChunkX = MathHelper.floor((camX - COLLECT_DIST) / 16.0);
+        int maxChunkX = MathHelper.floor((camX + COLLECT_DIST) / 16.0);
+        int minChunkZ = MathHelper.floor((camZ - COLLECT_DIST) / 16.0);
+        int maxChunkZ = MathHelper.floor((camZ + COLLECT_DIST) / 16.0);
+
+        LongOpenHashSet visited = new LongOpenHashSet();
+
+        for (int cx = minChunkX; cx <= maxChunkX; cx++)
         {
-            BlockEntityTickInvoker invoker = tickers.get(idx);
-            if (invoker == null)
+            for (int cz = minChunkZ; cz <= maxChunkZ; cz++)
             {
-                continue;
-            }
-            BlockPos pos = invoker.getPos();
-            if (pos == null)
-            {
-                continue;
-            }
+                WorldChunk chunk;
+                try { chunk = world.getChunkManager().getWorldChunk(cx, cz); }
+                catch (Throwable t) { continue; }
+                if (chunk == null)
+                {
+                    continue;
+                }
 
-            double dx = pos.getX() + 0.5 - camX;
-            double dy = pos.getY() + 0.5 - camY;
-            double dz = pos.getZ() + 0.5 - camZ;
-            if (dx * dx + dy * dy + dz * dz > COLLECT_DIST_SQ)
-            {
-                continue;
-            }
+                for (BlockEntity be : chunk.getBlockEntities().values())
+                {
+                    if (!(be instanceof ModelBlockEntity mbe))
+                    {
+                        continue;
+                    }
+                    BlockPos pos = mbe.getPos();
+                    if (pos == null || !visited.add(pos.asLong()))
+                    {
+                        continue;
+                    }
 
-            BlockEntity be;
-            try { be = world.getBlockEntity(pos); }
-            catch (Throwable t) { continue; }
-            if (!(be instanceof ModelBlockEntity mbe))
-            {
-                continue;
-            }
+                    double dx = pos.getX() + 0.5 - camX;
+                    double dy = pos.getY() + 0.5 - camY;
+                    double dz = pos.getZ() + 0.5 - camZ;
+                    if (dx * dx + dy * dy + dz * dz > COLLECT_DIST_SQ)
+                    {
+                        continue;
+                    }
 
-            ModelProperties props;
-            try { props = mbe.getProperties(); }
-            catch (Throwable t) { continue; }
-            if (props == null || !props.isEnabled())
-            {
-                continue;
+                    ModelProperties props;
+                    try { props = mbe.getProperties(); }
+                    catch (Throwable t) { continue; }
+                    if (props == null || !props.isEnabled())
+                    {
+                        continue;
+                    }
+                    Form form = props.getForm();
+                    if (!hasShadowGeometry(form))
+                    {
+                        continue;
+                    }
+                    Transform t = props.getTransform();
+                    emitModelBlock(sink, mbe, form, t);
+                }
             }
-            Form form = props.getForm();
-            if (!hasShadowGeometry(form))
-            {
-                continue;
-            }
-            Transform t = props.getTransform();
-            emitModelBlock(sink, mbe, form, t);
         }
     }
 
@@ -189,14 +188,10 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
     {
         Films films;
         try { films = BBSModClient.getFilms(); }
-        catch (Throwable t) { return; }
-        if (films == null)
-        {
-            return;
-        }
+        catch (Throwable t) { films = null; }
 
         List<BaseFilmController> ctrls;
-        try { ctrls = ((FilmsAccessor) (Object) films).irlite$getControllers(); }
+        try { ctrls = films != null ? ((FilmsAccessor) (Object) films).irlite$getControllers() : null; }
         catch (Throwable t) { ctrls = null; }
 
         FilmEditorController editor = getActiveEditorController();
@@ -206,32 +201,17 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
         for (int ci = 0; ci < total; ci++)
         {
             BaseFilmController ctrl = ci < worldN ? ctrls.get(ci) : editor;
-            if (ctrl == null || ctrl.film == null || ctrl.film.replays == null)
+            if (ctrl == null || ctrl.film == null)
             {
                 continue;
             }
-
-            List<Replay> replays;
-            try { replays = ctrl.film.replays.getList(); }
-            catch (Throwable t) { continue; }
-            if (replays == null || replays.isEmpty())
+            if (ctrl.getEntities() == null || ctrl.getEntities().isEmpty())
             {
                 continue;
             }
 
             for (IntObjectMap.PrimitiveEntry<IEntity> e : ctrl.getEntities().entries())
             {
-                int rid = e.key();
-                if (rid < 0 || rid >= replays.size())
-                {
-                    continue;
-                }
-                Replay replay = replays.get(rid);
-                if (replay == null || replay.actor.get())
-                {
-                    // Skip actor replays — real actors come via the entity arm.
-                    continue;
-                }
                 IEntity ent = e.value();
                 if (ent == null)
                 {
@@ -293,11 +273,6 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
     {
         try
         {
-            if (MinecraftClient.getInstance().currentScreen == null)
-            {
-                return null;
-            }
-
             UIDashboard dashboard = BBSModClient.getDashboard();
             if (dashboard == null)
             {
@@ -332,9 +307,9 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
         double tx = t == null ? 0 : t.translate.x;
         double ty = t == null ? 0 : t.translate.y;
         double tz = t == null ? 0 : t.translate.z;
-        double pivotX = pos.getX() + 0.5 + 2.0 * tx;
-        double pivotY = pos.getY() + 2.0 * ty;
-        double pivotZ = pos.getZ() + 0.5 + 2.0 * tz;
+        double pivotX = pos.getX() + 0.5 + tx;
+        double pivotY = pos.getY() + ty;
+        double pivotZ = pos.getZ() + 0.5 + tz;
 
         float ehx, ehy, ehz;
         double offX, offY, offZ;
@@ -397,13 +372,137 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
     @Override
     public void emitOccluder(Object caster, int type, float tickDelta, OccluderBatch batch)
     {
-        if (caster instanceof Entity entity)
+        RawOccluderBatch rawBatch = (RawOccluderBatch) batch;
+        Camera cam = MinecraftClient.getInstance().gameRenderer.getCamera();
+        try
         {
-            float[] tris = OccluderGeometryCapturer.captureEntityTris(entity, tickDelta);
-            if (tris != null && tris.length > 0)
+            switch (type)
             {
-                ((RawOccluderBatch) batch).append(tris);
+                case CasterType.MODEL_BLOCK ->
+                    drawModelBlock((ModelBlockEntity) caster, rawBatch, cam, tickDelta);
+                case CasterType.REPLAY ->
+                    drawReplay((IEntity) caster, rawBatch, cam, tickDelta);
+                default /* ENTITY */ ->
+                    drawEntity((Entity) caster, rawBatch, cam, tickDelta);
             }
+        }
+        catch (Throwable t)
+        {
+            System.err.println("[IRLite-Shadow] emitOccluder failed for type " + type + " (" + caster + "): " + t);
+            t.printStackTrace();
+        }
+    }
+
+    private static void drawEntity(Entity entity, RawOccluderBatch batch, Camera camera, float tickDelta)
+    {
+        double ox = ShadowRenderer.currentOriginX();
+        double oy = ShadowRenderer.currentOriginY();
+        double oz = ShadowRenderer.currentOriginZ();
+        double cx = MathHelper.lerp(tickDelta, entity.lastRenderX, entity.getX()) - ox;
+        double cy = MathHelper.lerp(tickDelta, entity.lastRenderY, entity.getY()) - oy;
+        double cz = MathHelper.lerp(tickDelta, entity.lastRenderZ, entity.getZ()) - oz;
+
+        if (entity instanceof AbstractClientPlayerEntity player)
+        {
+            Morph morph = Morph.getMorph(player);
+            Form form = morph == null ? null : morph.getForm();
+            if (form != null)
+            {
+                float bodyYaw = MathHelper.lerpAngleDegrees(tickDelta, player.lastBodyYaw, player.bodyYaw);
+                MatrixStack matrices = new MatrixStack();
+                matrices.translate(cx, cy, cz);
+                matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-bodyYaw));
+                float[] tris = OccluderGeometryCapturer.captureFormTris(form, morph.entity, matrices, camera, tickDelta);
+                if (tris != null && tris.length > 0)
+                {
+                    batch.append(tris);
+                    return;
+                }
+            }
+        }
+        else if (entity instanceof LivingEntity living && entity instanceof ISelectorOwnerProvider provider)
+        {
+            SelectorOwner owner = provider.getOwner();
+            if (owner != null)
+            {
+                owner.check();
+                Form form = owner.getForm();
+                if (form != null)
+                {
+                    float bodyYaw = MathHelper.lerpAngleDegrees(tickDelta, living.lastBodyYaw, living.bodyYaw);
+                    MatrixStack matrices = new MatrixStack();
+                    matrices.translate(cx, cy, cz);
+                    matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-bodyYaw));
+                    float[] tris = OccluderGeometryCapturer.captureFormTris(form, owner.entity, matrices, camera, tickDelta);
+                    if (tris != null && tris.length > 0)
+                    {
+                        batch.append(tris);
+                        return;
+                    }
+                }
+            }
+        }
+
+        float[] tris = OccluderGeometryCapturer.captureEntityTris(entity, tickDelta);
+        if (tris != null && tris.length > 0)
+        {
+            batch.append(tris);
+        }
+    }
+
+    private static void drawModelBlock(ModelBlockEntity mbe, RawOccluderBatch batch, Camera camera, float tickDelta)
+    {
+        if (mbe.getProperties() == null)
+        {
+            return;
+        }
+        Form form = mbe.getProperties().getForm();
+        if (form == null)
+        {
+            return;
+        }
+        Transform t = mbe.getProperties().getTransform();
+
+        double ox = ShadowRenderer.currentOriginX();
+        double oy = ShadowRenderer.currentOriginY();
+        double oz = ShadowRenderer.currentOriginZ();
+        double feetX = mbe.getPos().getX() + 0.5 - ox;
+        double feetY = mbe.getPos().getY() - oy;
+        double feetZ = mbe.getPos().getZ() + 0.5 - oz;
+
+        MatrixStack matrices = new MatrixStack();
+        matrices.translate(feetX, feetY, feetZ);
+        if (t != null)
+        {
+            MatrixStackUtils.applyTransform(matrices, t);
+        }
+        float[] tris = OccluderGeometryCapturer.captureFormTris(form, mbe.getEntity(), matrices, camera, tickDelta);
+        if (tris != null && tris.length > 0)
+        {
+            batch.append(tris);
+        }
+    }
+
+    private static void drawReplay(IEntity stub, RawOccluderBatch batch, Camera camera, float tickDelta)
+    {
+        Form form = stub.getForm();
+        if (form == null)
+        {
+            return;
+        }
+
+        double ox = ShadowRenderer.currentOriginX();
+        double oy = ShadowRenderer.currentOriginY();
+        double oz = ShadowRenderer.currentOriginZ();
+
+        Matrix4f baseMatrix = BaseFilmController.getMatrixForRenderWithRotation(stub, ox, oy, oz, tickDelta);
+        MatrixStack matrices = new MatrixStack();
+        matrices.peek().getPositionMatrix().mul(baseMatrix);
+
+        float[] tris = OccluderGeometryCapturer.captureFormTris(form, stub, matrices, camera, tickDelta);
+        if (tris != null && tris.length > 0)
+        {
+            batch.append(tris);
         }
     }
 }
