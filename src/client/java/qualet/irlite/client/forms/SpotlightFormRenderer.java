@@ -74,7 +74,7 @@ public class SpotlightFormRenderer extends AbstractLightFormRenderer<SpotlightFo
         Vector3d p = IRLightPositionResolver.resolve(context);
 
         Vector4f f = new Vector4f(0F, 0F, 1F, 0F);
-        context.stack.peek().getPositionMatrix().transform(f);
+        context.stack.last().pose().transform(f);
         Vector4f forward = new Vector4f();
         LightMath.normalizeDir(f.x, f.y, f.z, 0F, 0F, 1F, forward);
         float dx = forward.x, dy = forward.y, dz = forward.z;

@@ -26,7 +26,7 @@ public final class IRLightPositionResolver
     public static Vector3d resolve(FormRenderingContext context)
     {
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
-        Matrix4f worldMatrix = context.stack.peek().getPositionMatrix();
+        Matrix4f worldMatrix = context.stack.last().pose();
         Vector3f offset = worldMatrix.getTranslation(new Vector3f());
 
         Vec3 camPos = camera.position();

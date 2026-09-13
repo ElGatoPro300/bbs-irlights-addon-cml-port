@@ -9,8 +9,10 @@ import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.resources.Identifier;
 
 import com.mojang.blaze3d.pipeline.BlendFunction;
+import com.mojang.blaze3d.pipeline.ColorTargetState;
+import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DepthTestFunction;
+import com.mojang.blaze3d.platform.CompareOp;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
@@ -18,67 +20,96 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 
 public final class IrliteLayers
 {
+    private static RenderPipeline.Builder withUniforms(RenderPipeline source)
+    {
+        RenderPipeline.Builder builder = RenderPipeline.builder();
+
+        for (RenderPipeline.UniformDescription uniform : source.getUniforms())
+        {
+            if (uniform.textureFormat() == null)
+            {
+                builder.withUniform(uniform.name(), uniform.type());
+            }
+            else
+            {
+                builder.withUniform(uniform.name(), uniform.type(), uniform.textureFormat());
+            }
+        }
+
+        return builder;
+    }
+
     private static final BlendFunction BLEND = BlendFunction.TRANSLUCENT;
 
     private static final RenderPipeline POSITION_COLOR_LINES = RenderPipelines.register(
-        RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+        withUniforms(RenderPipelines.DEBUG_FILLED_BOX)
             .withLocation(Identifier.fromNamespaceAndPath("irlite", "pipeline/draw_position_color_lines"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.DrawMode.DEBUG_LINES)
-            .withBlend(BLEND)
-            .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
+            .withVertexShader("core/position_color")
+            .withFragmentShader("core/position_color")
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.DEBUG_LINES)
+            .withColorTargetState(new ColorTargetState(BLEND))
+            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true))
             .withCull(false)
             .build()
     );
 
     private static final RenderPipeline POSITION_COLOR_TRIS = RenderPipelines.register(
-        RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+        withUniforms(RenderPipelines.DEBUG_FILLED_BOX)
             .withLocation(Identifier.fromNamespaceAndPath("irlite", "pipeline/draw_position_color"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.DrawMode.TRIANGLES)
-            .withBlend(BLEND)
-            .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
+            .withVertexShader("core/position_color")
+            .withFragmentShader("core/position_color")
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.TRIANGLES)
+            .withColorTargetState(new ColorTargetState(BLEND))
+            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true))
             .withCull(false)
             .build()
     );
 
     private static final RenderPipeline POSITION_COLOR_TRIS_NO_DEPTH = RenderPipelines.register(
-        RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+        withUniforms(RenderPipelines.DEBUG_FILLED_BOX)
             .withLocation(Identifier.fromNamespaceAndPath("irlite", "pipeline/draw_position_color_no_depth"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.DrawMode.TRIANGLES)
-            .withBlend(BLEND)
-            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-            .withDepthWrite(false)
+            .withVertexShader("core/position_color")
+            .withFragmentShader("core/position_color")
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.TRIANGLES)
+            .withColorTargetState(new ColorTargetState(BLEND))
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(false)
             .build()
     );
 
     private static final RenderPipeline POSITION_COLOR_TRIS_STENCIL = RenderPipelines.register(
-        RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+        withUniforms(RenderPipelines.DEBUG_FILLED_BOX)
             .withLocation(Identifier.fromNamespaceAndPath("irlite", "pipeline/draw_position_color_stencil"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.DrawMode.TRIANGLES)
-            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-            .withDepthWrite(false)
+            .withVertexShader("core/position_color")
+            .withFragmentShader("core/position_color")
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.TRIANGLES)
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(false)
             .build()
     );
 
     private static final RenderPipeline POSITION_TEX_COLOR_QUADS_NO_DEPTH = RenderPipelines.register(
-        RenderPipeline.builder(RenderPipelines.GUI_TEXTURED_SNIPPET)
+        withUniforms(RenderPipelines.GUI_TEXTURED)
             .withLocation(Identifier.fromNamespaceAndPath("irlite", "pipeline/draw_position_tex_color_no_depth"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.DrawMode.QUADS)
-            .withBlend(BLEND)
-            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-            .withDepthWrite(false)
+            .withVertexShader(RenderPipelines.GUI_TEXTURED.getVertexShader())
+            .withFragmentShader(RenderPipelines.GUI_TEXTURED.getFragmentShader())
+            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS)
+            .withSampler("Sampler0")
+            .withColorTargetState(new ColorTargetState(BLEND))
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(false)
             .build()
     );
 
     private static final RenderPipeline POSITION_TEX_COLOR_TRIS_NO_DEPTH = RenderPipelines.register(
-        RenderPipeline.builder(RenderPipelines.GUI_TEXTURED_SNIPPET)
+        withUniforms(RenderPipelines.GUI_TEXTURED)
             .withLocation(Identifier.fromNamespaceAndPath("irlite", "pipeline/draw_position_tex_color_tris_no_depth"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.DrawMode.TRIANGLES)
-            .withBlend(BLEND)
-            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-            .withDepthWrite(false)
+            .withVertexShader(RenderPipelines.GUI_TEXTURED.getVertexShader())
+            .withFragmentShader(RenderPipelines.GUI_TEXTURED.getFragmentShader())
+            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.TRIANGLES)
+            .withSampler("Sampler0")
+            .withColorTargetState(new ColorTargetState(BLEND))
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(false)
             .build()
     );

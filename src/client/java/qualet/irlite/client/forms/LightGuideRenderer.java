@@ -78,7 +78,7 @@ final class LightGuideRenderer
     private static void renderTriangles(Consumer<BufferBuilder> consumer)
     {
         BufferBuilder builder = Tesselator.getInstance()
-            .begin(VertexFormat.DrawMode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
+            .begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
         consumer.accept(builder);
         IrliteLayers.flushTrianglesNoDepth(builder);
     }
@@ -235,7 +235,7 @@ final class LightGuideRenderer
     private static void renderStencilTriangles(Consumer<BufferBuilder> consumer)
     {
         BufferBuilder builder = Tesselator.getInstance()
-            .begin(VertexFormat.DrawMode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
+            .begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
         consumer.accept(builder);
         IrliteLayers.flushStencilTriangles(builder);
     }

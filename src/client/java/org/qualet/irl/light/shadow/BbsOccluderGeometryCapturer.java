@@ -6,6 +6,7 @@ import qualet.irlite.mixin.client.bbs.StructureFormRendererAccessor;
 
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.client.ItemUseRenderState;
+import mchorse.bbs_mod.client.renderer.LightTexture;
 import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.animation.IAnimator;
@@ -49,25 +50,25 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.model.geom.ModelPart;
-import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.OrderedSubmitNodeCollector;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.block.BlockRenderDispatcher;
+import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.client.renderer.block.ModelBlockRenderer;
 import net.minecraft.client.renderer.block.MovingBlockRenderState;
-import net.minecraft.client.renderer.block.model.BakedQuad;
-import net.minecraft.client.renderer.block.model.BlockModelPart;
-import net.minecraft.client.renderer.block.model.BlockStateModel;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
 import net.minecraft.client.renderer.item.ItemModelResolver;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.state.CameraRenderState;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
@@ -76,7 +77,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -88,6 +88,7 @@ import org.joml.Vector4f;
 
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.QuadInstance;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 
@@ -164,23 +165,22 @@ public final class BbsOccluderGeometryCapturer
         }
     }
 
-    public static float[] captureCutoutBlockTris(BlockAndTintGetter world, BlockRenderDispatcher brm,
+    public static float[] captureCutoutBlockTris(BlockAndTintGetter world, Object brm,
                                                  BlockPos pos, BlockState state, RandomSource random)
     {
-        if (world == null || brm == null || state == null)
+        if (world == null || state == null)
         {
             return EMPTY;
         }
         try
         {
-            BlockStateModel model = brm.getBlockModel(state);
-            if (model == null)
+            Minecraft mc = Minecraft.getInstance();
+            if (mc == null || mc.getModelManager() == null)
             {
                 return EMPTY;
             }
-            random.setSeed(state.getSeed(pos));
-            List<BlockModelPart> parts = model.collectParts(random);
-            if (parts == null || parts.isEmpty())
+            BlockStateModel model = mc.getModelManager().getBlockStateModelSet().get(state);
+            if (model == null)
             {
                 return EMPTY;
             }
@@ -189,7 +189,12 @@ public final class BbsOccluderGeometryCapturer
             ms.translate(pos.getX(), pos.getY(), pos.getZ());
 
             CAPTURE.reset();
-            brm.renderBatched(state, pos, world, ms, CAPTURE, true, parts);
+            ModelBlockRenderer modelRenderer = new ModelBlockRenderer(true, true, mc.getBlockColors());
+            modelRenderer.tesselateBlock(
+                (x, y, z, quad, instance) -> CAPTURE.putBakedQuad(ms.last(), quad, instance),
+                0F, 0F, 0F,
+                world, pos, state, model, state.getSeed(pos)
+            );
             return CAPTURE.toTris(true);
         }
         catch (Throwable t)
@@ -319,9 +324,8 @@ public final class BbsOccluderGeometryCapturer
                 if (blocks != null && !blocks.isEmpty())
                 {
                     Minecraft mc = Minecraft.getInstance();
-                    BlockRenderDispatcher brm = mc.getBlockRenderer();
                     BlockAndTintGetter view = data.getCachedView() != null ? data.getCachedView() : mc.level;
-                    RandomSource random = RandomSource.create();
+                    ModelBlockRenderer modelRenderer = new ModelBlockRenderer(true, true, mc.getBlockColors());
 
                     BlockPos min = data.getBoundsMin();
                     BlockPos max = data.getBoundsMax();
@@ -365,18 +369,17 @@ public final class BbsOccluderGeometryCapturer
                         }
                         BlockPos bp = entry.pos;
                         BlockState bs = entry.state;
-                        BlockStateModel bsm = brm.getBlockModel(bs);
+                        BlockStateModel bsm = mc.getModelManager().getBlockStateModelSet().get(bs);
                         if (bsm != null)
                         {
-                            random.setSeed(bs.getSeed(bp));
-                            List<BlockModelPart> parts = bsm.collectParts(random);
-                            if (parts != null && !parts.isEmpty())
-                            {
-                                matrices.pushPose();
-                                matrices.translate(bp.getX() - pivotX, bp.getY() - pivotY, bp.getZ() - pivotZ);
-                                brm.renderBatched(bs, bp, view, matrices, CAPTURE, false, parts);
-                                matrices.popPose();
-                            }
+                            matrices.pushPose();
+                            matrices.translate(bp.getX() - pivotX, bp.getY() - pivotY, bp.getZ() - pivotZ);
+                            modelRenderer.tesselateBlock(
+                                (x, y, z, quad, instance) -> CAPTURE.putBakedQuad(matrices.last(), quad, instance),
+                                0F, 0F, 0F,
+                                view, bp, bs, bsm, bs.getSeed(bp)
+                            );
+                            matrices.popPose();
                         }
                     }
                     matrices.popPose();
@@ -389,32 +392,30 @@ public final class BbsOccluderGeometryCapturer
             if (bs != null && !bs.isAir())
             {
                 Minecraft mc = Minecraft.getInstance();
-                BlockRenderDispatcher brm = mc.getBlockRenderer();
-                BlockStateModel bsm = brm.getBlockModel(bs);
+                BlockStateModel bsm = mc.getModelManager().getBlockStateModelSet().get(bs);
                 if (bsm != null)
                 {
-                    RandomSource random = RandomSource.create();
-                    random.setSeed(bs.getSeed(BlockPos.ZERO));
-                    List<BlockModelPart> parts = bsm.collectParts(random);
-                    if (parts != null && !parts.isEmpty())
+                    ModelBlockRenderer modelRenderer = new ModelBlockRenderer(true, true, mc.getBlockColors());
+                    int rx = Math.max(1, bf.repeatX.get());
+                    int ry = Math.max(1, bf.repeatY.get());
+                    int rz = Math.max(1, bf.repeatZ.get());
+                    int sx = BlockForm.repeatAxisStart(rx, bf.repeatCenterX.get());
+                    int sy = BlockForm.repeatAxisStart(ry, bf.repeatCenterY.get());
+                    int sz = BlockForm.repeatAxisStart(rz, bf.repeatCenterZ.get());
+                    for (int y = 0; y < ry; y++)
                     {
-                        int rx = Math.max(1, bf.repeatX.get());
-                        int ry = Math.max(1, bf.repeatY.get());
-                        int rz = Math.max(1, bf.repeatZ.get());
-                        int sx = BlockForm.repeatAxisStart(rx, bf.repeatCenterX.get());
-                        int sy = BlockForm.repeatAxisStart(ry, bf.repeatCenterY.get());
-                        int sz = BlockForm.repeatAxisStart(rz, bf.repeatCenterZ.get());
-                        for (int y = 0; y < ry; y++)
+                        for (int z = 0; z < rz; z++)
                         {
-                            for (int z = 0; z < rz; z++)
+                            for (int x = 0; x < rx; x++)
                             {
-                                for (int x = 0; x < rx; x++)
-                                {
-                                    matrices.pushPose();
-                                    matrices.translate(sx + x - 0.5f, sy + y, sz + z - 0.5f);
-                                    brm.renderBatched(bs, BlockPos.ZERO, mc.level, matrices, CAPTURE, false, parts);
-                                    matrices.popPose();
-                                }
+                                matrices.pushPose();
+                                matrices.translate(sx + x - 0.5f, sy + y, sz + z - 0.5f);
+                                modelRenderer.tesselateBlock(
+                                    (bx, by, bz, quad, instance) -> CAPTURE.putBakedQuad(matrices.last(), quad, instance),
+                                    0F, 0F, 0F,
+                                    mc.level, BlockPos.ZERO, bs, bsm, bs.getSeed(BlockPos.ZERO)
+                                );
+                                matrices.popPose();
                             }
                         }
                     }
@@ -1146,7 +1147,7 @@ public final class BbsOccluderGeometryCapturer
         }
     }
 
-    private static final class CaptureQueue implements OrderedRenderCommandQueue
+    private static final class CaptureQueue implements SubmitNodeCollector
     {
         private final Capture capture;
 
@@ -1156,7 +1157,7 @@ public final class BbsOccluderGeometryCapturer
         }
 
         @Override
-        public OrderedSubmitNodeCollector getBatchingQueue(int order)
+        public OrderedSubmitNodeCollector order(int order)
         {
             return this;
         }
@@ -1200,7 +1201,7 @@ public final class BbsOccluderGeometryCapturer
 
         @Override
         public void submitItem(PoseStack matrices, ItemDisplayContext displayContext, int light, int overlay,
-                               int outlineColors, int[] tintLayers, List<BakedQuad> quads, RenderType renderLayer,
+                               int outlineColors, int[] tintLayers, List<BakedQuad> quads,
                                ItemStackRenderState.FoilType glintType)
         {
             if (quads == null || quads.isEmpty())
@@ -1210,12 +1211,16 @@ public final class BbsOccluderGeometryCapturer
             try
             {
                 PoseStack.Pose e = matrices.last();
+                QuadInstance instance = new QuadInstance();
+                instance.setColor(0xFFFFFFFF);
+                instance.setLightCoords(light);
+                instance.setOverlayCoords(overlay);
                 for (int qi = 0, n = quads.size(); qi < n; qi++)
                 {
                     BakedQuad q = quads.get(qi);
                     if (q != null)
                     {
-                        capture.putBulkData(e, q, 1f, 1f, 1f, 1f, light, overlay);
+                        capture.putBakedQuad(e, q, instance);
                     }
                 }
             }
@@ -1225,13 +1230,13 @@ public final class BbsOccluderGeometryCapturer
         }
 
         @Override
-        public void submitShadowPieces(PoseStack matrices, float shadowRadius, List<EntityRenderState.ShadowPiece> shadowPieces)
+        public void submitShadow(PoseStack matrices, float shadowRadius, List<EntityRenderState.ShadowPiece> shadowPieces)
         {
         }
 
         @Override
-        public void submitLabel(PoseStack matrices, Vec3 nameLabelPos, int y, Component label, boolean notSneaking,
-                                int light, double squaredDistanceToCamera, CameraRenderState cameraState)
+        public void submitNameTag(PoseStack matrices, Vec3 nameLabelPos, int y, Component label, boolean notSneaking,
+                                  int light, double squaredDistanceToCamera, CameraRenderState cameraState)
         {
         }
 
@@ -1242,7 +1247,7 @@ public final class BbsOccluderGeometryCapturer
         }
 
         @Override
-        public void submitFire(PoseStack matrices, EntityRenderState renderState, Quaternionf rotation)
+        public void submitFlame(PoseStack matrices, EntityRenderState renderState, Quaternionf rotation)
         {
         }
 
@@ -1252,46 +1257,49 @@ public final class BbsOccluderGeometryCapturer
         }
 
         @Override
-        public void submitBlock(PoseStack matrices, BlockState state, int light, int overlay, int outlineColor)
-        {
-            if (state == null || state.getRenderShape() == RenderShape.INVISIBLE)
-            {
-                return;
-            }
-            try
-            {
-                Minecraft mc = Minecraft.getInstance();
-                if (mc == null)
-                {
-                    return;
-                }
-                BlockStateModel model = mc.getBlockRenderer().getBlockModel(state);
-                if (model != null)
-                {
-                    ModelBlockRenderer.renderModel(matrices.last(), capture, model, 1f, 1f, 1f, light, overlay);
-                }
-            }
-            catch (Throwable ignored)
-            {
-            }
-        }
-
-        @Override
         public void submitMovingBlock(PoseStack matrices, MovingBlockRenderState state)
         {
         }
 
         @Override
-        public void submitBlockStateModel(PoseStack matrices, RenderType renderLayer, BlockStateModel model,
-                                          float r, float g, float b, int light, int overlay, int outlineColor)
+        public void submitBlockModel(PoseStack matrices, RenderType renderLayer, List<BlockStateModelPart> parts,
+                                     int[] tintColors, int light, int overlay, int outlineColor)
         {
-            if (model == null)
+            if (parts == null || parts.isEmpty())
             {
                 return;
             }
             try
             {
-                ModelBlockRenderer.renderModel(matrices.last(), capture, model, r, g, b, light, overlay);
+                PoseStack.Pose e = matrices.last();
+                QuadInstance instance = new QuadInstance();
+                instance.setColor(0xFFFFFFFF);
+                instance.setLightCoords(light);
+                instance.setOverlayCoords(overlay);
+                for (BlockStateModelPart part : parts)
+                {
+                    if (part == null)
+                    {
+                        continue;
+                    }
+                    for (Direction direction : Direction.values())
+                    {
+                        for (BakedQuad quad : part.getQuads(direction))
+                        {
+                            if (quad != null)
+                            {
+                                capture.putBakedQuad(e, quad, instance);
+                            }
+                        }
+                    }
+                    for (BakedQuad quad : part.getQuads(null))
+                    {
+                        if (quad != null)
+                        {
+                            capture.putBakedQuad(e, quad, instance);
+                        }
+                    }
+                }
             }
             catch (Throwable ignored)
             {
@@ -1299,12 +1307,17 @@ public final class BbsOccluderGeometryCapturer
         }
 
         @Override
-        public void submitCustom(PoseStack matrices, RenderType renderLayer, SubmitNodeCollector.CustomGeometryRenderer customRenderer)
+        public void submitBreakingBlockModel(PoseStack matrices, BlockStateModel model, long seed, int crumbling)
         {
         }
 
         @Override
-        public void submitCustom(SubmitNodeCollector.ParticleGroupRenderer customRenderer)
+        public void submitCustomGeometry(PoseStack matrices, RenderType renderLayer, SubmitNodeCollector.CustomGeometryRenderer customRenderer)
+        {
+        }
+
+        @Override
+        public void submitParticleGroup(SubmitNodeCollector.ParticleGroupRenderer customRenderer)
         {
         }
     }

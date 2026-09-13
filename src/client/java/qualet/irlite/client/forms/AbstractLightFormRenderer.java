@@ -183,7 +183,7 @@ public abstract class AbstractLightFormRenderer<T extends Form> extends FormRend
         float y1 = 0.1F, y2 = 0.9F;
         float z = 0F;
 
-        context.stack.push();
+        context.stack.pushPose();
 
         /* FormRenderer.render() has already baked the light form's OWN transform
          * (its position/rotation/scale within the model block) onto the stack.
@@ -192,9 +192,9 @@ public abstract class AbstractLightFormRenderer<T extends Form> extends FormRend
          * transform is right-multiplied as createTransform().createMatrix(), so
          * multiplying by its inverse cancels it exactly. */
         Matrix4f formMatrix = new Matrix4f(this.createTransform().createMatrix());
-        context.stack.peek().getPositionMatrix().mul(formMatrix.invert());
+        context.stack.last().pose().mul(formMatrix.invert());
 
-        Matrix4f matrix = context.stack.peek().getPositionMatrix();
+        Matrix4f matrix = context.stack.last().pose();
 
         Identifier textureId = Identifier.fromNamespaceAndPath(
             icon.texture.source.equals(Link.ASSETS) ? "bbs" : icon.texture.source,
@@ -204,7 +204,7 @@ public abstract class AbstractLightFormRenderer<T extends Form> extends FormRend
         // 1.21: begin() moved to Tessellator and returns the builder; per-vertex
         // .next() is gone (vertex(...) auto-advances). Mirrors LightGuideRenderer.
         BufferBuilder builder = Tesselator.getInstance()
-            .begin(VertexFormat.DrawMode.TRIANGLES, DefaultVertexFormat.POSITION_TEX_COLOR);
+            .begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_TEX_COLOR);
 
         /* Alpha forced to 1 — a light with a translucent colour must still show
          * a solid icon rather than a faint/invisible one. */
@@ -217,7 +217,7 @@ public abstract class AbstractLightFormRenderer<T extends Form> extends FormRend
 
         IrliteLayers.flush(builder, IrliteLayers.getPositionTexColorTrisNoDepthLayer(textureId));
 
-        context.stack.pop();
+        context.stack.popPose();
     }
 
     private Color tintedColor(FormRenderingContext context)
@@ -232,7 +232,7 @@ public abstract class AbstractLightFormRenderer<T extends Form> extends FormRend
     {
         Color c = this.tintedColor(context);
 
-        context.stack.push();
+        context.stack.pushPose();
         context.stack.translate(-0.25, 0, -0.25);
 
         CustomVertexConsumerProvider.hijackVertexFormat((layer) ->
@@ -246,7 +246,7 @@ public abstract class AbstractLightFormRenderer<T extends Form> extends FormRend
         CustomVertexConsumerProvider.clearRunnables();
         BBSRendering.enableDepthTest();
 
-        context.stack.pop();
+        context.stack.popPose();
     }
 
     @Override

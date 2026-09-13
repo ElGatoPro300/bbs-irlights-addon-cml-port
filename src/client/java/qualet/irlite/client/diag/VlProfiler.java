@@ -3,7 +3,7 @@ package qualet.irlite.client.diag;
 import org.qualet.irl.light.LightRegistry;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 
 import org.lwjgl.opengl.GL;
@@ -595,9 +595,9 @@ public final class VlProfiler
             evictions, dEvictions, evictedKb >> 10, dEvictedKb >> 10);
     }
 
-    /** HudRenderCallback, registered unconditionally in IrliteClient — so it
+    /** HudElement, registered in IrliteClient — so it
      *  carries its own gate now instead of relying on never being hooked up. */
-    public static void renderHud(GuiGraphics ctx)
+    public static void renderHud(GuiGraphicsExtractor ctx)
     {
         if (!enabled)
         {
@@ -614,12 +614,12 @@ public final class VlProfiler
         String sweepStatus = VlSweep.statusLine();
         if (sweepStatus != null)
         {
-            ctx.drawString(mc.font, sweepStatus, 4, y, 0xFFFFD080, true);
+            ctx.text(mc.font, sweepStatus, 4, y, 0xFFFFD080, true);
             y += 10;
         }
         for (String lineText : lines)
         {
-            ctx.drawString(mc.font, lineText, 4, y, 0xFFE0E0E0, true);
+            ctx.text(mc.font, lineText, 4, y, 0xFFE0E0E0, true);
             y += 10;
         }
     }
@@ -636,7 +636,7 @@ public final class VlProfiler
         Minecraft mc = Minecraft.getInstance();
         if (mc != null && mc.level != null && mc.gui != null)
         {
-            mc.gui.getChat().addMessage(Component.literal(message));
+            mc.gui.getChat().addClientSystemMessage(Component.literal(message));
         }
     }
 }
