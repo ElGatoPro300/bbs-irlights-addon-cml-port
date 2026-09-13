@@ -1,16 +1,20 @@
 package qualet.irlite.client;
 
-import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
-import org.lwjgl.opengl.GL30;
+import qualet.irlite.client.compat.IrliteCalCompat;
+import qualet.irlite.client.diag.VlProfiler;
+import qualet.irlite.client.light.cookie.CookieArray;
+import qualet.irlite.client.patcher.BbsPatcherHost;
+
 import org.qualet.irl.light.IrlSamplers;
 import org.qualet.irl.light.shadow.IRLiteBbsCasterSource;
 import org.qualet.irl.light.shadow.ShadowBakeProbe;
 import org.qualet.irl.light.shadow.ShadowEngine;
 import org.qualet.irl.patcher.Patcher;
-import qualet.irlite.client.diag.VlProfiler;
-import qualet.irlite.client.light.cookie.CookieArray;
-import qualet.irlite.client.patcher.BbsPatcherHost;
+
+import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+
+import org.lwjgl.opengl.GL30;
 
 public class IrliteClient implements ClientModInitializer {
 
@@ -46,8 +50,8 @@ public class IrliteClient implements ClientModInitializer {
         // rebound from its 2D registration to GL_TEXTURE_2D_ARRAY at bind time.
         IrlSamplers.register("irl_cookieArray", CookieArray::getGlTextureId, GL30.GL_TEXTURE_2D_ARRAY);
 
-        if (qualet.irlite.client.compat.IrliteCalCompat.isCalPresent()) {
-            qualet.irlite.client.compat.IrliteCalCompat.ensureCookiesReady();
+        if (IrliteCalCompat.isCalPresent()) {
+            IrliteCalCompat.ensureCookiesReady();
         }
     }
 }

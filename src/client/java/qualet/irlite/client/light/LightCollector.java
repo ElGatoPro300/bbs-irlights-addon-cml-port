@@ -1,6 +1,19 @@
 package qualet.irlite.client.light;
 
-import io.netty.util.collection.IntObjectMap;
+import qualet.irlite.IrliteConfig;
+import qualet.irlite.client.compat.IrliteCalCompat;
+import qualet.irlite.client.diag.VlProfiler;
+import qualet.irlite.client.light.cookie.CookieArray;
+import qualet.irlite.forms.PointLightForm;
+import qualet.irlite.forms.SpotlightForm;
+import qualet.irlite.mixin.client.bbs.WorldBlockEntityTickersAccessor;
+
+import org.qualet.irl.light.ClusterGridBuffer;
+import org.qualet.irl.light.LightBuffer;
+import org.qualet.irl.light.LightMath;
+import org.qualet.irl.light.LightRegistry;
+import org.qualet.irl.light.VlGlobalsBuffer;
+
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.blocks.entities.ModelBlockEntity;
 import mchorse.bbs_mod.blocks.entities.ModelProperties;
@@ -14,8 +27,10 @@ import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.film.controller.FilmEditorController;
 import mchorse.bbs_mod.ui.film.controller.UIFilmController;
+import mchorse.bbs_mod.ui.framework.UIScreen;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.pose.Transform;
+
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
@@ -23,21 +38,11 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.chunk.BlockEntityTickInvoker;
+
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
-import qualet.irlite.client.diag.VlProfiler;
-import qualet.irlite.client.light.cookie.CookieArray;
-import qualet.irlite.forms.PointLightForm;
-import qualet.irlite.forms.SpotlightForm;
-import qualet.irlite.mixin.client.bbs.WorldBlockEntityTickersAccessor;
 
-import org.qualet.irl.light.ClusterGridBuffer;
-import org.qualet.irl.light.LightBuffer;
-import org.qualet.irl.light.LightMath;
-import org.qualet.irl.light.LightRegistry;
-import org.qualet.irl.light.VlGlobalsBuffer;
-
-import qualet.irlite.IrliteConfig;
+import io.netty.util.collection.IntObjectMap;
 
 import java.util.List;
 
@@ -186,7 +191,7 @@ public final class LightCollector
 
         scanBlockEntities(world, cameraPos);
         scanFilmReplays(cameraPos, tickDelta);
-        qualet.irlite.client.compat.IrliteCalCompat.collectCalLights(world, cameraPos, tickDelta);
+        IrliteCalCompat.collectCalLights(world, cameraPos, tickDelta);
     }
 
     private static void scanBlockEntities(ClientWorld world, Vec3d cameraPos)
@@ -414,7 +419,7 @@ public final class LightCollector
         try
         {
             MinecraftClient mc = MinecraftClient.getInstance();
-            if (mc == null || !(mc.currentScreen instanceof mchorse.bbs_mod.ui.framework.UIScreen))
+            if (mc == null || !(mc.currentScreen instanceof UIScreen))
             {
                 return null;
             }

@@ -1,18 +1,19 @@
 package qualet.irlite;
 
+import qualet.irlite.forms.PointLightForm;
+import qualet.irlite.forms.SpotlightForm;
+
 import mchorse.bbs_mod.BBSMod;
+import mchorse.bbs_mod.addons.BBSAddon;
 import mchorse.bbs_mod.data.DataToString;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.MapType;
-import mchorse.bbs_mod.addons.BBSAddon;
 import mchorse.bbs_mod.events.register.RegisterBBSSettingsEvent;
 import mchorse.bbs_mod.events.register.RegisterFormsEvent;
 import mchorse.bbs_mod.events.register.RegisterSourcePacksEvent;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.resources.packs.InternalAssetsSourcePack;
 import mchorse.bbs_mod.settings.SettingsBuilder;
-import qualet.irlite.forms.PointLightForm;
-import qualet.irlite.forms.SpotlightForm;
 
 import java.io.File;
 

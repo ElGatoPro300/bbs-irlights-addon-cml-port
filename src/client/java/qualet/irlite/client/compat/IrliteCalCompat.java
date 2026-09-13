@@ -1,12 +1,17 @@
 package qualet.irlite.client.compat;
 
+import qualet.irlite.client.light.cookie.CookieArray;
+
+import org.qualet.irl.light.CookieArrayBase;
+
 import net.fabricmc.loader.api.FabricLoader;
+
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.math.Vec3d;
+
 import org.lwjgl.stb.STBImage;
 import org.lwjgl.system.MemoryUtil;
-import org.qualet.irl.light.CookieArrayBase;
-import qualet.irlite.client.light.cookie.CookieArray;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
