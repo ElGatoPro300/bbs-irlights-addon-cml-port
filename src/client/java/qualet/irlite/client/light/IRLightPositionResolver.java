@@ -10,6 +10,8 @@ import org.joml.Matrix4f;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 
+import com.mojang.blaze3d.systems.RenderSystem;
+
 /**
  * Resolves the absolute world position of a light form during rendering.
  *
