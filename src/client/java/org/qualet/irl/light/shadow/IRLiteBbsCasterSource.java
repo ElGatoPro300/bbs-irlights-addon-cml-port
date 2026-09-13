@@ -412,7 +412,7 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
                 MatrixStack matrices = new MatrixStack();
                 matrices.translate(cx, cy, cz);
                 matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-bodyYaw));
-                float[] tris = OccluderGeometryCapturer.captureFormTris(form, morph.entity, matrices, camera, tickDelta);
+                float[] tris = BbsOccluderGeometryCapturer.captureFormTris(form, morph.entity, matrices, camera, tickDelta);
                 if (tris != null && tris.length > 0)
                 {
                     batch.append(tris);
@@ -433,7 +433,7 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
                     MatrixStack matrices = new MatrixStack();
                     matrices.translate(cx, cy, cz);
                     matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-bodyYaw));
-                    float[] tris = OccluderGeometryCapturer.captureFormTris(form, owner.entity, matrices, camera, tickDelta);
+                    float[] tris = BbsOccluderGeometryCapturer.captureFormTris(form, owner.entity, matrices, camera, tickDelta);
                     if (tris != null && tris.length > 0)
                     {
                         batch.append(tris);
@@ -443,7 +443,7 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
             }
         }
 
-        float[] tris = OccluderGeometryCapturer.captureEntityTris(entity, tickDelta);
+        float[] tris = BbsOccluderGeometryCapturer.captureEntityTris(entity, tickDelta);
         if (tris != null && tris.length > 0)
         {
             batch.append(tris);
@@ -476,7 +476,7 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
         {
             MatrixStackUtils.applyTransform(matrices, t);
         }
-        float[] tris = OccluderGeometryCapturer.captureFormTris(form, mbe.getEntity(), matrices, camera, tickDelta);
+        float[] tris = BbsOccluderGeometryCapturer.captureFormTris(form, mbe.getEntity(), matrices, camera, tickDelta);
         if (tris != null && tris.length > 0)
         {
             batch.append(tris);
@@ -499,7 +499,7 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
         MatrixStack matrices = new MatrixStack();
         matrices.peek().getPositionMatrix().mul(baseMatrix);
 
-        float[] tris = OccluderGeometryCapturer.captureFormTris(form, stub, matrices, camera, tickDelta);
+        float[] tris = BbsOccluderGeometryCapturer.captureFormTris(form, stub, matrices, camera, tickDelta);
         if (tris != null && tris.length > 0)
         {
             batch.append(tris);

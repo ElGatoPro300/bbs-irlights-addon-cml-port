@@ -118,6 +118,28 @@ public final class IrliteCalCompat
     }
 
     /**
+     * Checks if CAL lights have surface or volumetric shadows enabled.
+     */
+    public static boolean isCalShadowsEnabled()
+    {
+        if (!calPresent)
+        {
+            return false;
+        }
+        try
+        {
+            Class<?> configClass = Class.forName("elgatopro300.cal_lights.light.LightConfig");
+            boolean live = configClass.getField("shadowsLive").getBoolean(null);
+            boolean vl = configClass.getField("vlShadows").getBoolean(null);
+            return live || vl;
+        }
+        catch (Throwable t)
+        {
+            return false;
+        }
+    }
+
+    /**
      * Called reflectively by CALLightsClient to bridge CookieArray lookups
      * so CAL spotlights share the active irl_cookieArray texture with BBS.
      */

@@ -90,9 +90,9 @@ import mchorse.bbs_mod.resources.Link;
 
 import java.util.List;
 
-public final class OccluderGeometryCapturer
+public final class BbsOccluderGeometryCapturer
 {
-    private OccluderGeometryCapturer()
+    private BbsOccluderGeometryCapturer()
     {}
 
     private static final Capture CAPTURE = new Capture();
