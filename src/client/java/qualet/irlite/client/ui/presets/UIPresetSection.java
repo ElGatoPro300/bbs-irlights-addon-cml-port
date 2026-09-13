@@ -1,12 +1,13 @@
 package qualet.irlite.client.ui.presets;
 
+import qualet.irlite.IrlitePresets;
+
 import mchorse.bbs_mod.l10n.L10n;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UICirculate;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.utils.UI;
-import qualet.irlite.IrlitePresets;
 
 import java.util.ArrayList;
 import java.util.List;

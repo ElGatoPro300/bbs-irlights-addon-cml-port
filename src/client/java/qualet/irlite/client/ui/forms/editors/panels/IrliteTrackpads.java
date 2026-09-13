@@ -1,10 +1,11 @@
 package qualet.irlite.client.ui.forms.editors.panels;
 
+import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
+
+import net.fabricmc.loader.api.FabricLoader;
+
 import java.lang.reflect.Constructor;
 import java.util.function.Consumer;
-
-import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
-import net.fabricmc.loader.api.FabricLoader;
 
 /**
  * Factory for the numeric trackpad widgets used by IRLite's light form panels.
