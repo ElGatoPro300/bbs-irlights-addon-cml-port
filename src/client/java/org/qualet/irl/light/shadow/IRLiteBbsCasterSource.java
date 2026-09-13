@@ -26,25 +26,25 @@ import mchorse.bbs_mod.ui.film.controller.UIFilmController;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.pose.Transform;
 
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.AbstractClientPlayerEntity;
-import net.minecraft.client.render.Camera;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.ItemEntity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.RotationAxis;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.chunk.BlockEntityTickInvoker;
-import net.minecraft.world.chunk.WorldChunk;
+import net.minecraft.client.Camera;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
+
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Axis;
 
 import io.netty.util.collection.IntObjectMap;
 
@@ -89,21 +89,21 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
     // ===================================================================== //
 
     @Override
-    public void collect(ClientWorld world, Vec3d camPos, float tickDelta, OccluderSink sink)
+    public void collect(ClientLevel world, Vec3 camPos, float tickDelta, OccluderSink sink)
     {
         double camX = camPos.x, camY = camPos.y, camZ = camPos.z;
 
         // --- Arm 1: world entities (vanilla / BBS-morph render path) ---
-        for (Entity entity : world.getEntities())
+        for (Entity entity : world.entitiesForRendering())
         {
             if (!(entity instanceof LivingEntity) && !(entity instanceof ItemEntity))
             {
                 continue;
             }
 
-            double ex = MathHelper.lerp(tickDelta, entity.lastRenderX, entity.getX());
-            double ey = MathHelper.lerp(tickDelta, entity.lastRenderY, entity.getY());
-            double ez = MathHelper.lerp(tickDelta, entity.lastRenderZ, entity.getZ());
+            double ex = Mth.lerp(tickDelta, entity.xOld, entity.getX());
+            double ey = Mth.lerp(tickDelta, entity.yOld, entity.getY());
+            double ez = Mth.lerp(tickDelta, entity.zOld, entity.getZ());
             double dx = ex - camX, dy = ey - camY, dz = ez - camZ;
             if (dx * dx + dy * dy + dz * dz > COLLECT_DIST_SQ)
             {
@@ -124,17 +124,17 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
         collectFilmReplays(camX, camY, camZ, tickDelta, sink);
     }
 
-    private static void collectModelBlocks(ClientWorld world, double camX, double camY, double camZ, OccluderSink sink)
+    private static void collectModelBlocks(ClientLevel world, double camX, double camY, double camZ, OccluderSink sink)
     {
-        if (world == null || world.getChunkManager() == null)
+        if (world == null || world.getChunkSource() == null)
         {
             return;
         }
 
-        int minChunkX = MathHelper.floor((camX - COLLECT_DIST) / 16.0);
-        int maxChunkX = MathHelper.floor((camX + COLLECT_DIST) / 16.0);
-        int minChunkZ = MathHelper.floor((camZ - COLLECT_DIST) / 16.0);
-        int maxChunkZ = MathHelper.floor((camZ + COLLECT_DIST) / 16.0);
+        int minChunkX = Mth.floor((camX - COLLECT_DIST) / 16.0);
+        int maxChunkX = Mth.floor((camX + COLLECT_DIST) / 16.0);
+        int minChunkZ = Mth.floor((camZ - COLLECT_DIST) / 16.0);
+        int maxChunkZ = Mth.floor((camZ + COLLECT_DIST) / 16.0);
 
         LongOpenHashSet visited = new LongOpenHashSet();
 
@@ -142,8 +142,8 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
         {
             for (int cz = minChunkZ; cz <= maxChunkZ; cz++)
             {
-                WorldChunk chunk;
-                try { chunk = world.getChunkManager().getWorldChunk(cx, cz); }
+                LevelChunk chunk;
+                try { chunk = world.getChunkSource().getChunkNow(cx, cz); }
                 catch (Throwable t) { continue; }
                 if (chunk == null)
                 {
@@ -156,7 +156,7 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
                     {
                         continue;
                     }
-                    BlockPos pos = mbe.getPos();
+                    BlockPos pos = mbe.getBlockPos();
                     if (pos == null || !visited.add(pos.asLong()))
                     {
                         continue;
@@ -228,9 +228,9 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
                     continue;
                 }
 
-                double wx = MathHelper.lerp(tickDelta, ent.getPrevX(), ent.getX());
-                double wy = MathHelper.lerp(tickDelta, ent.getPrevY(), ent.getY());
-                double wz = MathHelper.lerp(tickDelta, ent.getPrevZ(), ent.getZ());
+                double wx = Mth.lerp(tickDelta, ent.getPrevX(), ent.getX());
+                double wy = Mth.lerp(tickDelta, ent.getPrevY(), ent.getY());
+                double wz = Mth.lerp(tickDelta, ent.getPrevZ(), ent.getZ());
 
                 double dx = wx - camX, dy = wy - camY, dz = wz - camZ;
                 if (dx * dx + dy * dy + dz * dz > COLLECT_DIST_SQ)
@@ -240,7 +240,7 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
 
                 float hbW = Math.max(0.1f, form.hitboxWidth.get());
                 float hbH = Math.max(0.1f, form.hitboxHeight.get());
-                Box box = new Box(-hbW * 0.5, 0, -hbW * 0.5, hbW * 0.5, hbH, hbW * 0.5);
+                AABB box = new AABB(-hbW * 0.5, 0, -hbW * 0.5, hbW * 0.5, hbH, hbW * 0.5);
 
                 sink.emitFromBox(ent, CasterType.REPLAY, false, wx, wy, wz, box, 1f, 0L);
             }
@@ -308,7 +308,7 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
         float hy = hbH * 0.5f * sy;
         float hz = hbW * 0.5f * sz;
 
-        BlockPos pos = mbe.getPos();
+        BlockPos pos = mbe.getBlockPos();
         double tx = t == null ? 0 : t.translate.x;
         double ty = t == null ? 0 : t.translate.y;
         double tz = t == null ? 0 : t.translate.z;
@@ -378,7 +378,7 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
     public void emitOccluder(Object caster, int type, float tickDelta, OccluderBatch batch)
     {
         RawOccluderBatch rawBatch = (RawOccluderBatch) batch;
-        Camera cam = MinecraftClient.getInstance().gameRenderer.getCamera();
+        Camera cam = Minecraft.getInstance().gameRenderer.getMainCamera();
         try
         {
             switch (type)
@@ -403,20 +403,20 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
         double ox = ShadowRenderer.currentOriginX();
         double oy = ShadowRenderer.currentOriginY();
         double oz = ShadowRenderer.currentOriginZ();
-        double cx = MathHelper.lerp(tickDelta, entity.lastRenderX, entity.getX()) - ox;
-        double cy = MathHelper.lerp(tickDelta, entity.lastRenderY, entity.getY()) - oy;
-        double cz = MathHelper.lerp(tickDelta, entity.lastRenderZ, entity.getZ()) - oz;
+        double cx = Mth.lerp(tickDelta, entity.xOld, entity.getX()) - ox;
+        double cy = Mth.lerp(tickDelta, entity.yOld, entity.getY()) - oy;
+        double cz = Mth.lerp(tickDelta, entity.zOld, entity.getZ()) - oz;
 
-        if (entity instanceof AbstractClientPlayerEntity player)
+        if (entity instanceof AbstractClientPlayer player)
         {
             Morph morph = Morph.getMorph(player);
             Form form = morph == null ? null : morph.getForm();
             if (form != null)
             {
-                float bodyYaw = MathHelper.lerpAngleDegrees(tickDelta, player.lastBodyYaw, player.bodyYaw);
-                MatrixStack matrices = new MatrixStack();
+                float bodyYaw = Mth.rotLerp(tickDelta, player.yBodyRotO, player.yBodyRot);
+                PoseStack matrices = new PoseStack();
                 matrices.translate(cx, cy, cz);
-                matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-bodyYaw));
+                matrices.mulPose(Axis.YP.rotationDegrees(-bodyYaw));
                 float[] tris = BbsOccluderGeometryCapturer.captureFormTris(form, morph.entity, matrices, camera, tickDelta);
                 if (tris != null && tris.length > 0)
                 {
@@ -434,10 +434,10 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
                 Form form = owner.getForm();
                 if (form != null)
                 {
-                    float bodyYaw = MathHelper.lerpAngleDegrees(tickDelta, living.lastBodyYaw, living.bodyYaw);
-                    MatrixStack matrices = new MatrixStack();
+                    float bodyYaw = Mth.rotLerp(tickDelta, living.yBodyRotO, living.yBodyRot);
+                    PoseStack matrices = new PoseStack();
                     matrices.translate(cx, cy, cz);
-                    matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-bodyYaw));
+                    matrices.mulPose(Axis.YP.rotationDegrees(-bodyYaw));
                     float[] tris = BbsOccluderGeometryCapturer.captureFormTris(form, owner.entity, matrices, camera, tickDelta);
                     if (tris != null && tris.length > 0)
                     {
@@ -471,11 +471,11 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
         double ox = ShadowRenderer.currentOriginX();
         double oy = ShadowRenderer.currentOriginY();
         double oz = ShadowRenderer.currentOriginZ();
-        double feetX = mbe.getPos().getX() + 0.5 - ox;
-        double feetY = mbe.getPos().getY() - oy;
-        double feetZ = mbe.getPos().getZ() + 0.5 - oz;
+        double feetX = mbe.getBlockPos().getX() + 0.5 - ox;
+        double feetY = mbe.getBlockPos().getY() - oy;
+        double feetZ = mbe.getBlockPos().getZ() + 0.5 - oz;
 
-        MatrixStack matrices = new MatrixStack();
+        PoseStack matrices = new PoseStack();
         matrices.translate(feetX, feetY, feetZ);
         if (t != null)
         {
@@ -501,8 +501,8 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
         double oz = ShadowRenderer.currentOriginZ();
 
         Matrix4f baseMatrix = BaseFilmController.getMatrixForRenderWithRotation(stub, ox, oy, oz, tickDelta);
-        MatrixStack matrices = new MatrixStack();
-        matrices.peek().getPositionMatrix().mul(baseMatrix);
+        PoseStack matrices = new PoseStack();
+        matrices.last().pose().mul(baseMatrix);
 
         float[] tris = BbsOccluderGeometryCapturer.captureFormTris(form, stub, matrices, camera, tickDelta);
         if (tris != null && tris.length > 0)

@@ -6,8 +6,8 @@ import org.qualet.irl.light.CookieArrayBase;
 
 import net.fabricmc.loader.api.FabricLoader;
 
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.world.phys.Vec3;
 
 import org.lwjgl.stb.STBImage;
 import org.lwjgl.system.MemoryUtil;
@@ -68,7 +68,7 @@ public final class IrliteCalCompat
             MethodHandles.Lookup lookup = MethodHandles.publicLookup();
             Class<?> driverClass = Class.forName("elgatopro300.cal_lights.light.LightDriver");
             calCollectHandle = lookup.findStatic(driverClass, "collect",
-                MethodType.methodType(void.class, ClientWorld.class, Vec3d.class, float.class));
+                MethodType.methodType(void.class, ClientLevel.class, Vec3.class, float.class));
             calResetShadowRampHandle = lookup.findStatic(driverClass, "resetAutoShadowRamp",
                 MethodType.methodType(void.class));
             LOG.info("IRLite <-> CAL Editor compatibility hooks linked successfully.");
@@ -87,7 +87,7 @@ public final class IrliteCalCompat
     /**
      * Collects CAL lights during the single unified FramePipeline pass.
      */
-    public static void collectCalLights(ClientWorld world, Vec3d cameraPos, float tickDelta)
+    public static void collectCalLights(ClientLevel world, Vec3 cameraPos, float tickDelta)
     {
         if (!calPresent || calCollectHandle == null)
         {

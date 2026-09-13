@@ -6,14 +6,13 @@ import mchorse.bbs_mod.graphics.Draw;
 import mchorse.bbs_mod.utils.Axis;
 import mchorse.bbs_mod.utils.colors.Color;
 
-import net.minecraft.client.render.BufferBuilder;
-import net.minecraft.client.render.Tessellator;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.client.util.math.MatrixStack;
-
 import org.joml.Matrix4f;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 
 import java.util.function.Consumer;
@@ -27,7 +26,7 @@ final class LightGuideRenderer
     private LightGuideRenderer()
     {}
 
-    public static void renderPointLight(MatrixStack stack, Color color, float radius)
+    public static void renderPointLight(PoseStack stack, Color color, float radius)
     {
         float r = Math.max(radius, 0.05F);
         float t = clamp(r * 0.0025F, 0.002F, 0.009F);
@@ -54,7 +53,7 @@ final class LightGuideRenderer
         return Math.max(range, 0.05F);
     }
 
-    public static void renderSpotlight(MatrixStack stack, Color color, float range, float outerAngle, float innerAngle)
+    public static void renderSpotlight(PoseStack stack, Color color, float range, float outerAngle, float innerAngle)
     {
         float r = spotRingZ(range);
         float outer = Math.max(outerAngle, 1F);
@@ -78,13 +77,13 @@ final class LightGuideRenderer
 
     private static void renderTriangles(Consumer<BufferBuilder> consumer)
     {
-        BufferBuilder builder = Tessellator.getInstance()
-            .begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+        BufferBuilder builder = Tesselator.getInstance()
+            .begin(VertexFormat.DrawMode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
         consumer.accept(builder);
         IrliteLayers.flushTrianglesNoDepth(builder);
     }
 
-    private static void coneWire(BufferBuilder builder, MatrixStack stack, float capZ, float radius, float t, Color color, float alpha)
+    private static void coneWire(BufferBuilder builder, PoseStack stack, float capZ, float radius, float t, Color color, float alpha)
     {
         line(builder, stack, 0, 0, 0,  radius, 0, capZ, t, color, alpha);
         line(builder, stack, 0, 0, 0, -radius, 0, capZ, t, color, alpha);
@@ -92,22 +91,22 @@ final class LightGuideRenderer
         line(builder, stack, 0, 0, 0, 0, -radius, capZ, t, color, alpha);
     }
 
-    private static void ringAtZ(BufferBuilder builder, MatrixStack stack, float z, float radius, float t, Color color, float alpha)
+    private static void ringAtZ(BufferBuilder builder, PoseStack stack, float z, float radius, float t, Color color, float alpha)
     {
-        stack.push();
+        stack.pushPose();
         stack.translate(0, 0, z);
         renderCircle(builder, stack, Axis.Z, radius, t, color, alpha);
-        stack.pop();
+        stack.popPose();
     }
 
-    private static void renderCircle(BufferBuilder builder, MatrixStack stack, Axis axis, float radius, float thickness, Color color, float alpha)
+    private static void renderCircle(BufferBuilder builder, PoseStack stack, Axis axis, float radius, float thickness, Color color, float alpha)
     {
         if (radius <= 0.0001F)
         {
             return;
         }
 
-        Matrix4f m = stack.peek().getPositionMatrix();
+        Matrix4f m = stack.last().pose();
         float r = color.r, g = color.g, b = color.b;
         float halfT = thickness * 0.5F;
         float rIn = Math.max(radius - halfT, 0F);
@@ -159,10 +158,10 @@ final class LightGuideRenderer
 
     private static void vertex(BufferBuilder builder, Matrix4f m, float x, float y, float z, float r, float g, float b, float a)
     {
-        builder.vertex(m, x, y, z).color(r, g, b, a);
+        builder.addVertex(m, x, y, z).setColor(r, g, b, a);
     }
 
-    private static void line(BufferBuilder builder, MatrixStack stack, float x1, float y1, float z1, float x2, float y2, float z2, float t, Color color, float alpha)
+    private static void line(BufferBuilder builder, PoseStack stack, float x1, float y1, float z1, float x2, float y2, float z2, float t, Color color, float alpha)
     {
         Draw.fillBoxTo(builder, stack, x1, y1, z1, x2, y2, z2, t, color.r, color.g, color.b, alpha);
     }
@@ -182,33 +181,33 @@ final class LightGuideRenderer
     /* ------------------------------------------------------------------ */
 
     /** Ring band around the cap circle of the given cone angle — grab zone for radius/inner radius. */
-    static void renderSpotlightGrabRing(MatrixStack stack, float range, float angleDeg, int stencilIndex)
+    static void renderSpotlightGrabRing(PoseStack stack, float range, float angleDeg, int stencilIndex)
     {
         float r = spotRingZ(range);
         float ringR = coneRadius(r, Math.max(angleDeg, 1F));
 
         renderStencilTriangles((builder) ->
         {
-            stack.push();
+            stack.pushPose();
             stack.translate(0, 0, r);
             renderCircle(builder, stack, Axis.Z, ringR, grabThickness(r), stencilColor(stencilIndex), 1F);
-            stack.pop();
+            stack.popPose();
         });
     }
 
     /** Filled disc at the cap center — grab zone for range (slides along the axis). */
-    static void renderSpotlightGrabCap(MatrixStack stack, float range, int stencilIndex)
+    static void renderSpotlightGrabCap(PoseStack stack, float range, int stencilIndex)
     {
         float r = spotRingZ(range);
         float discR = Math.max(r * 0.10F, 0.05F);
 
         renderStencilTriangles((builder) ->
         {
-            stack.push();
+            stack.pushPose();
             stack.translate(0, 0, r);
             /* renderCircle with thickness == diameter degenerates into a full disc (rIn = 0). */
             renderCircle(builder, stack, Axis.Z, discR * 0.5F, discR, stencilColor(stencilIndex), 1F);
-            stack.pop();
+            stack.popPose();
         });
     }
 
@@ -235,8 +234,8 @@ final class LightGuideRenderer
      */
     private static void renderStencilTriangles(Consumer<BufferBuilder> consumer)
     {
-        BufferBuilder builder = Tessellator.getInstance()
-            .begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+        BufferBuilder builder = Tesselator.getInstance()
+            .begin(VertexFormat.DrawMode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
         consumer.accept(builder);
         IrliteLayers.flushStencilTriangles(builder);
     }

@@ -24,11 +24,12 @@ import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
 import mchorse.bbs_mod.utils.keyframes.KeyframeSegment;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.Minecraft;
 
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+
+import com.mojang.blaze3d.vertex.PoseStack;
 
 import java.lang.ref.WeakReference;
 import java.util.Map;
@@ -96,9 +97,9 @@ public final class SpotGuideDrag
     }
 
     /** Captured from the editor-preview visible pass so the handles track the rendered guide. */
-    public static void captureGuideMatrix(SpotlightForm form, MatrixStack stack)
+    public static void captureGuideMatrix(SpotlightForm form, PoseStack stack)
     {
-        GUIDE_MATRICES.put(form, new Matrix4f(stack.peek().getPositionMatrix()));
+        GUIDE_MATRICES.put(form, new Matrix4f(stack.last().pose()));
     }
 
     public static boolean isDragging()
@@ -126,7 +127,7 @@ public final class SpotGuideDrag
     {
         /* No drags while flying or while the cursor is grabbed (actor control
          * mode) — the stencil pick under a locked cursor is meaningless. */
-        if (controller.panel.isFlying() || MinecraftClient.getInstance().mouse.isCursorLocked())
+        if (controller.panel.isFlying() || Minecraft.getInstance().mouseHandler.isMouseGrabbed())
         {
             return false;
         }

@@ -2,9 +2,9 @@ package qualet.irlite.client.light;
 
 import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.Camera;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.client.Camera;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.phys.Vec3;
 
 import org.joml.Matrix4f;
 import org.joml.Vector3d;
@@ -25,11 +25,11 @@ public final class IRLightPositionResolver
 
     public static Vector3d resolve(FormRenderingContext context)
     {
-        Camera camera = MinecraftClient.getInstance().gameRenderer.getCamera();
+        Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
         Matrix4f worldMatrix = context.stack.peek().getPositionMatrix();
         Vector3f offset = worldMatrix.getTranslation(new Vector3f());
 
-        Vec3d camPos = camera.getCameraPos();
+        Vec3 camPos = camera.position();
 
         return new Vector3d(camPos.x + offset.x, camPos.y + offset.y, camPos.z + offset.z);
     }

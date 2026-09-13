@@ -23,13 +23,13 @@ import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
 
-import net.minecraft.client.render.BufferBuilder;
-import net.minecraft.client.render.Tessellator;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.util.Identifier;
+import net.minecraft.resources.Identifier;
 
 import org.joml.Matrix4f;
 
+import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 
 public abstract class AbstractLightFormRenderer<T extends Form> extends FormRenderer<T>
@@ -196,24 +196,24 @@ public abstract class AbstractLightFormRenderer<T extends Form> extends FormRend
 
         Matrix4f matrix = context.stack.peek().getPositionMatrix();
 
-        Identifier textureId = Identifier.of(
+        Identifier textureId = Identifier.fromNamespaceAndPath(
             icon.texture.source.equals(Link.ASSETS) ? "bbs" : icon.texture.source,
             icon.texture.path
         );
 
         // 1.21: begin() moved to Tessellator and returns the builder; per-vertex
         // .next() is gone (vertex(...) auto-advances). Mirrors LightGuideRenderer.
-        BufferBuilder builder = Tessellator.getInstance()
-            .begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_TEXTURE_COLOR);
+        BufferBuilder builder = Tesselator.getInstance()
+            .begin(VertexFormat.DrawMode.TRIANGLES, DefaultVertexFormat.POSITION_TEX_COLOR);
 
         /* Alpha forced to 1 — a light with a translucent colour must still show
          * a solid icon rather than a faint/invisible one. */
-        builder.vertex(matrix, x1, y1, z).texture(u1, v2).color(c.r, c.g, c.b, 1F);
-        builder.vertex(matrix, x2, y1, z).texture(u2, v2).color(c.r, c.g, c.b, 1F);
-        builder.vertex(matrix, x2, y2, z).texture(u2, v1).color(c.r, c.g, c.b, 1F);
-        builder.vertex(matrix, x1, y1, z).texture(u1, v2).color(c.r, c.g, c.b, 1F);
-        builder.vertex(matrix, x2, y2, z).texture(u2, v1).color(c.r, c.g, c.b, 1F);
-        builder.vertex(matrix, x1, y2, z).texture(u1, v1).color(c.r, c.g, c.b, 1F);
+        builder.addVertex(matrix, x1, y1, z).setUv(u1, v2).setColor(c.r, c.g, c.b, 1F);
+        builder.addVertex(matrix, x2, y1, z).setUv(u2, v2).setColor(c.r, c.g, c.b, 1F);
+        builder.addVertex(matrix, x2, y2, z).setUv(u2, v1).setColor(c.r, c.g, c.b, 1F);
+        builder.addVertex(matrix, x1, y1, z).setUv(u1, v2).setColor(c.r, c.g, c.b, 1F);
+        builder.addVertex(matrix, x2, y2, z).setUv(u2, v1).setColor(c.r, c.g, c.b, 1F);
+        builder.addVertex(matrix, x1, y2, z).setUv(u1, v1).setColor(c.r, c.g, c.b, 1F);
 
         IrliteLayers.flush(builder, IrliteLayers.getPositionTexColorTrisNoDepthLayer(textureId));
 

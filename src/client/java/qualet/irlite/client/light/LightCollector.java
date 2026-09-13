@@ -31,13 +31,13 @@ import mchorse.bbs_mod.ui.framework.UIScreen;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.pose.Transform;
 
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.chunk.BlockEntityTickInvoker;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.core.BlockPos;
+import net.minecraft.util.Mth;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.TickingBlockEntity;
+import net.minecraft.world.phys.Vec3;
 
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
@@ -123,7 +123,7 @@ public final class LightCollector
         return false;
     }
 
-    public static void collect(ClientWorld world, Vec3d cameraPos, float tickDelta)
+    public static void collect(ClientLevel world, Vec3 cameraPos, float tickDelta)
     {
         // Track the "max shader lights" slider each frame: caps how many lights the
         // flush packs into the SSBO (registration + shadow caches still see them all).
@@ -194,9 +194,9 @@ public final class LightCollector
         IrliteCalCompat.collectCalLights(world, cameraPos, tickDelta);
     }
 
-    private static void scanBlockEntities(ClientWorld world, Vec3d cameraPos)
+    private static void scanBlockEntities(ClientLevel world, Vec3 cameraPos)
     {
-        List<BlockEntityTickInvoker> tickers;
+        List<TickingBlockEntity> tickers;
         try
         {
             tickers = ((WorldBlockEntityTickersAccessor) (Object) world).irlite$getBlockEntityTickers();
@@ -212,7 +212,7 @@ public final class LightCollector
 
         for (int i = 0, n = tickers.size(); i < n; i++)
         {
-            BlockEntityTickInvoker invoker = tickers.get(i);
+            TickingBlockEntity invoker = tickers.get(i);
             if (invoker == null)
             {
                 continue;
@@ -351,7 +351,7 @@ public final class LightCollector
      * the form-renderer path, where the rig pose is available. Gated on the
      * dashboard being open so we never light a viewport that isn't showing.
      */
-    private static void scanFilmReplays(Vec3d cameraPos, float tickDelta)
+    private static void scanFilmReplays(Vec3 cameraPos, float tickDelta)
     {
         FilmEditorController editor = getActiveEditorController();
         if (editor == null || editor.film == null || editor.film.replays == null)
@@ -391,9 +391,9 @@ public final class LightCollector
                 continue;
             }
 
-            double wx = MathHelper.lerp(tickDelta, ent.getPrevX(), ent.getX());
-            double wy = MathHelper.lerp(tickDelta, ent.getPrevY(), ent.getY());
-            double wz = MathHelper.lerp(tickDelta, ent.getPrevZ(), ent.getZ());
+            double wx = Mth.lerp(tickDelta, ent.getPrevX(), ent.getX());
+            double wy = Mth.lerp(tickDelta, ent.getPrevY(), ent.getY());
+            double wz = Mth.lerp(tickDelta, ent.getPrevZ(), ent.getZ());
 
             double dx = wx - cameraPos.x;
             double dy = wy - cameraPos.y;
@@ -406,7 +406,7 @@ public final class LightCollector
             // Rotation-only root; the actor's world position rides along as a double base
             // (kept out of the float matrix so it stays precise far from origin). The base
             // is added AFTER the rotation at emit, reproducing the old translate*rotate.
-            float bodyYaw = MathHelper.lerp(tickDelta, ent.getPrevBodyYaw(), ent.getBodyYaw());
+            float bodyYaw = Mth.lerp(tickDelta, ent.getPrevBodyYaw(), ent.getBodyYaw());
             Matrix4f root = new Matrix4f().identity();
             root.rotateY((float) Math.toRadians(-bodyYaw));
 
@@ -418,8 +418,8 @@ public final class LightCollector
     {
         try
         {
-            MinecraftClient mc = MinecraftClient.getInstance();
-            if (mc == null || !(mc.currentScreen instanceof UIScreen))
+            Minecraft mc = Minecraft.getInstance();
+            if (mc == null || !(mc.screen instanceof UIScreen))
             {
                 return null;
             }

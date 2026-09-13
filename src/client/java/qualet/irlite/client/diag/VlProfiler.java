@@ -2,9 +2,9 @@ package qualet.irlite.client.diag;
 
 import org.qualet.irl.light.LightRegistry;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
 
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL33C;
@@ -597,15 +597,15 @@ public final class VlProfiler
 
     /** HudRenderCallback, registered unconditionally in IrliteClient — so it
      *  carries its own gate now instead of relying on never being hooked up. */
-    public static void renderHud(DrawContext ctx)
+    public static void renderHud(GuiGraphics ctx)
     {
         if (!enabled)
         {
             return;
         }
 
-        MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc == null || mc.textRenderer == null)
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.font == null)
         {
             return;
         }
@@ -614,12 +614,12 @@ public final class VlProfiler
         String sweepStatus = VlSweep.statusLine();
         if (sweepStatus != null)
         {
-            ctx.drawText(mc.textRenderer, sweepStatus, 4, y, 0xFFFFD080, true);
+            ctx.drawString(mc.font, sweepStatus, 4, y, 0xFFFFD080, true);
             y += 10;
         }
         for (String lineText : lines)
         {
-            ctx.drawText(mc.textRenderer, lineText, 4, y, 0xFFE0E0E0, true);
+            ctx.drawString(mc.font, lineText, 4, y, 0xFFE0E0E0, true);
             y += 10;
         }
     }
@@ -633,10 +633,10 @@ public final class VlProfiler
 
     static void chat(String message)
     {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc != null && mc.world != null && mc.inGameHud != null)
+        Minecraft mc = Minecraft.getInstance();
+        if (mc != null && mc.level != null && mc.gui != null)
         {
-            mc.inGameHud.getChatHud().addMessage(Text.literal(message));
+            mc.gui.getChat().addMessage(Component.literal(message));
         }
     }
 }
