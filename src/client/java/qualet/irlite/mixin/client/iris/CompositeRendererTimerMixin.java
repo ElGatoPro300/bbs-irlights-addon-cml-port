@@ -13,6 +13,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import com.mojang.blaze3d.systems.RenderPass;
+
 import com.google.common.collect.ImmutableSet;
 
 import java.util.function.Supplier;
@@ -64,7 +66,7 @@ public class CompositeRendererTimerMixin
                        target = "Lcom/mojang/blaze3d/systems/RenderPass;drawIndexed(IIII)V"),
               require = 0,
               remap = false)
-    private void irlite$endTimedPass(com.mojang.blaze3d.systems.RenderPass instance, int baseVertex, int firstIndex, int indexCount, int instanceCount)
+    private void irlite$endTimedPass(RenderPass instance, int baseVertex, int firstIndex, int indexCount, int instanceCount)
     {
         instance.drawIndexed(baseVertex, firstIndex, indexCount, instanceCount);
         VlProfiler.endPass();

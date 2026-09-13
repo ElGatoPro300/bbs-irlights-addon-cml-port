@@ -1,18 +1,20 @@
 package qualet.irlite.client.forms;
 
+import qualet.irlite.client.graphics.IrliteLayers;
+
 import mchorse.bbs_mod.graphics.Draw;
 import mchorse.bbs_mod.utils.Axis;
 import mchorse.bbs_mod.utils.colors.Color;
-import com.mojang.blaze3d.vertex.VertexFormat;
+
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
 
 import org.joml.Matrix4f;
-import qualet.irlite.client.graphics.IrliteLayers;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.VertexFormat;
 
 import java.util.function.Consumer;
 

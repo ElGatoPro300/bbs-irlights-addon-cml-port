@@ -1,6 +1,7 @@
 package qualet.irlite.client;
 
 import qualet.irlite.IrliteConfig;
+import qualet.irlite.client.compat.IrliteCalCompat;
 
 import org.qualet.irl.light.shadow.ShadowConfig;
 
@@ -28,7 +29,7 @@ public final class IrliteShadowConfig
             // shadows are on (for BBS or CAL lights) — the VL pass samples the same maps (vlC.w bit0), so
             // gating on shadowsLive() alone would blank beam shadows when a user
             // only meant to drop surface shadows.
-            .shadowsEnabled(() -> IrliteConfig.shadowsLive() || IrliteConfig.vlShadowsLive() || qualet.irlite.client.compat.IrliteCalCompat.isCalShadowsEnabled())
+            .shadowsEnabled(() -> IrliteConfig.shadowsLive() || IrliteConfig.vlShadowsLive() || IrliteCalCompat.isCalShadowsEnabled())
             .build();
 
     private IrliteShadowConfig()

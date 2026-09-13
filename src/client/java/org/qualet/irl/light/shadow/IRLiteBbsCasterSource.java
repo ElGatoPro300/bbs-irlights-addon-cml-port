@@ -41,19 +41,16 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.chunk.BlockEntityTickInvoker;
+import net.minecraft.world.chunk.WorldChunk;
 
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
-import net.minecraft.world.chunk.WorldChunk;
-import qualet.irlite.IrliteConfig;
-import qualet.irlite.client.light.LightCollector;
-import qualet.irlite.forms.PointLightForm;
-import qualet.irlite.forms.SpotlightForm;
-import qualet.irlite.mixin.client.bbs.FilmsAccessor;
-import qualet.irlite.mixin.client.bbs.WorldBlockEntityTickersAccessor;
+
+import io.netty.util.collection.IntObjectMap;
 
 import java.util.List;
+
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 /**
  * The IRLite {@link ShadowCasterSource}: BBS Form/Film/Morph silhouettes — the

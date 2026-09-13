@@ -1,5 +1,11 @@
 package qualet.irlite.client.forms;
 
+import qualet.irlite.IrliteConfig;
+import qualet.irlite.client.graphics.IrliteLayers;
+import qualet.irlite.client.light.LightCollector;
+
+import org.qualet.irl.light.shadow.ShadowBakeState;
+
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.BBSShaders;
@@ -16,16 +22,15 @@ import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
-import com.mojang.blaze3d.vertex.VertexFormat;
+
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.util.Identifier;
+
 import org.joml.Matrix4f;
-import qualet.irlite.IrliteConfig;
-import qualet.irlite.client.graphics.IrliteLayers;
-import qualet.irlite.client.light.LightCollector;
-import org.qualet.irl.light.shadow.ShadowBakeState;
+
+import com.mojang.blaze3d.vertex.VertexFormat;
 
 public abstract class AbstractLightFormRenderer<T extends Form> extends FormRenderer<T>
 {

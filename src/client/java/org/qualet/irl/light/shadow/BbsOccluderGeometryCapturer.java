@@ -1,10 +1,14 @@
 package org.qualet.irl.light.shadow;
 
-import it.unimi.dsi.fastutil.floats.FloatArrayList;
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import mchorse.bbs_mod.cubic.animation.IAnimator;
+import qualet.irlite.mixin.client.bbs.FormRendererAccessor;
+import qualet.irlite.mixin.client.bbs.MobFormRendererAccessor;
+import qualet.irlite.mixin.client.bbs.StructureFormRendererAccessor;
+
+import mchorse.bbs_mod.BBSModClient;
+import mchorse.bbs_mod.client.ItemUseRenderState;
 import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.cubic.ModelInstance;
+import mchorse.bbs_mod.cubic.animation.IAnimator;
 import mchorse.bbs_mod.cubic.data.model.Model;
 import mchorse.bbs_mod.cubic.data.model.ModelCube;
 import mchorse.bbs_mod.cubic.data.model.ModelData;
@@ -34,9 +38,13 @@ import mchorse.bbs_mod.forms.renderers.StructureFormRenderer;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCacheEntry;
 import mchorse.bbs_mod.forms.renderers.utils.StructureData;
+import mchorse.bbs_mod.graphics.texture.Texture;
+import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.settings.values.core.ValuePose;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.pose.Pose;
+import mchorse.bbs_mod.utils.resources.Pixels;
+
 import net.minecraft.block.BlockRenderType;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
@@ -76,24 +84,20 @@ import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.BlockRenderView;
+
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
-import qualet.irlite.mixin.client.bbs.FormRendererAccessor;
-import qualet.irlite.mixin.client.bbs.MobFormRendererAccessor;
-import qualet.irlite.mixin.client.bbs.StructureFormRendererAccessor;
-import mchorse.bbs_mod.BBSModClient;
-import mchorse.bbs_mod.client.ItemUseRenderState;
-import mchorse.bbs_mod.graphics.texture.Texture;
-import mchorse.bbs_mod.resources.Link;
-import mchorse.bbs_mod.utils.resources.Pixels;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
+import it.unimi.dsi.fastutil.floats.FloatArrayList;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 
 public final class BbsOccluderGeometryCapturer
 {
