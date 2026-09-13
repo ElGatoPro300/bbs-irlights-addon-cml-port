@@ -1,14 +1,16 @@
 package qualet.irlite.mixin.client;
 
+import qualet.irlite.client.forms.SpotGuideDrag;
+
 import mchorse.bbs_mod.ui.film.controller.UIFilmController;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.Area;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import qualet.irlite.client.forms.SpotGuideDrag;
 
 /**
  * Film-editor counterpart of {@link UIPickableFormRendererMixin}: routes clicks

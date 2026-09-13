@@ -1,13 +1,15 @@
 package qualet.irlite.mixin.client;
 
+import org.qualet.irl.light.shadow.BlockShadowCache;
+
 import net.minecraft.block.BlockState;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.math.BlockPos;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.qualet.irl.light.shadow.BlockShadowCache;
 
 /**
  * Keeps block shadows fresh when the world changes. Without this, placing or

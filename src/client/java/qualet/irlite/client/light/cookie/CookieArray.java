@@ -1,10 +1,13 @@
 package qualet.irlite.client.light.cookie;
 
+import org.qualet.irl.light.CookieArrayBase;
+
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.resources.Link;
+
 import org.lwjgl.stb.STBImage;
 import org.lwjgl.system.MemoryUtil;
-import org.qualet.irl.light.CookieArrayBase;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

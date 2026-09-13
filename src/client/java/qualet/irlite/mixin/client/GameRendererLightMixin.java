@@ -1,15 +1,19 @@
 package qualet.irlite.mixin.client;
 
+import qualet.irlite.client.compat.IrliteCalCompat;
+import qualet.irlite.client.diag.VlProfiler;
+import qualet.irlite.client.light.LightCollector;
+
+import org.qualet.irl.light.FramePipeline;
+import org.qualet.irl.light.iris.IrisShadersState;
+
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.RenderTickCounter;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.qualet.irl.light.FramePipeline;
-import org.qualet.irl.light.iris.IrisShadersState;
-import qualet.irlite.client.diag.VlProfiler;
-import qualet.irlite.client.light.LightCollector;
 
 @Mixin(GameRenderer.class)
 public class GameRendererLightMixin
@@ -36,7 +40,7 @@ public class GameRendererLightMixin
             tickDelta,
             IrisShadersState::shadersDisabled,
             LightCollector::collect,
-            qualet.irlite.client.compat.IrliteCalCompat::resetCalAutoShadowRamp
+            IrliteCalCompat::resetCalAutoShadowRamp
         );
         VlProfiler.cpuSample("pipeline", System.nanoTime() - pipelineT0);
         VlProfiler.endPass();

@@ -1,6 +1,12 @@
 package org.qualet.irl.light.shadow;
 
-import io.netty.util.collection.IntObjectMap;
+import qualet.irlite.IrliteConfig;
+import qualet.irlite.client.light.LightCollector;
+import qualet.irlite.forms.PointLightForm;
+import qualet.irlite.forms.SpotlightForm;
+import qualet.irlite.mixin.client.bbs.FilmsAccessor;
+import qualet.irlite.mixin.client.bbs.WorldBlockEntityTickersAccessor;
+
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.blocks.entities.ModelBlockEntity;
 import mchorse.bbs_mod.blocks.entities.ModelProperties;
@@ -19,6 +25,7 @@ import mchorse.bbs_mod.ui.film.controller.FilmEditorController;
 import mchorse.bbs_mod.ui.film.controller.UIFilmController;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.pose.Transform;
+
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
@@ -34,6 +41,7 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.chunk.BlockEntityTickInvoker;
+
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
