@@ -1,11 +1,13 @@
 package qualet.irlite.mixin.client.iris;
 
+import org.qualet.irl.light.FramePipeline;
+
 import net.irisshaders.iris.uniforms.CapturedRenderingState;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.qualet.irl.light.FramePipeline;
 
 /**
  * Hands this frame's gbuffer matrices to the light-cluster grid builder. Iris

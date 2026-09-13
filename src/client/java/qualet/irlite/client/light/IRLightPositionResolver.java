@@ -1,12 +1,16 @@
 package qualet.irlite.client.light;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
+
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.util.math.Vec3d;
+
 import org.joml.Matrix3fc;
 import org.joml.Matrix4f;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
+
+import com.mojang.blaze3d.systems.RenderSystem;
 
 /**
  * Resolves a form's absolute world position from the render-path matrix stack.
@@ -24,7 +28,7 @@ public final class IRLightPositionResolver
         matrix.mul(context.stack.peek().getPositionMatrix());
         Vector3f offset = matrix.getTranslation(new Vector3f());
 
-        net.minecraft.util.math.Vec3d cam = MinecraftClient.getInstance().gameRenderer.getCamera().getPos();
+        Vec3d cam = MinecraftClient.getInstance().gameRenderer.getCamera().getPos();
 
         return new Vector3d(cam.x + offset.x, cam.y + offset.y, cam.z + offset.z);
     }

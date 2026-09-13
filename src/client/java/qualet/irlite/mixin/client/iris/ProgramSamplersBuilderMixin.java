@@ -1,12 +1,15 @@
 package qualet.irlite.mixin.client.iris;
 
+import qualet.irlite.client.compat.IrliteCalCompat;
+
+import org.qualet.irl.light.iris.IrlSamplersBind;
+
 import net.irisshaders.iris.gl.program.ProgramSamplers;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import org.qualet.irl.light.iris.IrlSamplersBind;
-import qualet.irlite.client.compat.IrliteCalCompat;
 
 /**
  * Binds IRLite shadow textures into every Iris-compiled program. Iris calls

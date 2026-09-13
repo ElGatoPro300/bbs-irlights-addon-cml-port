@@ -1,5 +1,12 @@
 package qualet.irlite.client.ui.patcher;
 
+import org.qualet.irl.patcher.IrlPatch;
+import org.qualet.irl.patcher.IrlPatchApplier;
+import org.qualet.irl.patcher.IrlPatchParser;
+import org.qualet.irl.patcher.PatchLibrary;
+import org.qualet.irl.patcher.PatchResult;
+import org.qualet.irl.patcher.Shaderpacks;
+
 import mchorse.bbs_mod.l10n.L10n;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
@@ -13,14 +20,9 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UIText;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Colors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.qualet.irl.patcher.IrlPatch;
-import org.qualet.irl.patcher.IrlPatchApplier;
-import org.qualet.irl.patcher.IrlPatchParser;
-import org.qualet.irl.patcher.PatchLibrary;
-import org.qualet.irl.patcher.PatchResult;
-import org.qualet.irl.patcher.Shaderpacks;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;

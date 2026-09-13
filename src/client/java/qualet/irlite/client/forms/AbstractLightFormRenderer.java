@@ -1,14 +1,18 @@
 package qualet.irlite.client.forms;
 
-import com.mojang.blaze3d.systems.RenderSystem;
+import qualet.irlite.IrliteConfig;
+import qualet.irlite.client.light.LightCollector;
+
+import org.qualet.irl.light.shadow.ShadowBakeState;
+
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.forms.CustomVertexConsumerProvider;
 import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
-import mchorse.bbs_mod.forms.renderers.FormRenderer;
 import mchorse.bbs_mod.forms.renderers.FormRenderType;
+import mchorse.bbs_mod.forms.renderers.FormRenderer;
 import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
 import mchorse.bbs_mod.graphics.Draw;
 import mchorse.bbs_mod.graphics.texture.Texture;
@@ -16,16 +20,17 @@ import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
+
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BufferRenderer;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
+
 import org.joml.Matrix4f;
-import qualet.irlite.IrliteConfig;
-import qualet.irlite.client.light.LightCollector;
-import org.qualet.irl.light.shadow.ShadowBakeState;
+
+import com.mojang.blaze3d.systems.RenderSystem;
 
 public abstract class AbstractLightFormRenderer<T extends Form> extends FormRenderer<T>
 {

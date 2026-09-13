@@ -1,5 +1,7 @@
 package qualet.irlite.client.ui.forms.editors.panels;
 
+import qualet.irlite.forms.PointLightForm;
+
 import mchorse.bbs_mod.l10n.L10n;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
@@ -9,7 +11,6 @@ import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.utils.colors.Color;
-import qualet.irlite.forms.PointLightForm;
 
 public class UIPointLightFormPanel extends UIFormPanel<PointLightForm>
 {

@@ -1,5 +1,8 @@
 package qualet.irlite.client.ui.forms.editors.panels;
 
+import qualet.irlite.client.forms.SpotGuideDrag;
+import qualet.irlite.forms.SpotlightForm;
+
 import mchorse.bbs_mod.l10n.L10n;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
@@ -11,8 +14,6 @@ import mchorse.bbs_mod.ui.framework.elements.input.UITexturePicker;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.utils.colors.Color;
-import qualet.irlite.client.forms.SpotGuideDrag;
-import qualet.irlite.forms.SpotlightForm;
 
 public class UISpotlightFormPanel extends UIFormPanel<SpotlightForm>
 {
