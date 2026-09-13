@@ -1,20 +1,25 @@
 plugins {
-    id 'fabric-loom' version '1.17-SNAPSHOT'
+    id 'net.fabricmc.fabric-loom' version '1.17-SNAPSHOT'
     id 'maven-publish'
 }
 
-// --- Multi-version dev profile selector (-Pmc=1.21.1 | 1.20.4 | 1.20.1) ---
-// Picks Minecraft / yarn / Fabric API / BBS jar / Iris / Sodium coordinates for
-// the target version. This branch (port/1.21.1) defaults to and is built for
-// MC 1.21.1 (Java 21) — the FINAL addon-supported MC version. The 1.20.x entries
-// stay for reference; they require Java 17 (gated by targetJavaVersion below).
-def mcTarget = (project.findProperty('mc') ?: '1.21.11').toString()
+// --- Multi-version dev profile selector (-Pmc=26.1 | 1.21.11 | 1.21.4 | 1.21.1 | 1.20.4 | 1.20.1) ---
+def mcTarget = (project.findProperty('mc') ?: '26.1').toString()
 def mcVersions = [
+    '26.1': [
+        minecraft: '26.1',
+        fabricApi: '0.145.1+26.1',
+        bbs      : '2.1-26.1',
+        sodium   : 'mc26.1.1-0.8.9-fabric',
+        iris     : '1.10.9+26.1-fabric',
+        calEditor: '1.2.1-26.1',
+        glsl     : '3.0.0-pre3',
+        lwjglPin : null,
+    ],
     '1.21.11': [
         minecraft: '1.21.11',
-        yarn     : '1.21.11+build.6',
         fabricApi: '0.141.6+1.21.11',
-        bbs      : '2.1.1-1.21.11',
+        bbs      : '2.1-1.21.11',
         sodium   : 'mc1.21.11-0.8.12-fabric',
         iris     : '1.10.7+1.21.11-fabric',
         calEditor: '1.2.1-1.21.11',
@@ -23,10 +28,8 @@ def mcVersions = [
     ],
     '1.21.4': [
         minecraft: '1.21.4',
-        yarn     : '1.21.4+build.6',
         fabricApi: '0.118.0+1.21.4',
         bbs      : '2.1-1.21.4',
-        // Iris 1.8.8 keeps the 2-arg addDynamicSampler (4-arg arrives in 1.9+/1.10.7).
         sodium   : 'mc1.21.4-0.6.13-fabric',
         iris     : '1.8.8+1.21.4-fabric',
         calEditor: '1.2.1-1.21.4',
@@ -34,10 +37,8 @@ def mcVersions = [
     ],
     '1.21.1': [
         minecraft: '1.21.1',
-        yarn     : '1.21.1+build.3',
         fabricApi: '0.116.12+1.21.1',
         bbs      : '2.1-1.21.1',
-        // Iris 1.8.8 keeps the 2-arg addDynamicSampler (4-arg arrives in 1.9+/1.10.7).
         sodium   : 'mc1.21.1-0.6.13-fabric',
         iris     : '1.8.8+1.21.1-fabric',
         calEditor: '1.2.1-1.21.1',
@@ -45,7 +46,6 @@ def mcVersions = [
     ],
     '1.20.1': [
         minecraft: '1.20.1',
-        yarn     : '1.20.1+build.10',
         fabricApi: '0.92.9+1.20.1',
         bbs      : '2.1-1.20.1',
         sodium   : 'mc1.20.1-0.5.11',
@@ -55,7 +55,6 @@ def mcVersions = [
     ],
     '1.20.4': [
         minecraft: '1.20.4',
-        yarn     : '1.20.4+build.1',
         fabricApi: '0.91.1+1.20.4',
         bbs      : '2.1-1.20.4',
         sodium   : 'mc1.20.4-0.5.8',
@@ -65,10 +64,10 @@ def mcVersions = [
     ],
 ]
 if (!mcVersions.containsKey(mcTarget)) {
-    throw new GradleException("Unknown -Pmc=${mcTarget}; expected 1.21.11, 1.21.4, 1.21.1, 1.20.4 or 1.20.1")
+    throw new GradleException("Unknown -Pmc=${mcTarget}; expected 26.1, 1.21.11, 1.21.4, 1.21.1, 1.20.4 or 1.20.1")
 }
 def V = mcVersions[mcTarget]
-logger.lifecycle("IRLite build target: Minecraft ${V.minecraft} (yarn ${V.yarn})")
+logger.lifecycle("IRLite build target: Minecraft ${V.minecraft} (Mojang mappings)")
 
 def irlCoreVersion = project.hasProperty("irl_core_version") ? project.property("irl_core_version") : "1.1.5"
 def irlCoreJar = "irl-core-${irlCoreVersion}-${V.minecraft}.jar"
@@ -92,15 +91,10 @@ loom {
 
     runs {
         client {
-            // Dev conveniences for automated runtime checks:
-            //   -Pquickplay="World name"  auto-joins that singleplayer save,
-            //   -PclientJvmArgs="-Dirlite.profileVl=true"  forwards JVM flags
-            // (e.g. the VL/shadow profilers) into the forked client.
             if (project.hasProperty('quickplay')) {
                 programArgs '--quickPlaySingleplayer', project.property('quickplay').toString()
             }
             if (project.hasProperty('clientJvmArgs')) {
-                // Whitespace-separated; values containing spaces can't ride this.
                 project.property('clientJvmArgs').toString().split(/\s+/).findAll { !it.isEmpty() }.each { vmArg it }
             }
         }
@@ -137,9 +131,6 @@ repositories {
     mavenCentral()
 }
 
-// Minecraft 1.20.1 ships LWJGL 3.3.1; a transitive dep bumps it to 3.3.2,
-// which Sodium refuses to start against. Pin every LWJGL module back to 3.3.1.
-// 1.20.4 ships LWJGL 3.3.3 and needs no pin (V.lwjglPin = null).
 if (V.lwjglPin != null) {
     configurations.all {
         resolutionStrategy.eachDependency { details ->
@@ -151,39 +142,44 @@ if (V.lwjglPin != null) {
 }
 
 dependencies {
-    // Versions are chosen by the -Pmc selector at the top of this file.
     minecraft "com.mojang:minecraft:${V.minecraft}"
-    mappings "net.fabricmc:yarn:${V.yarn}:v2"
-    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${V.fabricApi}"
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${V.fabricApi}"
 
     // --- Shared BBS-free engine: light SSBO + .irlights patcher (irl-core) ---
-    modImplementation files("libs/${irlCoreJar}")
+    implementation files("libs/${irlCoreJar}")
 
-    // Iris is referenced at compile time (sampler mixins). Sodium is runtime-only.
-    modImplementation "maven.modrinth:iris:${V.iris}"
-    modImplementation "maven.modrinth:sodium:${V.sodium}"
-    modImplementation "maven.modrinth:bbs-cml-edition:${V.bbs}"
-    modImplementation "maven.modrinth:irl-cal-editor:${V.calEditor}"
+    // Iris & Sodium
+    implementation "maven.modrinth:iris:${V.iris}"
+    implementation "maven.modrinth:sodium:${V.sodium}"
 
-    // Iris runtime dependencies (not auto-pulled from the Modrinth artifact).
-    modRuntimeOnly "org.anarres:jcpp:1.4.14"
-    modRuntimeOnly "io.github.douira:glsl-transformer:${V.glsl ?: '2.0.0-pre13'}"
+    if (file("libs/bbs-cml-${V.bbs}.jar").exists()) {
+        implementation files("libs/bbs-cml-${V.bbs}.jar")
+    } else {
+        implementation "maven.modrinth:bbs-cml-edition:${V.bbs}"
+    }
+
+    if (V.calEditor != null) {
+        implementation "maven.modrinth:irl-cal-editor:${V.calEditor}"
+    }
+
+    // Iris runtime dependencies
+    implementation "org.anarres:jcpp:1.4.14"
+    implementation "io.github.douira:glsl-transformer:${V.glsl ?: '3.0.0-pre3'}"
 }
 
 processResources {
-    inputs.property "version", project.version
-    inputs.property "minecraft_version", project.minecraft_version
-    inputs.property "loader_version", project.loader_version
-    inputs.property "irl_core_jar", irlCoreJar
-    filteringCharset "UTF-8"
+    def replaceProperties = [
+        "version": project.version,
+        "minecraft_version": project.minecraft_version,
+        "loader_version": project.loader_version,
+        "irl_core_jar": irlCoreJar
+    ]
+
+    inputs.properties replaceProperties
 
     filesMatching("fabric.mod.json") {
-        expand "version": project.version,
-                "minecraft_version": project.minecraft_version,
-                "loader_version": project.loader_version,
-                "irl_core_jar": irlCoreJar
+        expand replaceProperties
     }
 
     // Embed the canonical .irlights (source of truth = patches/) so BbsPatcherHost
@@ -191,27 +187,18 @@ processResources {
     from("patches") { into "assets/irlite/patches" }
 }
 
-// 1.21.11 / 1.21.4 / 1.21.1 are Java 21; the 1.20.x reference profiles stay on 17.
-def targetJavaVersion = (mcTarget == '1.21.11' || mcTarget == '1.21.4' || mcTarget == '1.21.1') ? 21 : 17
+def targetJavaVersion = (mcTarget == '26.1' || mcTarget == '26.2') ? 25 : ((mcTarget == '1.21.11' || mcTarget == '1.21.4' || mcTarget == '1.21.1') ? 21 : 17)
 tasks.withType(JavaCompile).configureEach {
-    // ensure that the encoding is set to UTF-8, no matter what the system default is
-    // this fixes some edge cases with special characters not displaying correctly
-    // see http://yodaconditions.net/blog/fix-for-java-file-encoding-problems-with-gradle.html
-    // If Javadoc is generated, this must be specified in that task too.
     it.options.encoding = "UTF-8"
-    if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
-        it.options.release.set(targetJavaVersion)
-    }
+    it.options.release = targetJavaVersion
 }
 
 java {
-    def javaVersion = JavaVersion.toVersion(targetJavaVersion)
-    if (JavaVersion.current() < javaVersion) {
-        toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(targetJavaVersion)
     }
-    // Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
-    // if it is present.
-    // If you remove this line, sources will not be generated.
+    sourceCompatibility = JavaVersion.toVersion(targetJavaVersion)
+    targetCompatibility = JavaVersion.toVersion(targetJavaVersion)
     withSourcesJar()
 }
 
@@ -225,32 +212,6 @@ jar {
     }
 }
 
-// Nested-jar hygiene. Bumping the irl-core coordinate on an incremental build
-// used to ship BOTH the old and the new core inside the mod jar, and Fabric
-// then silently loads the HIGHER version — i.e. the stale engine. Caught
-// 2026-07-20 when an editor build carried irl-core 1.1, 1.1.3 and 1.2 at once.
-//
-// Two separate leaks, both needed fixing:
-//  1. processIncludeJars stages includes into build/processIncludeJars and
-//     never prunes, so the previous coordinate's jar lingers there.
-//  2. remapJar appends its nested jars INTO THE EXISTING output jar instead of
-//     writing a fresh one, so a stale entry survives even when staging is
-//     clean (verified: purging staging alone did not fix the bump case).
-// Purging the staging dir and deleting the output jar up front covers both.
-tasks.named("processIncludeJars") {
-    outputs.upToDateWhen { false }
-    doFirst {
-        delete fileTree(outputDirectory)
-    }
-}
-
-tasks.named("remapJar") {
-    outputs.upToDateWhen { false }
-    doFirst {
-        delete archiveFile
-    }
-}
-
 // configure the maven publication
 publishing {
     publications {
@@ -260,11 +221,6 @@ publishing {
         }
     }
 
-    // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
     repositories {
-        // Add repositories to publish to here.
-        // Notice: This block does NOT have the same function as the block in the top level.
-        // The repositories here will be used for publishing your artifact, not for
-        // retrieving dependencies.
     }
 }
