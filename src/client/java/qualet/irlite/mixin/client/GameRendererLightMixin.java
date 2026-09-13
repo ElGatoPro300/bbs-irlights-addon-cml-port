@@ -21,18 +21,7 @@ public class GameRendererLightMixin
     @Inject(method = "renderLevel", at = @At("HEAD"))
     private void irlite$collectLights(DeltaTracker tickCounter, CallbackInfo ci)
     {
-        // 1.21.1: renderWorld(RenderTickCounter) — the old (tickDelta, limitTime,
-        // MatrixStack) parameters are gone, so derive the partial tick here
-        // (ignoreFreeze=true matches the previous always-advancing behaviour).
-        // NB: 1.21.1 still names this getTickDelta(boolean); getTickProgress is later.
         float tickDelta = tickCounter.getGameTimeDeltaPartialTick(true);
-        // Dev VL profiler (-Dirlite.profileVl=true): the shadow bake below runs
-        // strictly before the Iris pass sequence, so its GL_TIME_ELAPSED bracket
-        // never nests with the per-pass brackets. collect/prioritize inside
-        // frame() issue no GL, so the bracket measures bake GPU work only. The
-        // core-side ShadowBakeProbe (installed in IrliteClient) switches this
-        // bracket to bake-* siblings at the bakeInner seams; endPass closes
-        // whichever segment is open.
         VlProfiler.frameTick();
         VlProfiler.beginPass(VlProfiler.PASS_BAKE);
         long pipelineT0 = System.nanoTime();
@@ -44,20 +33,7 @@ public class GameRendererLightMixin
         );
         VlProfiler.cpuSample("pipeline", System.nanoTime() - pipelineT0);
         VlProfiler.endPass();
-    }
 
-    /**
-     * Deferred SSBO upload, injected just AFTER this frame's Camera update
-     * in renderWorld, still well before WorldRenderer.render / Iris activation.
-     */
-    @Inject(method = "renderLevel",
-            at = @At(value = "INVOKE",
-                     target = "Lnet/minecraft/client/renderer/GameRenderer;extractCamera(F)V",
-                     shift = At.Shift.AFTER,
-                     ordinal = 0),
-            require = 1)
-    private void irlite$uploadLights(DeltaTracker tickCounter, CallbackInfo ci)
-    {
         long uploadT0 = System.nanoTime();
         FramePipeline.uploadIfPending();
         VlProfiler.cpuSample("upload", System.nanoTime() - uploadT0);
