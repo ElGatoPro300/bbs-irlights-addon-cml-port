@@ -87,8 +87,13 @@ import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.client.ItemUseRenderState;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.resources.Link;
+import mchorse.bbs_mod.utils.resources.Pixels;
 
+import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class BbsOccluderGeometryCapturer
 {
@@ -287,7 +292,13 @@ public final class BbsOccluderGeometryCapturer
                 matrices.multiply(RotationAxis.POSITIVE_Y.rotation(MathHelper.PI));
                 if (model instanceof Model cubicModel)
                 {
-                    ShadowCubicRenderer scr = new ShadowCubicRenderer(CAPTURE);
+                    Link defaultLink = modelForm.texture.get();
+                    if (defaultLink == null && modelInstance != null)
+                    {
+                        defaultLink = modelInstance.texture;
+                    }
+                    AlphaMask defaultMask = getAlphaMask(defaultLink);
+                    ShadowCubicRenderer scr = new ShadowCubicRenderer(CAPTURE, defaultMask);
                     CubicRenderer.processRenderModel(scr, null, matrices, cubicModel);
                 }
                 matrices.pop();
@@ -502,6 +513,7 @@ public final class BbsOccluderGeometryCapturer
             float aspectX = 1.0f;
             float aspectY = 1.0f;
             Link link = billboardForm.texture.get();
+            AlphaMask mask = getAlphaMask(link);
             if (link != null)
             {
                 try
@@ -536,12 +548,97 @@ public final class BbsOccluderGeometryCapturer
                     matrices.multiply(camera.getRotation());
                 }
             }
-            emitQuad(matrices, -hx, -hy, 0f, hx, -hy, 0f, hx, hy, 0f, -hx, hy, 0f);
+
+            if (mask != null && mask.hasTransparency)
+            {
+                int stepsU = Math.min(64, Math.max(1, mask.width));
+                int stepsV = Math.min(64, Math.max(1, mask.height));
+                for (int x = 0; x < stepsU; x++)
+                {
+                    float x0 = -hx + (float) x / (float) stepsU * (2f * hx);
+                    float x1 = -hx + (float) (x + 1) / (float) stepsU * (2f * hx);
+                    for (int y = 0; y < stepsV; y++)
+                    {
+                        int px = Math.min((int) ((x + 0.5f) / (float) stepsU * mask.width), mask.width - 1);
+                        int py = Math.min((int) ((y + 0.5f) / (float) stepsV * mask.height), mask.height - 1);
+                        if (mask.getAlpha(px, py) >= 25)
+                        {
+                            float y0 = -hy + (float) y / (float) stepsV * (2f * hy);
+                            float y1 = -hy + (float) (y + 1) / (float) stepsV * (2f * hy);
+                            emitQuad(matrices, x0, y0, 0f, x1, y0, 0f, x1, y1, 0f, x0, y1, 0f);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                emitQuad(matrices, -hx, -hy, 0f, hx, -hy, 0f, hx, hy, 0f, -hx, hy, 0f);
+            }
             matrices.pop();
         }
-        else if (form instanceof ExtrudedForm)
+        else if (form instanceof ExtrudedForm extrudedForm)
         {
-            emitQuad(matrices, -0.5f, -0.5f, 0f, 0.5f, -0.5f, 0f, 0.5f, 0.5f, 0f, -0.5f, 0.5f, 0f);
+            Link link = extrudedForm.texture.get();
+            AlphaMask mask = getAlphaMask(link);
+            if (mask != null && mask.hasTransparency)
+            {
+                float px = 0.5F;
+                float py = 0.5F;
+                float d = 0.5F / 16F;
+                int mw = mask.width;
+                int mh = mask.height;
+                if (mw > mh)
+                {
+                    py = (float) mh / (float) mw * 0.5F;
+                }
+                else if (mh > mw)
+                {
+                    px = (float) mw / (float) mh * 0.5F;
+                }
+                float sx = 1F / (float) mw * (px / 0.5F);
+                float sy = 1F / (float) mh * (py / 0.5F);
+
+                for (int x = 0; x < mw; x++)
+                {
+                    for (int y = 0; y < mh; y++)
+                    {
+                        if (mask.getAlpha(x, y) >= 25)
+                        {
+                            float fx0 = x * sx - px;
+                            float fx1 = (x + 1) * sx - px;
+                            float fy0 = -(y + 1) * sy + py;
+                            float fy1 = -y * sy + py;
+
+                            /* Front face */
+                            emitQuad(matrices, fx0, fy0, d, fx1, fy0, d, fx1, fy1, d, fx0, fy1, d);
+                            /* Back face */
+                            emitQuad(matrices, fx1, fy0, -d, fx0, fy0, -d, fx0, fy1, -d, fx1, fy1, -d);
+
+                            /* Side edges */
+                            if (x == 0 || mask.getAlpha(x - 1, y) < 25)
+                            {
+                                emitQuad(matrices, fx0, fy0, -d, fx0, fy0, d, fx0, fy1, d, fx0, fy1, -d);
+                            }
+                            if (x == mw - 1 || mask.getAlpha(x + 1, y) < 25)
+                            {
+                                emitQuad(matrices, fx1, fy0, d, fx1, fy0, -d, fx1, fy1, -d, fx1, fy1, d);
+                            }
+                            if (y == 0 || mask.getAlpha(x, y - 1) < 25)
+                            {
+                                emitQuad(matrices, fx0, fy1, -d, fx1, fy1, -d, fx1, fy1, d, fx0, fy1, d);
+                            }
+                            if (y == mh - 1 || mask.getAlpha(x, y + 1) < 25)
+                            {
+                                emitQuad(matrices, fx0, fy0, d, fx1, fy0, d, fx1, fy0, -d, fx0, fy0, -d);
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                emitQuad(matrices, -0.5f, -0.5f, 0f, 0.5f, -0.5f, 0f, 0.5f, 0.5f, 0f, -0.5f, 0.5f, 0f);
+            }
         }
 
         List<BodyPart> parts = form.parts.getAllTyped();
@@ -602,19 +699,108 @@ public final class BbsOccluderGeometryCapturer
         emitQuad(matrices, minX, minY, minZ, maxX, minY, minZ, maxX, minY, maxZ, minX, minY, maxZ);
     }
 
+    public static final class AlphaMask
+    {
+        public final int width;
+        public final int height;
+        public final byte[] alphas;
+        public final boolean hasTransparency;
+
+        public AlphaMask(int width, int height, byte[] alphas, boolean hasTransparency)
+        {
+            this.width = width;
+            this.height = height;
+            this.alphas = alphas;
+            this.hasTransparency = hasTransparency;
+        }
+
+        public int getAlpha(int x, int y)
+        {
+            if (x < 0 || x >= this.width || y < 0 || y >= this.height)
+            {
+                return 0;
+            }
+            return this.alphas[x + y * this.width] & 0xFF;
+        }
+    }
+
+    private static final Map<Link, AlphaMask> ALPHA_MASKS = new ConcurrentHashMap<>();
+
+    public static AlphaMask getAlphaMask(Link link)
+    {
+        if (link == null)
+        {
+            return null;
+        }
+        AlphaMask cached = ALPHA_MASKS.get(link);
+        if (cached != null)
+        {
+            return cached;
+        }
+        try
+        {
+            Pixels pixels = BBSModClient.getTextures().getPixels(link);
+            if (pixels != null)
+            {
+                int w = pixels.width;
+                int h = pixels.height;
+                byte[] alphas = new byte[w * h];
+                boolean hasTransparency = false;
+                if (pixels.bits == 4)
+                {
+                    ByteBuffer buf = pixels.getBuffer();
+                    for (int i = 0; i < w * h; i++)
+                    {
+                        int a = buf.get(i * 4 + 3) & 0xFF;
+                        alphas[i] = (byte) a;
+                        if (a < 250)
+                        {
+                            hasTransparency = true;
+                        }
+                    }
+                }
+                else
+                {
+                    Arrays.fill(alphas, (byte) 255);
+                }
+                pixels.delete();
+                AlphaMask mask = new AlphaMask(w, h, alphas, hasTransparency);
+                ALPHA_MASKS.put(link, mask);
+                return mask;
+            }
+        }
+        catch (Throwable ignored)
+        {
+        }
+        return null;
+    }
+
     public static final class ShadowCubicRenderer implements ICubicRenderer
     {
         private final VertexConsumer consumer;
+        private final AlphaMask defaultMask;
         private final Vector4f v4 = new Vector4f();
 
         public ShadowCubicRenderer(VertexConsumer consumer)
         {
+            this(consumer, null);
+        }
+
+        public ShadowCubicRenderer(VertexConsumer consumer, AlphaMask defaultMask)
+        {
             this.consumer = consumer;
+            this.defaultMask = defaultMask;
         }
 
         @Override
         public boolean renderGroup(BufferBuilder buffer, MatrixStack matrices, ModelGroup group, Model model)
         {
+            AlphaMask groupMask = this.defaultMask;
+            if (group.textureOverride != null)
+            {
+                groupMask = getAlphaMask(group.textureOverride);
+            }
+
             if (group.cubes != null && !group.cubes.isEmpty())
             {
                 for (int i = 0, n = group.cubes.size(); i < n; i++)
@@ -638,18 +824,9 @@ public final class BbsOccluderGeometryCapturer
                         for (int qi = 0, qn = cube.quads.size(); qi < qn; qi++)
                         {
                             ModelQuad quad = cube.quads.get(qi);
-                            if (quad != null && quad.vertices != null)
+                            if (quad != null && quad.vertices != null && quad.vertices.size() >= 4)
                             {
-                                for (int vi = 0, vn = quad.vertices.size(); vi < vn; vi++)
-                                {
-                                    ModelVertex mv = quad.vertices.get(vi);
-                                    if (mv != null && mv.vertex != null)
-                                    {
-                                        v4.set(mv.vertex.x, mv.vertex.y, mv.vertex.z, 1.0f);
-                                        posMat.transform(v4);
-                                        consumer.vertex(v4.x, v4.y, v4.z);
-                                    }
-                                }
+                                emitFilteredQuad(posMat, quad, groupMask, this.consumer, this.v4);
                             }
                         }
                     }
@@ -694,6 +871,140 @@ public final class BbsOccluderGeometryCapturer
                 }
             }
             return false;
+        }
+
+        private static void emitFilteredQuad(Matrix4f posMat, ModelQuad quad, AlphaMask mask, VertexConsumer consumer, Vector4f v4)
+        {
+            List<ModelVertex> verts = quad.vertices;
+            if (verts == null || verts.size() < 4)
+            {
+                return;
+            }
+
+            if (mask == null || !mask.hasTransparency)
+            {
+                emitQuadDirect(posMat, verts, consumer, v4);
+                return;
+            }
+
+            ModelVertex mv0 = verts.get(0);
+            ModelVertex mv1 = verts.get(1);
+            ModelVertex mv2 = verts.get(2);
+            ModelVertex mv3 = verts.get(3);
+
+            if (mv0 == null || mv1 == null || mv2 == null || mv3 == null ||
+                mv0.vertex == null || mv1.vertex == null || mv2.vertex == null || mv3.vertex == null ||
+                mv0.uv == null || mv1.uv == null || mv2.uv == null || mv3.uv == null)
+            {
+                emitQuadDirect(posMat, verts, consumer, v4);
+                return;
+            }
+
+            float u0 = mv0.uv.x, v0 = mv0.uv.y;
+            float u1 = mv1.uv.x, v1 = mv1.uv.y;
+            float u2 = mv2.uv.x, v2 = mv2.uv.y;
+            float u3 = mv3.uv.x, v3 = mv3.uv.y;
+
+            float du1 = u1 - u0, dv1 = v1 - v0;
+            float du2 = u3 - u0, dv2 = v3 - v0;
+
+            int stepsU = Math.min(64, Math.max(1, Math.round((float) Math.hypot(du1 * mask.width, dv1 * mask.height))));
+            int stepsV = Math.min(64, Math.max(1, Math.round((float) Math.hypot(du2 * mask.width, dv2 * mask.height))));
+
+            int totalCount = stepsU * stepsV;
+            int solidCount = 0;
+            boolean[] solidGrid = new boolean[totalCount];
+
+            for (int i = 0; i < stepsU; i++)
+            {
+                float sCenter = (i + 0.5f) / (float) stepsU;
+                for (int j = 0; j < stepsV; j++)
+                {
+                    float tCenter = (j + 0.5f) / (float) stepsV;
+                    float u = (1f - sCenter) * (1f - tCenter) * u0 + sCenter * (1f - tCenter) * u1 + sCenter * tCenter * u2 + (1f - sCenter) * tCenter * u3;
+                    float v = (1f - sCenter) * (1f - tCenter) * v0 + sCenter * (1f - tCenter) * v1 + sCenter * tCenter * v2 + (1f - sCenter) * tCenter * v3;
+
+                    int px = Math.min(Math.max((int) Math.floor(u * mask.width), 0), mask.width - 1);
+                    int py = Math.min(Math.max((int) Math.floor(v * mask.height), 0), mask.height - 1);
+
+                    int alpha = mask.getAlpha(px, py);
+                    if (alpha >= 25)
+                    {
+                        solidGrid[i + j * stepsU] = true;
+                        solidCount++;
+                    }
+                }
+            }
+
+            if (solidCount == 0)
+            {
+                return;
+            }
+
+            if (solidCount == totalCount)
+            {
+                emitQuadDirect(posMat, verts, consumer, v4);
+                return;
+            }
+
+            for (int i = 0; i < stepsU; i++)
+            {
+                float s0 = (float) i / (float) stepsU;
+                float s1 = (float) (i + 1) / (float) stepsU;
+                for (int j = 0; j < stepsV; j++)
+                {
+                    if (!solidGrid[i + j * stepsU])
+                    {
+                        continue;
+                    }
+                    float t0 = (float) j / (float) stepsV;
+                    float t1 = (float) (j + 1) / (float) stepsV;
+
+                    emitBilinearSubQuad(posMat, consumer, v4, mv0, mv1, mv2, mv3, s0, t0, s1, t1);
+                }
+            }
+        }
+
+        private static void emitBilinearSubQuad(Matrix4f posMat, VertexConsumer consumer, Vector4f v4,
+                                                ModelVertex mv0, ModelVertex mv1, ModelVertex mv2, ModelVertex mv3,
+                                                float s0, float t0, float s1, float t1)
+        {
+            emitInterpolatedVertex(posMat, consumer, v4, mv0, mv1, mv2, mv3, s0, t0);
+            emitInterpolatedVertex(posMat, consumer, v4, mv0, mv1, mv2, mv3, s1, t0);
+            emitInterpolatedVertex(posMat, consumer, v4, mv0, mv1, mv2, mv3, s1, t1);
+            emitInterpolatedVertex(posMat, consumer, v4, mv0, mv1, mv2, mv3, s0, t1);
+        }
+
+        private static void emitInterpolatedVertex(Matrix4f posMat, VertexConsumer consumer, Vector4f v4,
+                                                   ModelVertex mv0, ModelVertex mv1, ModelVertex mv2, ModelVertex mv3,
+                                                   float s, float t)
+        {
+            float w0 = (1f - s) * (1f - t);
+            float w1 = s * (1f - t);
+            float w2 = s * t;
+            float w3 = (1f - s) * t;
+
+            float x = w0 * mv0.vertex.x + w1 * mv1.vertex.x + w2 * mv2.vertex.x + w3 * mv3.vertex.x;
+            float y = w0 * mv0.vertex.y + w1 * mv1.vertex.y + w2 * mv2.vertex.y + w3 * mv3.vertex.y;
+            float z = w0 * mv0.vertex.z + w1 * mv1.vertex.z + w2 * mv2.vertex.z + w3 * mv3.vertex.z;
+
+            v4.set(x, y, z, 1.0f);
+            posMat.transform(v4);
+            consumer.vertex(v4.x, v4.y, v4.z);
+        }
+
+        private static void emitQuadDirect(Matrix4f posMat, List<ModelVertex> verts, VertexConsumer consumer, Vector4f v4)
+        {
+            for (int vi = 0, vn = Math.min(4, verts.size()); vi < vn; vi++)
+            {
+                ModelVertex mv = verts.get(vi);
+                if (mv != null && mv.vertex != null)
+                {
+                    v4.set(mv.vertex.x, mv.vertex.y, mv.vertex.z, 1.0f);
+                    posMat.transform(v4);
+                    consumer.vertex(v4.x, v4.y, v4.z);
+                }
+            }
         }
     }
 
