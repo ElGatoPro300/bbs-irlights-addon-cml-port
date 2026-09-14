@@ -125,6 +125,9 @@ public final class LightCollector
 
     public static void collect(ClientWorld world, Vec3d cameraPos, float tickDelta)
     {
+        // Synchronize configs bidirectionally between BBS and CAL Editor before collecting or pushing globals
+        IrliteCalCompat.syncConfigs();
+
         // Track the "max shader lights" slider each frame: caps how many lights the
         // flush packs into the SSBO (registration + shadow caches still see them all).
         LightRegistry.setUploadCap(IrliteConfig.maxShaderLights());
