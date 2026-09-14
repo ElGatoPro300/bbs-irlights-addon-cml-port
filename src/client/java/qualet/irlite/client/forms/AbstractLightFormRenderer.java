@@ -275,9 +275,14 @@ public abstract class AbstractLightFormRenderer<T extends Form> extends FormRend
         context.batcher.box(ix, iy, ix + size, iy + size, Colors.A50 | 0x1a1a1e);
 
         Icon icon = this.icon();
-        if (icon != null)
+        if (icon != null && icon.texture != null)
         {
-            context.batcher.iconArea(icon, tint, ix, iy, size, size);
+            Texture atlas = BBSModClient.getTextures().getTexture(icon.texture);
+            context.batcher.texturedBox(
+                atlas, tint, ix, iy, size, size,
+                icon.x, icon.y, icon.x + icon.w, icon.y + icon.h,
+                icon.textureW, icon.textureH
+            );
         }
     }
 }
