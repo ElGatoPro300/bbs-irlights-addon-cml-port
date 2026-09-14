@@ -1,6 +1,13 @@
 package qualet.irlite.client.compat;
 
+import qualet.irlite.IrliteConfig;
 import qualet.irlite.client.light.cookie.CookieArray;
+
+import elgatopro300.cal_lights.light.LightConfig;
+
+import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
+import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
+import mchorse.bbs_mod.settings.values.numeric.ValueInt;
 
 import org.qualet.irl.light.CookieArrayBase;
 
@@ -119,6 +126,26 @@ public final class IrliteCalCompat
         catch (Throwable t)
         {
             LOG.error("Error executing CAL LightDriver.resetAutoShadowRamp", t);
+        }
+    }
+
+    /**
+     * Synchronizes configuration settings bidirectionally between BBS and CAL Editor.
+     * Ensures any changes in BBS settings reflect in CAL and vice-versa.
+     */
+    public static void syncConfigs()
+    {
+        if (!calPresent)
+        {
+            return;
+        }
+        try
+        {
+            CalSyncBridge.sync();
+        }
+        catch (Throwable t)
+        {
+            LOG.error("Error synchronizing configs with CAL Editor", t);
         }
     }
 
@@ -459,5 +486,210 @@ public final class IrliteCalCompat
             }
         }
         return data;
+    }
+
+    /**
+     * Internal bridge class that directly touches CAL Editor's LightConfig fields.
+     * Isolated into an inner class so the JVM only loads it when CAL Editor is present.
+     */
+    private static final class CalSyncBridge
+    {
+        private static boolean initialized = false;
+
+        private static boolean lastShowGuides;
+        private static int lastShadowQuality;
+        private static boolean lastShadowBlocks;
+        private static boolean lastShadowsLive;
+        private static float lastShadowSoftness;
+
+        private static float lastVlIntensity;
+        private static int lastVlSteps;
+        private static float lastVlMaxDist;
+        private static boolean lastVlShadows;
+        private static int lastVlShadowStride;
+        private static float lastVlTipBoost;
+        private static float lastVlTipRadius;
+        private static boolean lastVlNoise;
+        private static float lastVlNoiseAmount;
+        private static float lastVlNoiseScale;
+        private static float lastVlNoiseSpeed;
+        private static float lastVlNoiseMorph;
+        private static int lastVlNoiseStride;
+        private static boolean lastVlBlueNoise;
+        private static boolean lastVlDitherTemporal;
+        private static boolean lastVlClusterCull;
+        private static boolean lastVlShadowHiz;
+
+        private static boolean lastOutline;
+        private static int lastOutlineTarget;
+        private static float lastOutlineStrength;
+        private static int lastOutlinePixelSize;
+        private static float lastOutlineFresnelPower;
+        private static float lastOutlineBack;
+        private static boolean lastOutlineFront;
+        private static float lastOutlineFrontStrength;
+        private static boolean lastOutlineGlow;
+        private static float lastOutlineGlowStrength;
+
+        @FunctionalInterface
+        private interface BoolConsumer
+        {
+            void accept(boolean val);
+        }
+
+        @FunctionalInterface
+        private interface FloatConsumer
+        {
+            void accept(float val);
+        }
+
+        static void sync()
+        {
+            if (IrliteConfig.outline == null)
+            {
+                return;
+            }
+
+            if (!initialized)
+            {
+                pushAllBbsToCal();
+                initialized = true;
+                LOG.info("IRLite <-> CAL Editor bidirectional configuration bridge initialized.");
+                return;
+            }
+
+            // General & Shadow
+            lastShowGuides = syncBool(IrliteConfig.showGuides, LightConfig.showGuides, lastShowGuides, v -> LightConfig.showGuides = v);
+            lastShadowQuality = syncInt(IrliteConfig.shadowQuality, LightConfig.shadowQuality, lastShadowQuality, v -> LightConfig.shadowQuality = v);
+            lastShadowBlocks = syncBool(IrliteConfig.shadowBlocks, LightConfig.shadowBlocks, lastShadowBlocks, v -> LightConfig.shadowBlocks = v);
+            lastShadowsLive = syncBool(IrliteConfig.shadowsLive, LightConfig.shadowsLive, lastShadowsLive, v -> LightConfig.shadowsLive = v);
+            lastShadowSoftness = syncFloat(IrliteConfig.shadowSoftness, LightConfig.shadowSoftness, lastShadowSoftness, v -> LightConfig.shadowSoftness = v);
+
+            // Volumetrics
+            lastVlIntensity = syncFloat(IrliteConfig.vlIntensity, LightConfig.vlIntensity, lastVlIntensity, v -> LightConfig.vlIntensity = v);
+            lastVlSteps = syncInt(IrliteConfig.vlSteps, LightConfig.vlSteps, lastVlSteps, v -> LightConfig.vlSteps = v);
+            lastVlMaxDist = syncFloat(IrliteConfig.vlMaxDist, LightConfig.vlMaxDist, lastVlMaxDist, v -> LightConfig.vlMaxDist = v);
+            lastVlShadows = syncBool(IrliteConfig.vlShadowsLive, LightConfig.vlShadows, lastVlShadows, v -> LightConfig.vlShadows = v);
+            lastVlShadowStride = syncInt(IrliteConfig.vlShadowStride, LightConfig.vlShadowStride, lastVlShadowStride, v -> LightConfig.vlShadowStride = v);
+            lastVlTipBoost = syncFloat(IrliteConfig.vlTipBoost, LightConfig.vlTipBoost, lastVlTipBoost, v -> LightConfig.vlTipBoost = v);
+            lastVlTipRadius = syncFloat(IrliteConfig.vlTipRadius, LightConfig.vlTipRadius, lastVlTipRadius, v -> LightConfig.vlTipRadius = v);
+            lastVlNoise = syncBool(IrliteConfig.vlNoiseLive, LightConfig.vlNoise, lastVlNoise, v -> LightConfig.vlNoise = v);
+            lastVlNoiseAmount = syncFloat(IrliteConfig.vlNoiseAmount, LightConfig.vlNoiseAmount, lastVlNoiseAmount, v -> LightConfig.vlNoiseAmount = v);
+            lastVlNoiseScale = syncFloat(IrliteConfig.vlNoiseScale, LightConfig.vlNoiseScale, lastVlNoiseScale, v -> LightConfig.vlNoiseScale = v);
+            lastVlNoiseSpeed = syncFloat(IrliteConfig.vlNoiseSpeed, LightConfig.vlNoiseSpeed, lastVlNoiseSpeed, v -> LightConfig.vlNoiseSpeed = v);
+            lastVlNoiseMorph = syncFloat(IrliteConfig.vlNoiseMorph, LightConfig.vlNoiseMorph, lastVlNoiseMorph, v -> LightConfig.vlNoiseMorph = v);
+            lastVlNoiseStride = syncInt(IrliteConfig.vlNoiseStride, LightConfig.vlNoiseStride, lastVlNoiseStride, v -> LightConfig.vlNoiseStride = v);
+            lastVlBlueNoise = syncBool(IrliteConfig.vlBlueNoise, LightConfig.vlBlueNoise, lastVlBlueNoise, v -> LightConfig.vlBlueNoise = v);
+            lastVlDitherTemporal = syncBool(IrliteConfig.vlDitherTemporal, LightConfig.vlDitherTemporal, lastVlDitherTemporal, v -> LightConfig.vlDitherTemporal = v);
+            lastVlClusterCull = syncBool(IrliteConfig.vlClusterCull, LightConfig.vlClusterCull, lastVlClusterCull, v -> LightConfig.vlClusterCull = v);
+            lastVlShadowHiz = syncBool(IrliteConfig.vlShadowHiz, LightConfig.vlShadowHiz, lastVlShadowHiz, v -> LightConfig.vlShadowHiz = v);
+
+            // Outline
+            lastOutline = syncBool(IrliteConfig.outline, LightConfig.outline, lastOutline, v -> LightConfig.outline = v);
+            lastOutlineTarget = syncInt(IrliteConfig.outlineTarget, LightConfig.outlineTarget, lastOutlineTarget, v -> LightConfig.outlineTarget = v);
+            lastOutlineStrength = syncFloat(IrliteConfig.outlineStrength, LightConfig.outlineStrength, lastOutlineStrength, v -> LightConfig.outlineStrength = v);
+            lastOutlinePixelSize = syncInt(IrliteConfig.outlinePixelSize, LightConfig.outlinePixelSize, lastOutlinePixelSize, v -> LightConfig.outlinePixelSize = v);
+            lastOutlineFresnelPower = syncFloat(IrliteConfig.outlineFresnelPower, LightConfig.outlineFresnelPower, lastOutlineFresnelPower, v -> LightConfig.outlineFresnelPower = v);
+            lastOutlineBack = syncFloat(IrliteConfig.outlineBack, LightConfig.outlineBack, lastOutlineBack, v -> LightConfig.outlineBack = v);
+            lastOutlineFront = syncBool(IrliteConfig.outlineFront, LightConfig.outlineFront, lastOutlineFront, v -> LightConfig.outlineFront = v);
+            lastOutlineFrontStrength = syncFloat(IrliteConfig.outlineFrontStrength, LightConfig.outlineFrontStrength, lastOutlineFrontStrength, v -> LightConfig.outlineFrontStrength = v);
+            lastOutlineGlow = syncBool(IrliteConfig.outlineGlow, LightConfig.outlineGlow, lastOutlineGlow, v -> LightConfig.outlineGlow = v);
+            lastOutlineGlowStrength = syncFloat(IrliteConfig.outlineGlowStrength, LightConfig.outlineGlowStrength, lastOutlineGlowStrength, v -> LightConfig.outlineGlowStrength = v);
+        }
+
+        private static boolean syncBool(ValueBoolean bbsVal, boolean calVal, boolean lastVal, BoolConsumer setCal)
+        {
+            boolean bbs = bbsVal != null ? bbsVal.get() : calVal;
+            if (bbs != lastVal)
+            {
+                setCal.accept(bbs);
+                return bbs;
+            }
+            if (calVal != lastVal)
+            {
+                if (bbsVal != null)
+                {
+                    bbsVal.set(calVal);
+                }
+                return calVal;
+            }
+            return lastVal;
+        }
+
+        private static int syncInt(ValueInt bbsVal, int calVal, int lastVal, java.util.function.IntConsumer setCal)
+        {
+            int bbs = bbsVal != null ? bbsVal.get() : calVal;
+            if (bbs != lastVal)
+            {
+                setCal.accept(bbs);
+                return bbs;
+            }
+            if (calVal != lastVal)
+            {
+                if (bbsVal != null)
+                {
+                    bbsVal.set(calVal);
+                }
+                return calVal;
+            }
+            return lastVal;
+        }
+
+        private static float syncFloat(ValueFloat bbsVal, float calVal, float lastVal, FloatConsumer setCal)
+        {
+            float bbs = bbsVal != null ? bbsVal.get() : calVal;
+            if (Math.abs(bbs - lastVal) > 1e-4f)
+            {
+                setCal.accept(bbs);
+                return bbs;
+            }
+            if (Math.abs(calVal - lastVal) > 1e-4f)
+            {
+                if (bbsVal != null)
+                {
+                    bbsVal.set(calVal);
+                }
+                return calVal;
+            }
+            return lastVal;
+        }
+
+        private static void pushAllBbsToCal()
+        {
+            lastShowGuides = LightConfig.showGuides = IrliteConfig.showGuides();
+            lastShadowQuality = LightConfig.shadowQuality = IrliteConfig.shadowQuality();
+            lastShadowBlocks = LightConfig.shadowBlocks = IrliteConfig.shadowBlocks();
+            lastShadowsLive = LightConfig.shadowsLive = IrliteConfig.shadowsLive();
+            lastShadowSoftness = LightConfig.shadowSoftness = IrliteConfig.shadowSoftness();
+
+            lastVlIntensity = LightConfig.vlIntensity = IrliteConfig.vlIntensity();
+            lastVlSteps = LightConfig.vlSteps = IrliteConfig.vlSteps();
+            lastVlMaxDist = LightConfig.vlMaxDist = IrliteConfig.vlMaxDist();
+            lastVlShadows = LightConfig.vlShadows = IrliteConfig.vlShadowsLive();
+            lastVlShadowStride = LightConfig.vlShadowStride = IrliteConfig.vlShadowStride();
+            lastVlTipBoost = LightConfig.vlTipBoost = IrliteConfig.vlTipBoost();
+            lastVlTipRadius = LightConfig.vlTipRadius = IrliteConfig.vlTipRadius();
+            lastVlNoise = LightConfig.vlNoise = IrliteConfig.vlNoiseLive();
+            lastVlNoiseAmount = LightConfig.vlNoiseAmount = IrliteConfig.vlNoiseAmount();
+            lastVlNoiseScale = LightConfig.vlNoiseScale = IrliteConfig.vlNoiseScale();
+            lastVlNoiseSpeed = LightConfig.vlNoiseSpeed = IrliteConfig.vlNoiseSpeed();
+            lastVlNoiseMorph = LightConfig.vlNoiseMorph = IrliteConfig.vlNoiseMorph();
+            lastVlNoiseStride = LightConfig.vlNoiseStride = IrliteConfig.vlNoiseStride();
+            lastVlBlueNoise = LightConfig.vlBlueNoise = IrliteConfig.vlBlueNoise();
+            lastVlDitherTemporal = LightConfig.vlDitherTemporal = IrliteConfig.vlDitherTemporal();
+            lastVlClusterCull = LightConfig.vlClusterCull = IrliteConfig.vlClusterCull();
+            lastVlShadowHiz = LightConfig.vlShadowHiz = IrliteConfig.vlShadowHiz();
+
+            lastOutline = LightConfig.outline = IrliteConfig.outline();
+            lastOutlineTarget = LightConfig.outlineTarget = IrliteConfig.outlineTarget();
+            lastOutlineStrength = LightConfig.outlineStrength = IrliteConfig.outlineStrength();
+            lastOutlinePixelSize = LightConfig.outlinePixelSize = IrliteConfig.outlinePixelSize();
+            lastOutlineFresnelPower = LightConfig.outlineFresnelPower = IrliteConfig.outlineFresnelPower();
+            lastOutlineBack = LightConfig.outlineBack = IrliteConfig.outlineBack();
+            lastOutlineFront = LightConfig.outlineFront = IrliteConfig.outlineFront();
+            lastOutlineFrontStrength = LightConfig.outlineFrontStrength = IrliteConfig.outlineFrontStrength();
+            lastOutlineGlow = LightConfig.outlineGlow = IrliteConfig.outlineGlow();
+            lastOutlineGlowStrength = LightConfig.outlineGlowStrength = IrliteConfig.outlineGlowStrength();
+        }
     }
 }

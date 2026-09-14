@@ -52,6 +52,7 @@ public class IrliteClient implements ClientModInitializer {
 
         if (IrliteCalCompat.isCalPresent()) {
             IrliteCalCompat.ensureCookiesReady();
+            IrliteCalCompat.syncConfigs();
         }
     }
 }
