@@ -128,6 +128,21 @@ public final class LightCollector
         // Track the "max shader lights" slider each frame: caps how many lights the
         // flush packs into the SSBO (registration + shadow caches still see them all).
         LightRegistry.setUploadCap(IrliteConfig.maxShaderLights());
+
+        if (world != null && cameraPos != null)
+        {
+            scanBlockEntities(world, cameraPos);
+            scanFilmReplays(cameraPos, tickDelta);
+            IrliteCalCompat.collectCalLights(world, cameraPos, tickDelta);
+        }
+
+        // Push BBS runtime globals LAST: ensures BBS settings (outline, volumetrics,
+        // shadows) always take precedence over anything pushed by CAL Editor or compat hooks.
+        pushGlobals();
+    }
+
+    private static void pushGlobals()
+    {
         // Clustering has no knob: it is always on (core default), the image is
         // identical either way and it only ever makes the per-pixel loop cheaper.
         // For an A/B measurement, start with -Dirlite.noClustering=true.
@@ -183,15 +198,6 @@ public final class LightCollector
         // New VlGlobalsBuffer.set args must be mirrored in VlSweep.overrideVlGlobals.
         // setOutline is NOT mirrored there by design — the sweep only varies VL.
         VlProfiler.overrideVlGlobals();
-
-        if (world == null || cameraPos == null)
-        {
-            return;
-        }
-
-        scanBlockEntities(world, cameraPos);
-        scanFilmReplays(cameraPos, tickDelta);
-        IrliteCalCompat.collectCalLights(world, cameraPos, tickDelta);
     }
 
     private static void scanBlockEntities(ClientLevel world, Vec3 cameraPos)
