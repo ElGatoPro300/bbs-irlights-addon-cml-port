@@ -3,13 +3,11 @@ package qualet.irlite.client.compat;
 import qualet.irlite.IrliteConfig;
 import qualet.irlite.client.light.cookie.CookieArray;
 
-import elgatopro300.cal_lights.light.LightConfig;
+import org.qualet.irl.light.CookieArrayBase;
 
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
 import mchorse.bbs_mod.settings.values.numeric.ValueInt;
-
-import org.qualet.irl.light.CookieArrayBase;
 
 import net.fabricmc.loader.api.FabricLoader;
 
@@ -38,7 +36,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.IntConsumer;
 import java.util.stream.Stream;
+
+import elgatopro300.cal_lights.light.LightConfig;
 
 /**
  * Compatibility bridge between IRLite (BBS Addon) and IRL CAL Editor (irlcal_editor).
@@ -616,7 +617,7 @@ public final class IrliteCalCompat
             return lastVal;
         }
 
-        private static int syncInt(ValueInt bbsVal, int calVal, int lastVal, java.util.function.IntConsumer setCal)
+        private static int syncInt(ValueInt bbsVal, int calVal, int lastVal, IntConsumer setCal)
         {
             int bbs = bbsVal != null ? bbsVal.get() : calVal;
             if (bbs != lastVal)
