@@ -250,9 +250,15 @@ public abstract class AbstractLightFormRenderer<T extends Form> extends FormRend
     }
 
     @Override
+    public boolean is3D()
+    {
+        return false;
+    }
+
+    @Override
     protected void renderInUI(UIContext context, int x1, int y1, int x2, int y2)
     {
-        int tint = this.lightColor().getARGBColor();
+        int tint = Colors.A100 | this.lightColor().getRGBColor();
         int cw = x2 - x1;
         int ch = y2 - y1;
         int pad = 6;
@@ -269,11 +275,9 @@ public abstract class AbstractLightFormRenderer<T extends Form> extends FormRend
         context.batcher.box(ix, iy, ix + size, iy + size, Colors.A50 | 0x1a1a1e);
 
         Icon icon = this.icon();
-        Texture atlas = BBSModClient.getTextures().getTexture(icon.texture);
-        context.batcher.texturedBox(
-            atlas, tint, ix, iy, size, size,
-            icon.x, icon.y, icon.x + icon.w, icon.y + icon.h,
-            icon.textureW, icon.textureH
-        );
+        if (icon != null)
+        {
+            context.batcher.iconArea(icon, tint, ix, iy, size, size);
+        }
     }
 }
