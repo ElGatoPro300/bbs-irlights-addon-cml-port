@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -49,8 +50,9 @@ public final class CookieArray extends CookieArrayBase
 
     /** link string -> array layer (successfully loaded cookies only). */
     private final Map<String, Integer> layerByKey = new HashMap<>();
-    /** link string -> last resolve() stamp, drives LRU eviction when the array is full. */
-    private final Map<String, Long> lastUse = new HashMap<>();
+    /** Last resolve() stamp by resident layer; avoids another map lookup and
+     *  boxed Long on every successful hit. Only layerByKey entries are live. */
+    private final long[] lastUse = new long[MAX_LAYERS];
     /** links whose asset failed to read/decode, so a broken image isn't re-decoded every frame. */
     private final Set<String> failed = new HashSet<>();
     private long useCounter = 0;
@@ -91,7 +93,7 @@ public final class CookieArray extends CookieArrayBase
         Integer cached = layerByKey.get(key);
         if (cached != null)
         {
-            lastUse.put(key, ++useCounter);
+            lastUse[cached] = ++useCounter;
             return cached;
         }
         if (failed.contains(key))
@@ -110,7 +112,7 @@ public final class CookieArray extends CookieArrayBase
             int layer = (nextLayer < MAX_LAYERS) ? nextLayer++ : evictLru();
             uploadLayer(pixels, layer);
             layerByKey.put(key, layer);
-            lastUse.put(key, ++useCounter);
+            lastUse[layer] = ++useCounter;
             LOG.debug("Cookie loaded '{}' -> layer {}", key, layer);
             return layer;
         }
@@ -135,7 +137,7 @@ public final class CookieArray extends CookieArrayBase
         Integer cached = layerByKey.get(key);
         if (cached != null)
         {
-            lastUse.put(key, ++useCounter);
+            lastUse[cached] = ++useCounter;
             return cached;
         }
         try
@@ -143,7 +145,7 @@ public final class CookieArray extends CookieArrayBase
             int layer = (nextLayer < MAX_LAYERS) ? nextLayer++ : evictLru();
             uploadLayer(pixels, layer);
             layerByKey.put(key, layer);
-            lastUse.put(key, ++useCounter);
+            lastUse[layer] = ++useCounter;
             LOG.debug("Cookie (raw) loaded '{}' -> layer {}", key, layer);
             return layer;
         }
@@ -163,7 +165,7 @@ public final class CookieArray extends CookieArrayBase
         Integer l = INSTANCE.layerByKey.get(key);
         if (l != null)
         {
-            INSTANCE.lastUse.put(key, ++INSTANCE.useCounter);
+            INSTANCE.lastUse[l] = ++INSTANCE.useCounter;
             return l;
         }
         return -1;
@@ -176,16 +178,16 @@ public final class CookieArray extends CookieArrayBase
     {
         String lruKey = null;
         long lruStamp = Long.MAX_VALUE;
-        for (Map.Entry<String, Long> e : lastUse.entrySet())
+        for (Map.Entry<String, Integer> e : layerByKey.entrySet())
         {
-            if (e.getValue() < lruStamp)
+            long stamp = lastUse[e.getValue()];
+            if (stamp < lruStamp)
             {
-                lruStamp = e.getValue();
+                lruStamp = stamp;
                 lruKey = e.getKey();
             }
         }
         int layer = layerByKey.remove(lruKey);
-        lastUse.remove(lruKey);
         LOG.debug("Cookie evicted '{}' (array full) -> reusing layer {}", lruKey, layer);
         return layer;
     }
@@ -223,7 +225,7 @@ public final class CookieArray extends CookieArrayBase
     private void reload0()
     {
         layerByKey.clear();
-        lastUse.clear();
+        Arrays.fill(lastUse, 0L);
         failed.clear();
         useCounter = 0;
         nextLayer = 0;

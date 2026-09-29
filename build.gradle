@@ -62,7 +62,11 @@ loom {
             // Dev conveniences for automated runtime checks:
             //   -Pquickplay="World name"  auto-joins that singleplayer save,
             //   -PclientJvmArgs="-Dirlite.profileVl=true"  forwards JVM flags
-            // (e.g. the VL/shadow profilers) into the forked client.
+            // (e.g. the VL/shadow profilers) into the forked client,
+            //   -PrunDir=runs/1.20.1  keeps a per-version game dir apart from run/.
+            if (project.hasProperty('runDir')) {
+                runDir project.property('runDir').toString()
+            }
             if (project.hasProperty('quickplay')) {
                 programArgs '--quickPlaySingleplayer', project.property('quickplay').toString()
             }

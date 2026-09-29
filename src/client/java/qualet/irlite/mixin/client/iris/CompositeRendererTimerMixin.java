@@ -1,5 +1,7 @@
 package qualet.irlite.mixin.client.iris;
 
+import com.google.common.collect.ImmutableSet;
+import qualet.irlite.client.diag.ProfileCapture;
 import qualet.irlite.client.diag.VlProfiler;
 
 import net.irisshaders.iris.gl.program.Program;
@@ -12,8 +14,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-
-import com.google.common.collect.ImmutableSet;
 
 import java.util.function.Supplier;
 
@@ -46,6 +46,7 @@ public class CompositeRendererTimerMixin
                                        CallbackInfoReturnable<Program> cir)
     {
         VlProfiler.registerPassName(cir.getReturnValue(), source.getName());
+        if (cir.getReturnValue() != null) ProfileCapture.programSource(source);
     }
 
     @Redirect(method = "renderAll",
