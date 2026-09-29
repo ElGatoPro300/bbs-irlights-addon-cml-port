@@ -73,7 +73,11 @@ loom {
             // Dev conveniences for automated runtime checks:
             //   -Pquickplay="World name"  auto-joins that singleplayer save,
             //   -PclientJvmArgs="-Dirlite.profileVl=true"  forwards JVM flags
-            // (e.g. the VL/shadow profilers) into the forked client.
+            // (e.g. the VL/shadow profilers) into the forked client,
+            //   -PrunDir=runs/1.20.1  keeps a per-version game dir apart from run/.
+            if (project.hasProperty('runDir')) {
+                runDir project.property('runDir').toString()
+            }
             if (project.hasProperty('quickplay')) {
                 programArgs '--quickPlaySingleplayer', project.property('quickplay').toString()
             }
@@ -143,7 +147,7 @@ dependencies {
     modImplementation "maven.modrinth:iris:${V.iris}"
     modImplementation "maven.modrinth:sodium:${V.sodium}"
     modImplementation "maven.modrinth:bbs-cml-edition:${V.bbs}"
-    modImplementation "maven.modrinth:irl-cal-editor:${V.calEditor}"
+    modCompileOnly "maven.modrinth:irl-cal-editor:${V.calEditor}"
 
     // Iris runtime dependencies (not auto-pulled from the Modrinth artifact).
     modRuntimeOnly "org.anarres:jcpp:1.4.14"

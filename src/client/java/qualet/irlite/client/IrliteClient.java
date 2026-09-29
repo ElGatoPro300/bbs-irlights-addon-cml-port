@@ -1,20 +1,17 @@
 package qualet.irlite.client;
 
-import qualet.irlite.client.compat.IrliteCalCompat;
-import qualet.irlite.client.diag.VlProfiler;
-import qualet.irlite.client.light.cookie.CookieArray;
-import qualet.irlite.client.patcher.BbsPatcherHost;
-
+import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+import org.lwjgl.opengl.GL30;
 import org.qualet.irl.light.IrlSamplers;
 import org.qualet.irl.light.shadow.IRLiteBbsCasterSource;
 import org.qualet.irl.light.shadow.ShadowBakeProbe;
 import org.qualet.irl.light.shadow.ShadowEngine;
 import org.qualet.irl.patcher.Patcher;
-
-import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
-
-import org.lwjgl.opengl.GL30;
+import qualet.irlite.client.compat.IrliteCalCompat;
+import qualet.irlite.client.diag.VlProfiler;
+import qualet.irlite.client.light.cookie.CookieArray;
+import qualet.irlite.client.patcher.BbsPatcherHost;
 
 public class IrliteClient implements ClientModInitializer {
 
@@ -31,6 +28,11 @@ public class IrliteClient implements ClientModInitializer {
         // bakeInner seams and feeds the per-window work counters.
         HudRenderCallback.EVENT.register((ctx, tickDelta) -> VlProfiler.renderHud(ctx));
         ShadowEngine.installBakeProbe(new ShadowBakeProbe() {
+            @Override
+            public boolean detailedTimings() {
+                return VlProfiler.detailedTimings();
+            }
+
             @Override
             public void section(String name) {
                 VlProfiler.switchPass(name);

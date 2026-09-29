@@ -2,11 +2,11 @@
 	"schemaVersion": 1,
 	"id": "irlite",
 	"version": "${version}",
-	"name": "IRLite",
+	"name": "IRLights",
 	"description": "",
 	"authors": ["qualet", "ElGatoPro300"],
 	"contact": {},
-	"license": "CC-BY-ND-4.0",
+	"license": "MIT",
 	"icon": "assets/irlite/icon.png",
 	"environment": "*",
 	"entrypoints": {
@@ -14,7 +14,8 @@
 		"client": ["qualet.irlite.client.IrliteClient"],
 		"main": ["qualet.irlite.Irlite"],
 		"bbs-addon": ["qualet.irlite.IrlightsAddon"],
-		"bbs-addon-client": ["qualet.irlite.client.IrlightsClientAddon"]
+		"bbs-addon-client": ["qualet.irlite.client.IrlightsClientAddon"],
+		"bbs-client-addon": ["qualet.irlite.client.IrlightsClientAddon"]
 	},
 	"mixins": [
 		{

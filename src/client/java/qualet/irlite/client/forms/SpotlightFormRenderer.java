@@ -1,6 +1,7 @@
 package qualet.irlite.client.forms;
 
 import qualet.irlite.client.light.IRLightPositionResolver;
+import qualet.irlite.client.light.cookie.CookieArray;
 import qualet.irlite.forms.SpotlightForm;
 
 import org.qualet.irl.light.LightMath;
@@ -35,7 +36,7 @@ public class SpotlightFormRenderer extends AbstractLightFormRenderer<SpotlightFo
     }
 
     @Override
-    protected void renderGuide(FormRenderingContext context, Color color)
+    protected void renderGuide(FormRenderingContext context, Color color, boolean world)
     {
         /* Editor preview and in-world film actors both host draggable handles —
          * capture the guide's local->view matrix wherever the guide is drawn. */
@@ -44,7 +45,16 @@ public class SpotlightFormRenderer extends AbstractLightFormRenderer<SpotlightFo
             SpotGuideDrag.captureGuideMatrix(this.form, context.stack);
         }
 
-        LightGuideRenderer.renderSpotlight(context.stack, color, this.form.range.get(), this.form.radius.get(), this.form.innerRadius.get());
+        float range = this.form.range.get();
+        float outer = this.form.radius.get();
+        float inner = this.form.innerRadius.get();
+
+        if (world && WorldLightGuideOverlay.defer(context.stack, color, range, outer, inner, true))
+        {
+            return;
+        }
+
+        LightGuideRenderer.renderSpotlight(context.stack, color, range, outer, inner);
     }
 
     @Override
@@ -83,6 +93,10 @@ public class SpotlightFormRenderer extends AbstractLightFormRenderer<SpotlightFo
         float cosOuter = cone.cosOuter();
         float cosInner = cone.cosInner();
 
+        int cookieLayer = CookieArray.resolve(this.form.cookie.get());
+        float cookieRot = (float) Math.toRadians(this.form.cookieRotation.get());
+        float cookieFlags = this.form.cookieInvert.get() ? 1F : 0F;
+
         Color c = this.form.color.get();
         LightRegistry.registerSpot(
             p.x, p.y, p.z,
@@ -93,6 +107,7 @@ public class SpotlightFormRenderer extends AbstractLightFormRenderer<SpotlightFo
             this.form.entitiesOnly.get(), this.form.blocksOnly.get(),
             this.form.anisotropy.get(), this.form.vlDensity.get(), this.form.beamStrength.get(),
             this.form.bulbSize.get(), this.form.shadows.get(),
+            (float) cookieLayer, cookieRot, this.form.cookieScale.get(), cookieFlags,
             System.identityHashCode(this.form)
         );
     }

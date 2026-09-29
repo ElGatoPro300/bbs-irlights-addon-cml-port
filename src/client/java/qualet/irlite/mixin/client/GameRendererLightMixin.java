@@ -2,6 +2,7 @@ package qualet.irlite.mixin.client;
 
 import qualet.irlite.client.compat.IrliteCalCompat;
 import qualet.irlite.client.diag.VlProfiler;
+import qualet.irlite.client.forms.WorldLightGuideOverlay;
 import qualet.irlite.client.light.LightCollector;
 
 import org.qualet.irl.light.FramePipeline;
@@ -21,6 +22,7 @@ public class GameRendererLightMixin
     @Inject(method = "renderWorld", at = @At("HEAD"))
     private void irlite$collectLights(RenderTickCounter tickCounter, CallbackInfo ci)
     {
+        WorldLightGuideOverlay.beginFrame();
         // 1.21.1: renderWorld(RenderTickCounter) — the old (tickDelta, limitTime,
         // MatrixStack) parameters are gone, so derive the partial tick here
         // (ignoreFreeze=true matches the previous always-advancing behaviour).
@@ -36,14 +38,25 @@ public class GameRendererLightMixin
         VlProfiler.frameTick();
         VlProfiler.beginPass(VlProfiler.PASS_BAKE);
         long pipelineT0 = System.nanoTime();
-        FramePipeline.frame(
-            tickDelta,
-            IrisShadersState::shadersDisabled,
-            LightCollector::collect,
-            IrliteCalCompat::resetCalAutoShadowRamp
-        );
-        VlProfiler.cpuSample("pipeline", System.nanoTime() - pipelineT0);
-        VlProfiler.endPass();
+        try
+        {
+            FramePipeline.frame(
+                tickDelta,
+                IrisShadersState::shadersDisabled,
+                LightCollector::collect,
+                IrliteCalCompat::resetCalAutoShadowRamp
+            );
+        }
+        catch (RuntimeException | Error e)
+        {
+            VlProfiler.invalidateFrame();
+            throw e;
+        }
+        finally
+        {
+            VlProfiler.cpuSample("pipeline", System.nanoTime() - pipelineT0);
+            VlProfiler.endPass();
+        }
     }
 
     /**
@@ -64,5 +77,14 @@ public class GameRendererLightMixin
         long uploadT0 = System.nanoTime();
         FramePipeline.uploadIfPending();
         VlProfiler.cpuSample("upload", System.nanoTime() - uploadT0);
+    }
+
+    /** Iris has finished world compositing; BBS has not captured the film preview yet. */
+    @Inject(method = "render", at = @At(value = "INVOKE",
+        target = "Lnet/minecraft/client/render/GameRenderer;renderWorld(Lnet/minecraft/client/render/RenderTickCounter;)V",
+        shift = At.Shift.AFTER), require = 1)
+    private void irlite$drawLightGuides(RenderTickCounter tickCounter, boolean tick, CallbackInfo ci)
+    {
+        WorldLightGuideOverlay.flush();
     }
 }
