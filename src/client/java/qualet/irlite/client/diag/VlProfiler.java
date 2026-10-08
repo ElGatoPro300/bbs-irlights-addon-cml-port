@@ -1,14 +1,5 @@
 package qualet.irlite.client.diag;
 
-import org.qualet.irl.light.LightRegistry;
-
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.text.Text;
-
-import org.lwjgl.opengl.GL;
-import org.lwjgl.opengl.GL33C;
-
 import java.lang.ref.WeakReference;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -18,6 +9,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.WeakHashMap;
+
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.text.Text;
+import org.lwjgl.opengl.GL33C;
 
 /**
  * Dev-only GPU profiler for the IRLite volumetric/light pipeline, enabled with
@@ -588,7 +584,7 @@ public final class VlProfiler
             }
             // Census: lights the shader loop actually paid for last frame
             // (post-cap), vs merely registered. Gates the mask-redesign call.
-            int uploaded = LightRegistry.getUploadedCount();
+            int uploaded = org.qualet.irl.light.LightRegistry.getUploadedCount();
             String uploadedCell = "uploaded " + uploaded;
             cpuLine.append(" | ").append(uploadedCell);
             hud.add(uploadedCell);
@@ -656,7 +652,7 @@ public final class VlProfiler
     {
         if (nvxMemoryInfo == null)
         {
-            nvxMemoryInfo = GL.getCapabilities().GL_NVX_gpu_memory_info;
+            nvxMemoryInfo = org.lwjgl.opengl.GL.getCapabilities().GL_NVX_gpu_memory_info;
         }
         if (!nvxMemoryInfo)
         {

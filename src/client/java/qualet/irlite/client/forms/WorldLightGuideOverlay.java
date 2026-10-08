@@ -2,7 +2,7 @@ package qualet.irlite.client.forms;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.systems.VertexSorter;
-import org.qualet.irl.light.iris.IrisShadersState;
+import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.utils.colors.Color;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.ShaderProgram;
@@ -36,7 +36,9 @@ public final class WorldLightGuideOverlay
 
     static boolean defer(MatrixStack stack, Color color, float range, float outer, float inner, boolean spot)
     {
-        if (IrisShadersState.shadersDisabled())
+        // A loaded pack alone is insufficient: nested framebuffer forms keep their
+        // world context type but suspend the Iris override while drawing offscreen.
+        if (!BBSRendering.isIrisWorldShadersEnabled())
         {
             return false;
         }

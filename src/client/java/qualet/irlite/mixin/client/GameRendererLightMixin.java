@@ -1,20 +1,17 @@
 package qualet.irlite.mixin.client;
 
-import qualet.irlite.client.compat.IrliteCalCompat;
-import qualet.irlite.client.diag.VlProfiler;
-import qualet.irlite.client.forms.WorldLightGuideOverlay;
-import qualet.irlite.client.light.LightCollector;
-
-import org.qualet.irl.light.FramePipeline;
-import org.qualet.irl.light.iris.IrisShadersState;
-
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.util.math.MatrixStack;
-
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.qualet.irl.light.FramePipeline;
+import org.qualet.irl.light.iris.IrisShadersState;
+import qualet.irlite.client.diag.VlProfiler;
+import qualet.irlite.client.forms.WorldLightGuideOverlay;
+import qualet.irlite.client.light.LightCollector;
+import qualet.irlite.client.light.ReplayOutlineContext;
 
 @Mixin(GameRenderer.class)
 public class GameRendererLightMixin
@@ -33,16 +30,13 @@ public class GameRendererLightMixin
         // closes whichever segment is open (the tail, or the head when the
         // bake early-returned).
         VlProfiler.frameTick();
+        // Replay tags first: the light collection below resolves each light's replay lists against them.
+        ReplayOutlineContext.beginFrame();
         VlProfiler.beginPass(VlProfiler.PASS_BAKE);
         long pipelineT0 = System.nanoTime();
         try
         {
-            FramePipeline.frame(
-                tickDelta,
-                IrisShadersState::shadersDisabled,
-                LightCollector::collect,
-                IrliteCalCompat::resetCalAutoShadowRamp
-            );
+            FramePipeline.frame(tickDelta, IrisShadersState::shadersDisabled, LightCollector::collect, () -> {});
         }
         catch (RuntimeException | Error e)
         {

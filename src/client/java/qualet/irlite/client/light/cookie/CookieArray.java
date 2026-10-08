@@ -1,13 +1,10 @@
 package qualet.irlite.client.light.cookie;
 
-import org.qualet.irl.light.CookieArrayBase;
-
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.resources.Link;
-
 import org.lwjgl.stb.STBImage;
 import org.lwjgl.system.MemoryUtil;
-
+import org.qualet.irl.light.CookieArrayBase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -120,55 +117,6 @@ public final class CookieArray extends CookieArrayBase
         {
             MemoryUtil.memFree(pixels);
         }
-    }
-
-    /** Resolve a raw pixel buffer (e.g. from CAL gobos) into an array layer under a string key. */
-    public static int resolveRaw(String key, ByteBuffer pixels)
-    {
-        return INSTANCE.resolveRaw0(key, pixels);
-    }
-
-    private int resolveRaw0(String key, ByteBuffer pixels)
-    {
-        if (key == null || key.isEmpty() || pixels == null)
-        {
-            return -1;
-        }
-        Integer cached = layerByKey.get(key);
-        if (cached != null)
-        {
-            lastUse[cached] = ++useCounter;
-            return cached;
-        }
-        try
-        {
-            int layer = (nextLayer < MAX_LAYERS) ? nextLayer++ : evictLru();
-            uploadLayer(pixels, layer);
-            layerByKey.put(key, layer);
-            lastUse[layer] = ++useCounter;
-            LOG.debug("Cookie (raw) loaded '{}' -> layer {}", key, layer);
-            return layer;
-        }
-        finally
-        {
-            MemoryUtil.memFree(pixels);
-        }
-    }
-
-    public static boolean hasLayer(String key)
-    {
-        return INSTANCE.layerByKey.containsKey(key);
-    }
-
-    public static int getLayer(String key)
-    {
-        Integer l = INSTANCE.layerByKey.get(key);
-        if (l != null)
-        {
-            INSTANCE.lastUse[l] = ++INSTANCE.useCounter;
-            return l;
-        }
-        return -1;
     }
 
     /** Drop the least-recently-used cookie and hand its layer to the caller. Only

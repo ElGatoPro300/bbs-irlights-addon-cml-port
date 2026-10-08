@@ -1,13 +1,11 @@
 package qualet.irlite.client.ui.debug;
 
-import qualet.irlite.client.diag.VlProfiler;
-
-import mchorse.bbs_mod.l10n.L10n;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.utils.UI;
+import qualet.irlite.client.diag.VlProfiler;
 
 /** Debug controls rendered at the bottom of the IRLights presets section. */
 public final class UIDebugSection
@@ -28,16 +26,14 @@ public final class UIDebugSection
             return;
         }
 
-        UILabel header = UI.label(L10n.lang("irlite.ui.debug.title"));
+        UILabel header = UI.label(IKey.constant("Debug"));
         header.marginTop(6);
         options.add(header);
 
         boolean on = VlProfiler.isEnabledOrPending();
-        IKey labelKey = on
-            ? L10n.lang("irlite.ui.debug.hide_overlay")
-            : L10n.lang("irlite.ui.debug.show_overlay");
-
-        UIButton button = new UIButton(labelKey, (b) ->
+        UIButton button = new UIButton(IKey.constant(on
+            ? "Hide performance overlay"
+            : "Show performance overlay"), (b) ->
         {
             VlProfiler.toggle();
 
@@ -47,7 +43,10 @@ public final class UIDebugSection
             }
         });
 
-        button.tooltip(L10n.lang("irlite.ui.debug.tooltip"));
+        button.tooltip(IKey.constant("Per-pass GPU milliseconds in the top-left corner: the shadow "
+            + "bake segments, every Iris fullscreen pass and the VL march, plus CPU frame time and "
+            + "VRAM residency. Costs a GL timer query per pass, so leave it off for recording. "
+            + "Takes effect on the next frame."));
         options.add(button);
     }
 }

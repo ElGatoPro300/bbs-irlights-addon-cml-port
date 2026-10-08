@@ -1,13 +1,5 @@
 package qualet.irlite.client.ui.patcher;
 
-import org.qualet.irl.patcher.IrlPatch;
-import org.qualet.irl.patcher.IrlPatchApplier;
-import org.qualet.irl.patcher.IrlPatchParser;
-import org.qualet.irl.patcher.PatchLibrary;
-import org.qualet.irl.patcher.PatchResult;
-import org.qualet.irl.patcher.Shaderpacks;
-
-import mchorse.bbs_mod.l10n.L10n;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
@@ -20,9 +12,14 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UIText;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Colors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.qualet.irl.patcher.IrlPatch;
+import org.qualet.irl.patcher.IrlPatchApplier;
+import org.qualet.irl.patcher.IrlPatchParser;
+import org.qualet.irl.patcher.PatchLibrary;
+import org.qualet.irl.patcher.PatchResult;
+import org.qualet.irl.patcher.Shaderpacks;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -73,12 +70,12 @@ public final class UIPatcherSection
                 rebuild.run();
             }
         });
-        refresh.tooltip(L10n.lang("irlite.ui.patcher.refresh"));
+        refresh.tooltip(IKey.constant("Refresh lists"));
 
         UIIcon openPacks = new UIIcon(Icons.FOLDER, (b) -> Shaderpacks.openFolder());
-        openPacks.tooltip(L10n.lang("irlite.ui.patcher.open_folder"));
+        openPacks.tooltip(IKey.constant("Open shaderpacks folder"));
 
-        options.add(headerRow(L10n.lang("irlite.ui.patcher.shaderpacks"), refresh, openPacks));
+        options.add(headerRow("Shaderpacks", refresh, openPacks));
 
         UILabelList<String> packList = new UILabelList<>((selected) ->
         {
@@ -102,9 +99,9 @@ public final class UIPatcherSection
 
         // --- patch list (header row: label + open folder) ---
         UIIcon openPatches = new UIIcon(Icons.FOLDER, (b) -> PatchLibrary.openFolder());
-        openPatches.tooltip(L10n.lang("irlite.ui.patcher.open_patches_folder"));
+        openPatches.tooltip(IKey.constant("Open patches folder"));
 
-        options.add(headerRow(L10n.lang("irlite.ui.patcher.patches"), openPatches));
+        options.add(headerRow("Patches", openPatches));
 
         UILabelList<Path> patchList = new UILabelList<>((selected) ->
         {
@@ -132,13 +129,13 @@ public final class UIPatcherSection
         updateMeta(packList);
 
         // --- options + primary actions ---
-        UIToggle createNewToggle = new UIToggle(L10n.lang("irlite.ui.patcher.create_copy"), (t) -> createNew = t.getValue());
+        UIToggle createNewToggle = new UIToggle(IKey.constant("Create new pack each time"), (t) -> createNew = t.getValue());
         createNewToggle.setValue(createNew);
         options.add(createNewToggle);
 
-        UIButton validate = new UIButton(L10n.lang("irlite.ui.patcher.validate"), (b) -> runValidate());
-        validate.tooltip(L10n.lang("irlite.ui.patcher.validate_tooltip"));
-        UIButton patch = new UIButton(L10n.lang("irlite.ui.patcher.apply"), (b) -> runPatch());
+        UIButton validate = new UIButton(IKey.constant("Validate"), (b) -> runValidate());
+        validate.tooltip(IKey.constant("Dry-run: check every op against the selected pack, write nothing"));
+        UIButton patch = new UIButton(IKey.constant("Patch"), (b) -> runPatch());
         options.add(UI.row(validate, patch));
 
         statusLabel = new UIText(IKey.constant(status)).color(statusColor, true);
@@ -335,7 +332,7 @@ public final class UIPatcherSection
     }
 
     /** A header row with the label flexing on the left and fixed icon buttons on the right (icons vertically centered with the text). */
-    private static UIElement headerRow(IKey text, UIIcon... icons)
+    private static UIElement headerRow(String text, UIIcon... icons)
     {
         int rowH = 18;
 
@@ -347,7 +344,7 @@ public final class UIPatcherSection
         // Vertically center the label text so it lines up with the centered icons.
         // anchorY centers within (area.h - fontHeight), so the label must span the
         // full row height — UILabel otherwise auto-sizes to the font height.
-        UILabel header = UI.label(text);
+        UILabel header = UI.label(IKey.constant(text));
         header.labelAnchor(0F, 0.5F);
         header.h(rowH);
         row.add(header);
