@@ -1,13 +1,9 @@
 package qualet.irlite.client.patcher;
 
-import org.qualet.irl.patcher.PatcherHost;
-
 import mchorse.bbs_mod.ui.utils.UIUtils;
-
 import net.fabricmc.loader.api.FabricLoader;
-
 import net.irisshaders.iris.Iris;
-
+import org.qualet.irl.patcher.PatcherHost;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

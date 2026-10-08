@@ -1,18 +1,5 @@
 package qualet.irlite.client.light;
 
-import qualet.irlite.IrliteConfig;
-import qualet.irlite.client.compat.IrliteCalCompat;
-import qualet.irlite.client.diag.VlProfiler;
-import qualet.irlite.client.light.cookie.CookieArray;
-import qualet.irlite.forms.PointLightForm;
-import qualet.irlite.forms.SpotlightForm;
-import qualet.irlite.mixin.client.bbs.WorldBlockEntityTickersAccessor;
-
-import org.qualet.irl.light.ClusterGridBuffer;
-import org.qualet.irl.light.LightBuffer;
-import org.qualet.irl.light.LightMath;
-import org.qualet.irl.light.LightRegistry;
-import org.qualet.irl.light.VlGlobalsBuffer;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.blocks.entities.ModelBlockEntity;
 import mchorse.bbs_mod.blocks.entities.ModelProperties;
@@ -26,10 +13,8 @@ import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.film.controller.FilmEditorController;
 import mchorse.bbs_mod.ui.film.controller.UIFilmController;
-import mchorse.bbs_mod.ui.framework.UIScreen;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.pose.Transform;
-
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
@@ -37,11 +22,21 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.chunk.BlockEntityTickInvoker;
-
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
+import qualet.irlite.client.diag.VlProfiler;
+import qualet.irlite.client.light.cookie.CookieArray;
+import qualet.irlite.forms.PointLightForm;
+import qualet.irlite.forms.SpotlightForm;
+import qualet.irlite.mixin.client.bbs.WorldBlockEntityTickersAccessor;
 
-import io.netty.util.collection.IntObjectMap;
+import org.qualet.irl.light.ClusterGridBuffer;
+import org.qualet.irl.light.LightBuffer;
+import org.qualet.irl.light.LightMath;
+import org.qualet.irl.light.LightRegistry;
+import org.qualet.irl.light.VlGlobalsBuffer;
+
+import qualet.irlite.IrliteConfig;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -152,28 +147,9 @@ public final class LightCollector
 
     public static void collect(ClientWorld world, Vec3d cameraPos, float tickDelta)
     {
-        // Synchronize configs bidirectionally between BBS and CAL Editor before collecting or pushing globals
-        IrliteCalCompat.syncConfigs();
-
         // Track the "max shader lights" slider each frame: caps how many lights the
         // flush packs into the SSBO (registration + shadow caches still see them all).
         LightRegistry.setUploadCap(IrliteConfig.maxShaderLights());
-
-        // Push BBS runtime globals: ensures BBS settings (outline, volumetrics,
-        // shadows) always take precedence over anything pushed by CAL Editor or compat hooks.
-        pushGlobals();
-
-        if (world != null && cameraPos != null)
-        {
-            TraversalScratch scratch = SCRATCH.get();
-            scanBlockEntities(world, cameraPos, tickDelta, scratch);
-            scanFilmReplays(cameraPos, tickDelta, scratch);
-            IrliteCalCompat.collectCalLights(world, cameraPos, tickDelta);
-        }
-    }
-
-    private static void pushGlobals()
-    {
         // Clustering has no knob: it is always on (core default), the image is
         // identical either way and it only ever makes the per-pixel loop cheaper.
         // For an A/B measurement, start with -Dirlite.noClustering=true.
@@ -239,6 +215,15 @@ public final class LightCollector
         // setOutline/setShadow/setSurface are NOT mirrored there by design — the
         // sweep only varies VL, and their flag words are separate from set()'s.
         VlProfiler.overrideVlGlobals();
+
+        if (world == null || cameraPos == null)
+        {
+            return;
+        }
+
+        TraversalScratch scratch = SCRATCH.get();
+        scanBlockEntities(world, cameraPos, tickDelta, scratch);
+        scanFilmReplays(cameraPos, tickDelta, scratch);
     }
 
     private static void scanBlockEntities(ClientWorld world, Vec3d cameraPos, float tickDelta, TraversalScratch scratch)
@@ -456,21 +441,17 @@ public final class LightCollector
             return;
         }
 
-        for (IntObjectMap.PrimitiveEntry<IEntity> entry : editor.getEntities().entries())
+        // BBS 2.6 keys the film's entities by the replay's stable id, not its list index.
+        java.util.Map<String, IEntity> entities = editor.getEntities();
+        for (int replayId = 0; replayId < replays.size(); replayId++)
         {
-            int replayId = entry.key();
-            if (replayId < 0 || replayId >= replays.size())
-            {
-                continue;
-            }
-
             Replay replay = replays.get(replayId);
             if (replay == null || replay.actor.get())
             {
                 continue;
             }
 
-            IEntity ent = entry.value();
+            IEntity ent = entities.get(replay.getId());
             if (ent == null)
             {
                 continue;
@@ -517,12 +498,12 @@ public final class LightCollector
         try
         {
             MinecraftClient mc = MinecraftClient.getInstance();
-            if (mc == null || !(mc.currentScreen instanceof UIScreen))
+            if (mc == null || !(mc.currentScreen instanceof mchorse.bbs_mod.ui.framework.UIScreen))
             {
                 return null;
             }
 
-            UIDashboard dashboard = BBSModClient.getDashboard();
+            UIDashboard dashboard = BBSModClient.getDashboardIfCreated();
             if (dashboard == null || !(dashboard.getPanels().panel instanceof UIFilmPanel filmPanel))
             {
                 return null;
@@ -546,6 +527,7 @@ public final class LightCollector
         // the absolute world position without the far-from-origin float quantization.
         Color c = form.color.get();
         LightRegistry.registerPoint(baseX + origin.x, baseY + origin.y, baseZ + origin.z, c.r, c.g, c.b, form.intensity.get(), form.radius.get(), form.entitiesOnly.get(), form.blocksOnly.get(), form.anisotropy.get(), form.vlDensity.get(), form.beamStrength.get(), form.bulbSize.get(), form.shadows.get(), System.identityHashCode(form));
+        LightEffectsRegistration.apply(form);
     }
 
     private static void emitSpot(SpotlightForm form, Matrix4f matrix, double baseX, double baseY, double baseZ,
@@ -574,5 +556,6 @@ public final class LightCollector
         // added back to recover the absolute world position without float quantization.
         Color c = form.color.get();
         LightRegistry.registerSpot(baseX + origin.x, baseY + origin.y, baseZ + origin.z, dx, dy, dz, c.r, c.g, c.b, form.intensity.get(), form.range.get(), cosOuter, cosInner, form.entitiesOnly.get(), form.blocksOnly.get(), form.anisotropy.get(), form.vlDensity.get(), form.beamStrength.get(), form.bulbSize.get(), form.shadows.get(), (float) cookieLayer, cookieRot, form.cookieScale.get(), cookieFlags, System.identityHashCode(form));
+        LightEffectsRegistration.apply(form);
     }
 }

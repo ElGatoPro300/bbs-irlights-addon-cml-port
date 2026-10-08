@@ -1,8 +1,7 @@
 package qualet.irlite.client;
 
-import qualet.irlite.IrliteConfig;
-
 import org.qualet.irl.light.shadow.ShadowConfig;
+import qualet.irlite.IrliteConfig;
 
 /**
  * Client-side {@link ShadowConfig} adapter handed to
