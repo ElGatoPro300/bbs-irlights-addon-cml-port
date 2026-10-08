@@ -146,7 +146,13 @@ dependencies {
     // Iris is referenced at compile time (sampler mixins). Sodium is runtime-only.
     modImplementation "maven.modrinth:iris:${V.iris}"
     modImplementation "maven.modrinth:sodium:${V.sodium}"
-    modImplementation "maven.modrinth:bbs-cml-edition:${V.bbs}"
+    // CML 3.0 API library for this port; override with -PcmlJar=<absolute path>.
+    def cmlLibrary = file(findProperty('cmlJar') ?: 'libs/bbs-cml-3.0-dev-1-1.21.1.jar')
+    if (!cmlLibrary.isFile())
+    {
+        throw new GradleException("CML 3.0 library missing: ${cmlLibrary}")
+    }
+    modImplementation files(cmlLibrary)
     modCompileOnly "maven.modrinth:irl-cal-editor:${V.calEditor}"
 
     // Iris runtime dependencies (not auto-pulled from the Modrinth artifact).

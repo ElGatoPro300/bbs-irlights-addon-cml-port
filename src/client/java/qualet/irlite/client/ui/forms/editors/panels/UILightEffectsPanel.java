@@ -5,20 +5,22 @@ import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
 import mchorse.bbs_mod.ui.forms.editors.panels.UIFormPanel;
+import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UICirculate;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.utils.UI;
-import qualet.irlite.IrliteConfig;
-import qualet.irlite.client.light.LightEffectsRegistration;
-import qualet.irlite.forms.LightEffects;
-import qualet.irlite.forms.LightForm;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
+
+import qualet.irlite.IrliteConfig;
+import qualet.irlite.client.light.LightEffectsRegistration;
+import qualet.irlite.forms.LightEffects;
+import qualet.irlite.forms.LightForm;
 
 /**
  * A light's own volumetric settings (one tab) or its own outline settings plus the
@@ -32,6 +34,7 @@ import java.util.function.Function;
 public final class UILightEffectsPanel<T extends LightForm> extends UIFormPanel<T>
 {
     private final List<Runnable> refresh = new ArrayList<>();
+    private final List<UIElement> outlineControls = new ArrayList<>();
     private final LightReplayWidgets outlineReplays;
 
     /**
@@ -122,7 +125,7 @@ public final class UILightEffectsPanel<T extends LightForm> extends UIFormPanel<
 
     private void ownOutlineOnly(UIElement element)
     {
-        element.valueBinding(() -> element.setEnabled(this.form.effects.customOutline.get()));
+        this.outlineControls.add(element);
     }
 
     private void layout(String first, UIElement[] a, String second, UIElement[] b, String third, UIElement[] c)
@@ -178,6 +181,20 @@ public final class UILightEffectsPanel<T extends LightForm> extends UIFormPanel<
         {
             this.outlineReplays.refresh();
         }
+    }
+
+    @Override
+    public void render(UIContext context)
+    {
+        if (this.form != null)
+        {
+            for (UIElement element : this.outlineControls)
+            {
+                element.setEnabled(this.form.effects.customOutline.get());
+            }
+        }
+
+        super.render(context);
     }
 
     @Override

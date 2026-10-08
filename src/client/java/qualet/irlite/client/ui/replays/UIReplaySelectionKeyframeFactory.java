@@ -7,11 +7,11 @@ import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIKeyframeFactory;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
-import qualet.irlite.client.light.ReplaySelection;
-import qualet.irlite.client.light.ReplaySelectionPlayback;
-import qualet.irlite.forms.ValueReplaySelection;
 
 import java.util.List;
+
+import qualet.irlite.client.light.ReplaySelection;
+import qualet.irlite.forms.ValueReplaySelection;
 
 /** The selection and its activation travel together in the ordinary, undoable string keyframe. */
 public final class UIReplaySelectionKeyframeFactory extends UIKeyframeFactory<String>
@@ -29,18 +29,9 @@ public final class UIReplaySelectionKeyframeFactory extends UIKeyframeFactory<St
         this.scroll.add(choose);
     }
 
-    @Override
-    protected String getDisplayValue()
+    private String getDisplayValue()
     {
-        Float tick = this.editor.getGraph().getAutoKeyframeTick();
-        UIKeyframeSheet sheet = tick == null ? null : this.editor.getGraph().getSheet(this.keyframe);
-
-        if (sheet != null && ReplaySelectionPlayback.startsAfter(sheet.channel, tick))
-        {
-            return USE_LIGHT_SETTINGS;
-        }
-
-        return super.getDisplayValue();
+        return this.keyframe.getValue();
     }
 
     private UIFilmPanel filmPanel()

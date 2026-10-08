@@ -12,20 +12,23 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UIText;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Colors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.qualet.irl.patcher.IrlPatch;
-import org.qualet.irl.patcher.IrlPatchApplier;
-import org.qualet.irl.patcher.IrlPatchParser;
-import org.qualet.irl.patcher.PatchLibrary;
-import org.qualet.irl.patcher.PatchResult;
-import org.qualet.irl.patcher.Shaderpacks;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.qualet.irl.patcher.IrlPatch;
+import org.qualet.irl.patcher.IrlPatchApplier;
+import org.qualet.irl.patcher.IrlPatchParser;
+import org.qualet.irl.patcher.PatchLibrary;
+import org.qualet.irl.patcher.PatchResult;
+import org.qualet.irl.patcher.Shaderpacks;
+import qualet.irlite.client.ui.IRLightsUIKeys;
 
 /** The IRLite shader patcher, rendered as controls inside the IRLite settings section. */
 public final class UIPatcherSection
@@ -41,7 +44,7 @@ public final class UIPatcherSection
     private static String selectedPack;
     private static Path selectedPatch;
     private static boolean createNew = false;
-    private static String status = "Select a shaderpack and a patch for it.";
+    private static IKey status = IRLightsUIKeys.SELECT_BOTH;
     private static int statusColor = Colors.WHITE;
 
     // UIText (not UILabel): both wrap onto multiple lines instead of truncating with
@@ -70,12 +73,12 @@ public final class UIPatcherSection
                 rebuild.run();
             }
         });
-        refresh.tooltip(IKey.constant("Refresh lists"));
+        refresh.tooltip(IRLightsUIKeys.REFRESH);
 
         UIIcon openPacks = new UIIcon(Icons.FOLDER, (b) -> Shaderpacks.openFolder());
-        openPacks.tooltip(IKey.constant("Open shaderpacks folder"));
+        openPacks.tooltip(IRLightsUIKeys.OPEN_PACKS);
 
-        options.add(headerRow("Shaderpacks", refresh, openPacks));
+        options.add(headerRow(IRLightsUIKeys.PACKS, refresh, openPacks));
 
         UILabelList<String> packList = new UILabelList<>((selected) ->
         {
@@ -99,9 +102,9 @@ public final class UIPatcherSection
 
         // --- patch list (header row: label + open folder) ---
         UIIcon openPatches = new UIIcon(Icons.FOLDER, (b) -> PatchLibrary.openFolder());
-        openPatches.tooltip(IKey.constant("Open patches folder"));
+        openPatches.tooltip(IRLightsUIKeys.OPEN_PATCHES);
 
-        options.add(headerRow("Patches", openPatches));
+        options.add(headerRow(IRLightsUIKeys.PATCHES, openPatches));
 
         UILabelList<Path> patchList = new UILabelList<>((selected) ->
         {
@@ -124,21 +127,21 @@ public final class UIPatcherSection
         options.add(patchList);
 
         // --- selected-patch meta (which shaderpack it's for + match state) ---
-        metaLabel = new UIText(IKey.constant("")).color(META_COLOR, true);
+        metaLabel = new UIText(IKey.EMPTY).color(META_COLOR, true);
         options.add(metaLabel);
         updateMeta(packList);
 
         // --- options + primary actions ---
-        UIToggle createNewToggle = new UIToggle(IKey.constant("Create new pack each time"), (t) -> createNew = t.getValue());
+        UIToggle createNewToggle = new UIToggle(IRLightsUIKeys.CREATE_NEW, (t) -> createNew = t.getValue());
         createNewToggle.setValue(createNew);
         options.add(createNewToggle);
 
-        UIButton validate = new UIButton(IKey.constant("Validate"), (b) -> runValidate());
-        validate.tooltip(IKey.constant("Dry-run: check every op against the selected pack, write nothing"));
-        UIButton patch = new UIButton(IKey.constant("Patch"), (b) -> runPatch());
+        UIButton validate = new UIButton(IRLightsUIKeys.VALIDATE, (b) -> runValidate());
+        validate.tooltip(IRLightsUIKeys.VALIDATE_HELP);
+        UIButton patch = new UIButton(IRLightsUIKeys.PATCH, (b) -> runPatch());
         options.add(UI.row(validate, patch));
 
-        statusLabel = new UIText(IKey.constant(status)).color(statusColor, true);
+        statusLabel = new UIText(status).color(statusColor, true);
         options.add(statusLabel);
     }
 
@@ -151,7 +154,7 @@ public final class UIPatcherSection
         }
         if (selectedPatch == null)
         {
-            setMeta("", META_COLOR);
+            setMeta(IKey.EMPTY, META_COLOR);
             return;
         }
 
@@ -163,7 +166,7 @@ public final class UIPatcherSection
         catch (Exception e)
         {
             LOG.warn("failed to parse patch {}", selectedPatch, e);
-            setMeta("Couldn't read this patch.", ERR_COLOR);
+            setMeta(IRLightsUIKeys.READ_FAILED, ERR_COLOR);
             return;
         }
 
@@ -193,17 +196,16 @@ public final class UIPatcherSection
         {
             // A patch is chosen but no shaderpack yet — point the user at the right one.
             setMeta(hasTarget
-                ? "This patch is for the " + parsed.target + " shaderpack. Select it above."
-                : "Select a shaderpack above to continue.", META_COLOR);
+                ? IRLightsUIKeys.TARGET_CHOOSE.format(parsed.target)
+                : IRLightsUIKeys.CHOOSE_PACK, META_COLOR);
         }
         else if (hasTarget && !Shaderpacks.packMatchesTarget(selectedPack, parsed.target))
         {
-            setMeta("This patch is for a different shaderpack (" + parsed.target + ").", WARN_COLOR);
+            setMeta(IRLightsUIKeys.TARGET_MISMATCH.format(parsed.target), WARN_COLOR);
         }
         else
         {
-            setMeta("This patch is made for the " + (hasTarget ? parsed.target : selectedPack)
-                + " shaderpack.", OK_COLOR);
+            setMeta(IRLightsUIKeys.TARGET_MATCH.format(hasTarget ? parsed.target : selectedPack), OK_COLOR);
         }
     }
 
@@ -212,12 +214,12 @@ public final class UIPatcherSection
     {
         if (selectedPack == null)
         {
-            setStatus(false, "Select a shaderpack from the list.");
+            setStatus(false, IRLightsUIKeys.CHOOSE_PACK);
             return null;
         }
         if (selectedPatch == null)
         {
-            setStatus(false, "Select a patch for the shaderpack.");
+            setStatus(false, IRLightsUIKeys.CHOOSE_PATCH);
             return null;
         }
 
@@ -228,7 +230,7 @@ public final class UIPatcherSection
         catch (Exception e)
         {
             LOG.warn("failed to parse patch {}", selectedPatch, e);
-            setStatus(false, "Couldn't read the selected patch.");
+            setStatus(false, IRLightsUIKeys.READ_FAILED);
             return null;
         }
     }
@@ -283,56 +285,56 @@ public final class UIPatcherSection
         if (result.ok)
         {
             setStatus(true, validate
-                ? "It fits! Press Patch to create the light version of the pack."
-                : "Done! Pack \"" + outputName + "\" created. Select it in Iris settings.");
+                ? IRLightsUIKeys.VALID
+                : IRLightsUIKeys.CREATED.format(outputName));
             return;
         }
 
-        String message;
+        IKey message;
         switch (result.outcome)
         {
             case ALREADY_PATCHED:
             case ADD_FILE_EXISTS:
-                message = "This shaderpack already has the light. Pick the original (clean) pack.";
+                message = IRLightsUIKeys.ALREADY_PATCHED;
                 break;
             case CONTRACT_MISMATCH:
-                message = "Patch isn't compatible with this mod version. Update the mod or the patch.";
+                message = IRLightsUIKeys.CONTRACT_MISMATCH;
                 break;
             case BAD_SOURCE:
-                message = "Couldn't open the shaderpack. Make sure a valid pack is selected.";
+                message = IRLightsUIKeys.BAD_SOURCE;
                 break;
             case IO_ERROR:
-                message = "File error. Close the pack in other programs and try again.";
+                message = IRLightsUIKeys.IO_ERROR;
                 break;
             default:
-                message = "This patch didn't fit the selected pack, maybe it's a different version.";
+                message = IRLightsUIKeys.INCOMPATIBLE;
                 break;
         }
         setStatus(false, message);
     }
 
-    private static void setMeta(String message, int color)
+    private static void setMeta(IKey message, int color)
     {
         if (metaLabel != null)
         {
-            metaLabel.text(IKey.constant(message));
+            metaLabel.text(message);
             metaLabel.color(color, true);
         }
     }
 
-    private static void setStatus(boolean ok, String message)
+    private static void setStatus(boolean ok, IKey message)
     {
         status = message;
         statusColor = ok ? OK_COLOR : ERR_COLOR;
         if (statusLabel != null)
         {
-            statusLabel.text(IKey.constant(message));
+            statusLabel.text(message);
             statusLabel.color(statusColor, true);
         }
     }
 
     /** A header row with the label flexing on the left and fixed icon buttons on the right (icons vertically centered with the text). */
-    private static UIElement headerRow(String text, UIIcon... icons)
+    private static UIElement headerRow(IKey text, UIIcon... icons)
     {
         int rowH = 18;
 
@@ -344,7 +346,7 @@ public final class UIPatcherSection
         // Vertically center the label text so it lines up with the centered icons.
         // anchorY centers within (area.h - fontHeight), so the label must span the
         // full row height — UILabel otherwise auto-sizes to the font height.
-        UILabel header = UI.label(IKey.constant(text));
+        UILabel header = UI.label(text);
         header.labelAnchor(0F, 0.5F);
         header.h(rowH);
         row.add(header);

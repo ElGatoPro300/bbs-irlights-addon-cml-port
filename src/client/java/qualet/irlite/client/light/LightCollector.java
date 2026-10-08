@@ -13,8 +13,10 @@ import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.film.controller.FilmEditorController;
 import mchorse.bbs_mod.ui.film.controller.UIFilmController;
+import mchorse.bbs_mod.ui.framework.UIScreen;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.pose.Transform;
+
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
@@ -22,24 +24,25 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.chunk.BlockEntityTickInvoker;
+
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
+
+import io.netty.util.collection.IntObjectMap;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.qualet.irl.light.LightBuffer;
+import org.qualet.irl.light.LightMath;
+import org.qualet.irl.light.LightRegistry;
+import org.qualet.irl.light.VlGlobalsBuffer;
+import qualet.irlite.IrliteConfig;
 import qualet.irlite.client.diag.VlProfiler;
 import qualet.irlite.client.light.cookie.CookieArray;
 import qualet.irlite.forms.PointLightForm;
 import qualet.irlite.forms.SpotlightForm;
 import qualet.irlite.mixin.client.bbs.WorldBlockEntityTickersAccessor;
-
-import org.qualet.irl.light.ClusterGridBuffer;
-import org.qualet.irl.light.LightBuffer;
-import org.qualet.irl.light.LightMath;
-import org.qualet.irl.light.LightRegistry;
-import org.qualet.irl.light.VlGlobalsBuffer;
-
-import qualet.irlite.IrliteConfig;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Walks the loaded ModelBlockEntity forms each frame in pure world coordinates
@@ -442,7 +445,7 @@ public final class LightCollector
         }
 
         // BBS 2.6 keys the film's entities by the replay's stable id, not its list index.
-        java.util.Map<String, IEntity> entities = editor.getEntities();
+        IntObjectMap<IEntity> entities = editor.getEntities();
         for (int replayId = 0; replayId < replays.size(); replayId++)
         {
             Replay replay = replays.get(replayId);
@@ -451,7 +454,7 @@ public final class LightCollector
                 continue;
             }
 
-            IEntity ent = entities.get(replay.getId());
+            IEntity ent = entities.get(replayId);
             if (ent == null)
             {
                 continue;
@@ -498,7 +501,7 @@ public final class LightCollector
         try
         {
             MinecraftClient mc = MinecraftClient.getInstance();
-            if (mc == null || !(mc.currentScreen instanceof mchorse.bbs_mod.ui.framework.UIScreen))
+            if (mc == null || !(mc.currentScreen instanceof UIScreen))
             {
                 return null;
             }

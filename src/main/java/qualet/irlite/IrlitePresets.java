@@ -17,8 +17,6 @@ import mchorse.bbs_mod.settings.values.numeric.ValueInt;
  *  named preset instead of reading Custom. */
 public final class IrlitePresets
 {
-    public static final String[] QUALITY_LABELS = {"Performance", "Balanced", "Quality", "Ultra", "Custom"};
-    public static final String[] STYLE_LABELS = {"Clean", "Dusty", "Smoky", "Custom"};
 
     /** Cost axis. Two deliberate omissions: shadow quality never reaches ULTRA
      *  (3) — the 4096 point layers cost ~4.6 GiB of VRAM, the collapse this

@@ -4,6 +4,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIFloatKeyframeFactory;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
+
 import qualet.irlite.client.ui.forms.editors.panels.IrliteTrackpads;
 
 /** Keeps BBS numeric editing (auto keys, selection, undo, G and Bezier handles),
@@ -20,9 +21,9 @@ public final class UILightFloatKeyframeFactory extends UIFloatKeyframeFactory
         UITrackpad previous = this.value;
         this.value = IrliteTrackpads.create((v) ->
         {
-            Keyframe<Float> target = this.getEditTarget();
-            this.setKeyframeValue(target, v);
-            this.editor.getGraph().setValue(target.getValue(), true, true);
+            Keyframe<Float> target = this.keyframe;
+            this.setKeyframeValue(v);
+            this.editor.getGraph().setValue(target.getValue(), true);
         }, range.min(), range.max());
         // Opening a legacy out-of-range key is read-only; only an edit clamps it.
         this.value.setValue(keyframe.getValue());
@@ -31,8 +32,8 @@ public final class UILightFloatKeyframeFactory extends UIFloatKeyframeFactory
     }
 
     @Override
-    protected void setKeyframeValue(Keyframe<Float> keyframe, double value)
+    protected void setKeyframeValue(double value)
     {
-        super.setKeyframeValue(keyframe, this.range.clamp(value));
+        super.setKeyframeValue(this.range.clamp(value));
     }
 }

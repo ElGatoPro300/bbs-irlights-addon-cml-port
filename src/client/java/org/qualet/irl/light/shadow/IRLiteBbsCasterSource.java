@@ -12,20 +12,22 @@ import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
+import mchorse.bbs_mod.forms.forms.MobForm;
 import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.renderers.FormRenderType;
 import mchorse.bbs_mod.forms.renderers.FormRenderer;
+import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
 import mchorse.bbs_mod.morphing.Morph;
 import mchorse.bbs_mod.selectors.ISelectorOwnerProvider;
 import mchorse.bbs_mod.selectors.SelectorOwner;
 import mchorse.bbs_mod.settings.values.core.ValueTransform;
-import mchorse.bbs_mod.forms.renderers.FormRenderType;
-import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.film.controller.FilmEditorController;
 import mchorse.bbs_mod.ui.film.controller.UIFilmController;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.pose.Transform;
+
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
@@ -46,19 +48,23 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.chunk.BlockEntityTickInvoker;
+
 import org.joml.Matrix3f;
 import org.joml.Vector3f;
+
+import io.netty.util.collection.IntObjectMap;
+
+import java.util.List;
+
 import qualet.irlite.IrliteConfig;
-import qualet.irlite.client.light.LightCollector;
-import qualet.irlite.client.light.BbsModelSilhouette;
 import qualet.irlite.client.light.BbsMobSilhouette;
+import qualet.irlite.client.light.BbsModelSilhouette;
 import qualet.irlite.client.light.BbsSilhouetteBridge;
+import qualet.irlite.client.light.LightCollector;
 import qualet.irlite.forms.PointLightForm;
 import qualet.irlite.forms.SpotlightForm;
 import qualet.irlite.mixin.client.bbs.FilmsAccessor;
 import qualet.irlite.mixin.client.bbs.WorldBlockEntityTickersAccessor;
-
-import java.util.List;
 
 /**
  * The IRLite {@link ShadowCasterSource}: BBS Form/Film/Morph silhouettes — the
@@ -95,7 +101,7 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
         if (type != CasterType.MODEL_BLOCK || !(caster instanceof ModelBlockEntity block)) return CasterRevision.UNKNOWN;
         try
         {
-            return block.getProperties() != null && block.getProperties().getForm() instanceof mchorse.bbs_mod.forms.forms.MobForm
+            return block.getProperties() != null && block.getProperties().getForm() instanceof MobForm
                 ? mobSilhouettes.sample(block, tickDelta) : silhouettes.sample(block, tickDelta);
         }
         catch (RuntimeException | LinkageError failure)
@@ -301,7 +307,7 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
             }
 
             // BBS 2.6 keys the film's entities by the replay's stable id, not its list index.
-            java.util.Map<String, IEntity> entities = ctrl.getEntities();
+            IntObjectMap<IEntity> entities = ctrl.getEntities();
             for (int rid = 0; rid < replays.size(); rid++)
             {
                 Replay replay = replays.get(rid);
@@ -310,7 +316,7 @@ public final class IRLiteBbsCasterSource implements ShadowCasterSource
                     // Skip actor replays — real actors come via the entity arm.
                     continue;
                 }
-                IEntity ent = entities.get(replay.getId());
+                IEntity ent = entities.get(rid);
                 if (ent == null)
                 {
                     continue;

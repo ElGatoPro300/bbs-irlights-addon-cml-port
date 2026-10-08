@@ -1,32 +1,35 @@
 package qualet.irlite.client.forms;
 
-import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.camera.Camera;
 import mchorse.bbs_mod.camera.CameraUtils;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.forms.Form;
+import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.film.controller.UIFilmController;
+import mchorse.bbs_mod.ui.film.replays.UIReplaysEditor;
 import mchorse.bbs_mod.ui.forms.editors.utils.UIPickableFormRenderer;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.UIScreen;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.StencilFormFramebuffer;
-import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
 import mchorse.bbs_mod.utils.Pair;
+
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.math.MatrixStack;
+
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
-import qualet.irlite.client.ui.forms.editors.panels.UISpotlightFormPanel;
-import qualet.irlite.forms.SpotlightForm;
 
 import java.lang.ref.WeakReference;
 import java.util.Map;
 import java.util.WeakHashMap;
+
+import qualet.irlite.client.ui.forms.editors.panels.UISpotlightFormPanel;
+import qualet.irlite.forms.SpotlightForm;
 
 /**
  * Drag state + math for the interactive spotlight guide handles in the form
@@ -123,7 +126,7 @@ public final class SpotGuideDrag
 
         if (!tryStartWith(
             controller,
-            controller.getGizmoStencil(),
+            controller.picking.getGizmoStencil(),
             controller.panel.getCamera(),
             controller.panel.preview.getViewport(),
             context
@@ -166,7 +169,7 @@ public final class SpotGuideDrag
         };
 
         return SpotGuideKeyframes.begin(replay.properties, property,
-            controller.panel.getCursor(), BBSSettings.autoKeyframe.get());
+            controller.panel.getCursor(), controller.isInstantKeyframes());
     }
 
     private static boolean tryStartWith(Object host, StencilFormFramebuffer stencil, Camera camera, Area viewport, UIContext context)
@@ -472,7 +475,7 @@ public final class SpotGuideDrag
         return film != null
             && film.replayEditor != null
             && film.replayEditor.isVisible()
-            && !film.replayEditor.isActionsMode();
+            && film.replayEditor.getCategory() != UIReplaysEditor.ReplayCategory.ACTIONS;
     }
 
     public static boolean isHandle(String bone)

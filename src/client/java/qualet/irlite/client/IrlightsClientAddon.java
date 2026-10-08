@@ -1,22 +1,35 @@
 package qualet.irlite.client;
 
 import mchorse.bbs_mod.api.BBSAddonMod;
-import mchorse.bbs_mod.api.BBSApi;
 import mchorse.bbs_mod.api.Subscribe;
+import mchorse.bbs_mod.api.client.events.RegisterFormEditorsEvent;
+import mchorse.bbs_mod.api.client.events.RegisterFormRenderersEvent;
 import mchorse.bbs_mod.api.client.events.RegisterKeyframeEditorsEvent;
-import mchorse.bbs_mod.api.client.events.RegisterTrackCategoriesEvent;
-import qualet.irlite.client.ui.replays.LightReplayTracks;
-import qualet.irlite.client.ui.replays.UIReplaySelectionKeyframeFactory;
+import mchorse.bbs_mod.api.client.events.RegisterL10nEvent;
+import mchorse.bbs_mod.resources.Link;
 
-/**
- * The client half of the BBS addon ({@code bbs-client-addon} entrypoint): the keyframe
- * editors of the light forms' replay-list tracks, and the timeline's "Light" tab.
- *
- * <p>The subscriber must stay public with exactly one parameter — BBS's EventBus reflects
- * over getDeclaredMethods() and dispatches by exact event class (see IrlightsAddon).</p>
- */
+import qualet.irlite.client.forms.PointLightFormRenderer;
+import qualet.irlite.client.forms.SpotlightFormRenderer;
+import qualet.irlite.client.ui.forms.editors.forms.UIPointLightForm;
+import qualet.irlite.client.ui.forms.editors.forms.UISpotlightForm;
+import qualet.irlite.client.ui.replays.UIReplaySelectionKeyframeFactory;
+import qualet.irlite.forms.PointLightForm;
+import qualet.irlite.forms.SpotlightForm;
+
 public class IrlightsClientAddon implements BBSAddonMod
 {
+    @Override
+    public int requiredApiVersion()
+    {
+        return 2;
+    }
+
+    @Subscribe
+    public void registerLanguages(RegisterL10nEvent event)
+    {
+        event.l10n.registerOne(language -> new Link("irlite", "strings/" + language + ".json"));
+    }
+
     @Subscribe
     public void registerKeyframeEditors(RegisterKeyframeEditorsEvent event)
     {
@@ -24,17 +37,17 @@ public class IrlightsClientAddon implements BBSAddonMod
         event.registerProperty("light_replays", UIReplaySelectionKeyframeFactory::new);
     }
 
-    /**
-     * The tab the lights' own tracks live in. BBS builds the button, its numeric shortcut and
-     * the "only while this part has such tracks" rule from this one registration; it is
-     * rejected outright after startup, so it has to happen here rather than when a timeline
-     * is first built.
-     */
     @Subscribe
-    public void registerTrackCategories(RegisterTrackCategoriesEvent event)
+    public void registerRenderers(RegisterFormRenderersEvent event)
     {
-        BBSApi.requireVersion("irlite", 2);
+        event.register(PointLightForm.class, PointLightFormRenderer::new);
+        event.register(SpotlightForm.class, SpotlightFormRenderer::new);
+    }
 
-        event.register(LightReplayTracks.CATEGORY, LightReplayTracks::owns);
+    @Subscribe
+    public void registerEditors(RegisterFormEditorsEvent event)
+    {
+        event.register(PointLightForm.class, UIPointLightForm::new);
+        event.register(SpotlightForm.class, UISpotlightForm::new);
     }
 }

@@ -1,7 +1,6 @@
 package qualet.irlite.client.forms;
 
 import mchorse.bbs_mod.film.replays.FormProperties;
-import mchorse.bbs_mod.film.replays.tracks.TrackId;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.settings.values.IValueListener;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
@@ -15,12 +14,12 @@ final class SpotGuideKeyframes
 {
     private final FormProperties properties;
     private final ValueFloat property;
-    private final TrackId track;
+    private final String track;
     private final boolean autoKeyframe;
     private final Keyframe<Float> existing;
     private boolean changed;
 
-    private SpotGuideKeyframes(FormProperties properties, ValueFloat property, TrackId track,
+    private SpotGuideKeyframes(FormProperties properties, ValueFloat property, String track,
                               boolean autoKeyframe, Keyframe<Float> existing)
     {
         this.properties = properties;
@@ -32,14 +31,14 @@ final class SpotGuideKeyframes
 
     static SpotGuideKeyframes begin(FormProperties properties, ValueFloat property, int tick, boolean autoKeyframe)
     {
-        TrackId track = TrackId.parse(FormUtils.getPropertyPath(property));
+        String track = FormUtils.getPropertyPath(property);
 
         if (track == null)
         {
             return null;
         }
 
-        KeyframeChannel<Float> channel = properties.get(track);
+        KeyframeChannel<Float> channel = properties.properties.get(track);
         KeyframeSegment<Float> segment = channel == null ? null : channel.findSegment(tick);
 
         if (!autoKeyframe && segment == null)
@@ -54,18 +53,18 @@ final class SpotGuideKeyframes
     {
         /* Snapshot the group BEFORE creating a channel, so undo removes a newly
          * created track too and film sync receives its complete contents. */
-        BaseValue.edit(this.properties, IValueListener.FLAG_BATCH, properties ->
+        BaseValue.edit(this.properties, IValueListener.FLAG_DEFAULT, properties ->
         {
             if (this.autoKeyframe)
             {
-                KeyframeChannel<Float> channel = properties.get(this.track);
+                KeyframeChannel<Float> channel = properties.properties.get(this.track);
 
                 if (channel == null)
                 {
                     channel = properties.create(this.property);
                 }
 
-                channel.insertInheriting(tick, value);
+                channel.insert(tick, value);
             }
             else
             {

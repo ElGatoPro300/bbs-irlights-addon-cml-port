@@ -10,17 +10,24 @@ import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.renderers.FormRenderer;
 import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
-import com.mojang.blaze3d.systems.RenderSystem;
-import net.irisshaders.iris.gl.state.ValueUpdateNotifier;
+
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.VertexConsumerProvider;
+
+import net.irisshaders.iris.gl.state.ValueUpdateNotifier;
+
+import com.mojang.blaze3d.systems.RenderSystem;
+
 import org.lwjgl.opengl.GL11;
-import org.qualet.irl.light.shadow.ShadowBakeState;
-import qualet.irlite.mixin.client.bbs.FilmsAccessor;
+
+import io.netty.util.collection.IntObjectMap;
 
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Map;
+
+import org.qualet.irl.light.shadow.ShadowBakeState;
+import qualet.irlite.mixin.client.bbs.FilmsAccessor;
 
 /**
  * Which replay is being drawn right now, as a small integer the shader can read.
@@ -123,13 +130,13 @@ public final class ReplayOutlineContext
         }
 
         String film = controller.film.getId();
-        Map<String, IEntity> entities = controller.getEntities();
+        IntObjectMap<IEntity> entities = controller.getEntities();
         Map<String, Integer> ids = TOKENS.computeIfAbsent(film, (k) -> new HashMap<>());
         Map<String, Integer> active = ACTIVE.computeIfAbsent(film, (k) -> new HashMap<>());
 
         for (Replay replay : controller.film.replays.getList())
         {
-            IEntity entity = entities.get(replay.getId());
+            IEntity entity = entities.get(controller.film.replays.getList().indexOf(replay));
 
             if (entity == null || !replay.enabled.get())
             {

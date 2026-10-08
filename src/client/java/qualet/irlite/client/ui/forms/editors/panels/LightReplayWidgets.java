@@ -8,12 +8,13 @@ import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.utils.UI;
-import qualet.irlite.client.light.ReplaySelection;
-import qualet.irlite.client.ui.replays.LightReplayPicker;
-import qualet.irlite.forms.ValueReplaySelection;
 
 import java.util.List;
 import java.util.function.Supplier;
+
+import qualet.irlite.client.light.ReplaySelection;
+import qualet.irlite.client.ui.replays.LightReplayPicker;
+import qualet.irlite.forms.ValueReplaySelection;
 
 /**
  * The form-editor half of a replay list: the "selected replays only" switch and a
@@ -36,8 +37,15 @@ public final class LightReplayWidgets
         this.owner = owner;
         this.flag = flag;
         this.list = list;
-        this.toggle = new UIToggle(IKey.constant(toggleLabel), (b) -> flag.get().set(b.getValue()));
-        this.toggle.valueBinding(() -> this.toggle.setValue(this.flag.get().get()));
+        this.toggle = new UIToggle(IKey.constant(toggleLabel), (b) -> flag.get().set(b.getValue()))
+        {
+            @Override
+            public void render(UIContext context)
+            {
+                this.setValue(flag.get().get());
+                super.render(context);
+            }
+        };
         this.choose = new UIButton(IKey.constant(buttonLabel), (b) -> this.pick());
         this.choose.tooltip(IKey.constant("Click a replay to add or remove it. None clears the list. Changes apply immediately."));
         this.summary = UI.label(() -> "Default list: " + this.describe());

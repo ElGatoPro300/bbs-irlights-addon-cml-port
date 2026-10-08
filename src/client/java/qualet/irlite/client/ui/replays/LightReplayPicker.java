@@ -3,14 +3,15 @@ package qualet.irlite.client.ui.replays;
 import mchorse.bbs_mod.film.Film;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.entities.IEntity;
-import mchorse.bbs_mod.forms.forms.utils.Anchor;
+import mchorse.bbs_mod.l10n.keys.IKey;
+import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.context.UISimpleContextMenu;
-import mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIAnchorKeyframeFactory;
 import mchorse.bbs_mod.ui.utils.context.ContextAction;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
-import qualet.irlite.client.light.ReplaySelection;
+
+import io.netty.util.collection.IntObjectMap;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -18,6 +19,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+
+import qualet.irlite.client.light.ReplaySelection;
 
 /** Adapts Orbit/Tracker's actor picker to a light's set of replay IDs; owns no UI. */
 public final class LightReplayPicker
@@ -29,7 +32,7 @@ public final class LightReplayPicker
     {
         Film film = panel.getData();
         Map<String, IEntity> entities = new LinkedHashMap<>();
-        Map<String, IEntity> actors = panel.getController().getEntities();
+        IntObjectMap<IEntity> actors = panel.getController().getEntities();
         Set<String> selected = new LinkedHashSet<>();
 
         for (Replay replay : film.replays.getList())
@@ -40,7 +43,7 @@ public final class LightReplayPicker
             }
 
             String id = replay.getId();
-            IEntity entity = actors.get(id);
+            IEntity entity = actors.get(film.replays.getList().indexOf(replay));
 
             if (entity != null)
             {
@@ -54,18 +57,28 @@ public final class LightReplayPicker
             }
         }
 
-        UIAnchorKeyframeFactory.displayActors(context, entities, Anchor.NO_ATTACHMENT, (id) ->
+        context.replaceContextMenu(menu ->
         {
-            if (Anchor.NO_ATTACHMENT.equals(id))
+            menu.action(Icons.CLOSE, UIKeys.GENERAL_NONE, () ->
             {
                 selected.clear();
-            }
-            else if (!selected.remove(id))
-            {
-                selected.add(id);
-            }
+                apply.accept(ReplaySelection.encode(film.getId(), selected));
+            });
 
-            apply.accept(ReplaySelection.encode(film.getId(), selected));
+            for (String id : entities.keySet())
+            {
+                Replay replay = film.replays.getList().stream().filter(candidate -> candidate.getId().equals(id)).findFirst().orElseThrow();
+
+                menu.action(Icons.CLOSE, IKey.constant(replay.getName()), () ->
+                {
+                    if (!selected.remove(id))
+                    {
+                        selected.add(id);
+                    }
+
+                    apply.accept(ReplaySelection.encode(film.getId(), selected));
+                });
+            }
         });
 
         if (context.contextMenu instanceof UISimpleContextMenu menu)

@@ -5,17 +5,11 @@
   "compatibilityLevel": "JAVA_21",
   "client": [
     "ExtraFormSectionMixin",
-    "FilmStencilPickerMixin",
     "FormUtilsClientMixin",
     "GameRendererLightMixin",
-    "L10nMixin",
     "UIFilmControllerMixin",
-    "UIFormEditorMixin",
     "UIPickableFormRendererMixin",
-    "TrackCatalogMixin",
-    "UIKeyframeSheetMixin",
     "LightKeyframeEditorMixin",
-    "UIReplaysLightFoldsMixin",
     "UISettingsOverlayPanelMixin",
     "WorldBlockChangeMixin",
     "bbs.FilmsAccessor",
@@ -29,7 +23,9 @@
     "iris.CompositeRendererTimerMixin",
     "iris.ProgramSamplersBuilderMixin",
     "iris.ReplayUniformMixin",
-    "iris.SamplerBindingCubeArrayMixin"
+    "iris.SamplerBindingCubeArrayMixin",
+    "UIKeyframeSheetMixin",
+    "IRLightsCategoryIconMixin"
   ],
   "injectors": {
     "defaultRequire": 1
