@@ -459,14 +459,11 @@ public final class SpotGuideDrag
     }
 
     /**
-     * True only while the REPLAY editor is the active film editor — the sole film
-     * context where the spotlight guides and grab handles are allowed. In the
-     * camera editor the same replay stays selected (so BBS keeps picking it), but
-     * the guides must stay hidden and non-grabbable there.
-     *
-     * 1.21.1: BBS 2.2.1-1.21.1 has no actions-mode (the ReplayCategory enum is
-     * PLAYER/MODEL/POSE, no ACTIONS timeline and no isActionsMode()), so the
-     * actions-mode sub-guard master uses on BBS 2.3.1 is dropped here.
+     * True only while the REPLAY editor is the active film editor and it isn't in
+     * actions mode — the sole film context where the spotlight guides and grab
+     * handles are allowed. In the camera editor, or the replay editor's actions
+     * timeline, the same replay stays selected (so BBS keeps picking it), but the
+     * guides must stay hidden and non-grabbable there.
      */
     public static boolean isReplayEditorActive()
     {

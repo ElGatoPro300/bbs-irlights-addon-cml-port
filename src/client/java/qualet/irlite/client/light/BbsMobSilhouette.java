@@ -78,7 +78,7 @@ public final class BbsMobSilhouette
         MobRig rig = renderer.getRig();
         if (rig == null) return unknown("no mob rig for the villager renderer");
         if (entity.hasCustomName()) return unknown("villager with custom name");
-        for (var stack : entity.getItemsEquipped()) if (!stack.isEmpty()) return unknown("villager with equipment");
+        for (var slot : net.minecraft.entity.EquipmentSlot.values()) if (!entity.getEquippedStack(slot).isEmpty()) return unknown("villager with equipment");
         if (entity instanceof ISelectorOwnerProvider provider)
         {
             provider.getOwner().check();
@@ -159,7 +159,7 @@ public final class BbsMobSilhouette
     private static final class VertexSignature implements VertexConsumer
     {
         final BbsModelSilhouette.Signature signature = new BbsModelSilhouette.Signature();
-        @Override public VertexConsumer vertex(double x, double y, double z)
+        @Override public VertexConsumer vertex(float x, float y, float z)
         {
             if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z))
                 throw new IllegalArgumentException("Non-finite evaluated vertex");
@@ -171,8 +171,5 @@ public final class BbsMobSilhouette
         @Override public VertexConsumer overlay(int u, int v) { return this; }
         @Override public VertexConsumer light(int u, int v) { return this; }
         @Override public VertexConsumer normal(float x, float y, float z) { return this; }
-        @Override public void next() { signature.word(4); }
-        @Override public void fixedColor(int r, int g, int b, int a) { color(r, g, b, a); }
-        @Override public void unfixColor() { signature.word(5); }
     }
 }

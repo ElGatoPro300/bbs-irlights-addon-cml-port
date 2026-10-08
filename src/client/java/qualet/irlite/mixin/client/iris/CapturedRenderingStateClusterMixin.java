@@ -7,8 +7,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.qualet.irl.light.FramePipeline;
 
-import org.joml.Matrix4f;
-
 /**
  * Hands this frame's gbuffer matrices to the light-cluster grid builder. Iris
  * captures the gbuffer modelView then projection back-to-back, once per frame, at
@@ -32,6 +30,6 @@ public class CapturedRenderingStateClusterMixin
     private void irlite$captureGbufferMatrices(CallbackInfo ci)
     {
         CapturedRenderingState state = CapturedRenderingState.INSTANCE;
-        FramePipeline.onGbufferMatricesCaptured(new Matrix4f(state.getGbufferModelView()), new Matrix4f(state.getGbufferProjection()));
+        FramePipeline.onGbufferMatricesCaptured(new org.joml.Matrix4f(state.getGbufferModelView()), new org.joml.Matrix4f(state.getGbufferProjection()));
     }
 }

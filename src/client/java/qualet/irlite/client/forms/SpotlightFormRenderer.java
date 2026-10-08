@@ -1,20 +1,19 @@
 package qualet.irlite.client.forms;
 
-import qualet.irlite.client.light.IRLightPositionResolver;
-import qualet.irlite.client.light.cookie.CookieArray;
-import qualet.irlite.forms.SpotlightForm;
-
-import org.qualet.irl.light.LightMath;
-import org.qualet.irl.light.LightRegistry;
-
 import mchorse.bbs_mod.forms.renderers.FormRenderType;
 import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Color;
-
+import org.joml.Matrix4f;
 import org.joml.Vector3d;
 import org.joml.Vector4f;
+import qualet.irlite.client.light.IRLightPositionResolver;
+import qualet.irlite.client.light.cookie.CookieArray;
+import org.qualet.irl.light.LightMath;
+import org.qualet.irl.light.LightRegistry;
+import qualet.irlite.client.light.LightEffectsRegistration;
+import qualet.irlite.forms.SpotlightForm;
 
 public class SpotlightFormRenderer extends AbstractLightFormRenderer<SpotlightForm>
 {
@@ -81,18 +80,27 @@ public class SpotlightFormRenderer extends AbstractLightFormRenderer<SpotlightFo
     @Override
     protected void registerLight(FormRenderingContext context)
     {
-        Vector3d p = IRLightPositionResolver.resolve(context);
+        Matrix4f matrix = new Matrix4f();
+        Vector3d p = IRLightPositionResolver.resolve(context, matrix);
 
-        Vector4f f = new Vector4f(0F, 0F, 1F, 0F);
-        context.stack.peek().getPositionMatrix().transform(f);
-        Vector4f forward = new Vector4f();
-        LightMath.normalizeDir(f.x, f.y, f.z, 0F, 0F, 1F, forward);
+        // Direction: local +Z through inverseViewRot * stack.peek (strips view roll),
+        // matching the editor gizmo convention.
+        Vector4f forward = new Vector4f(0F, 0F, 1F, 0F);
+        matrix.transform(forward);
+        LightMath.normalizeDir(forward.x, forward.y, forward.z, 0F, 0F, 1F, forward);
         float dx = forward.x, dy = forward.y, dz = forward.z;
 
         LightMath.Cone cone = LightMath.cone(this.form.radius.get(), this.form.innerRadius.get());
         float cosOuter = cone.cosOuter();
         float cosInner = cone.cosInner();
 
+        // Resolve the gobo texture (BBS Link) to its texture-array layer, exactly as
+        // the scanner path does in LightCollector.emitSpot. Without this the render
+        // path called the no-cookie registerSpot overload (cookie forced to layer -1),
+        // so a spotlight registered here — a live actor, an in-world film replay, or a
+        // light hung off a BodyPart bone (which the scanner always skips and delegates
+        // to this path) — never projected its cookie. -1 = no mask, cookie OFF unless a
+        // texture is picked. Rotation is stored in degrees on the form -> radians here.
         int cookieLayer = CookieArray.resolve(this.form.cookie.get());
         float cookieRot = (float) Math.toRadians(this.form.cookieRotation.get());
         float cookieFlags = this.form.cookieInvert.get() ? 1F : 0F;
@@ -110,5 +118,6 @@ public class SpotlightFormRenderer extends AbstractLightFormRenderer<SpotlightFo
             (float) cookieLayer, cookieRot, this.form.cookieScale.get(), cookieFlags,
             System.identityHashCode(this.form)
         );
+        LightEffectsRegistration.apply(this.form);
     }
 }

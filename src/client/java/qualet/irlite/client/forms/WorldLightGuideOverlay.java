@@ -103,6 +103,9 @@ public final class WorldLightGuideOverlay
         finally
         {
             pending.clear();
+            modelView.popMatrix();
+            // The applied matrix can differ from the stack top (BBS's UI does this).
+            modelView.pushMatrix();
             modelView.set(oldModelView);
             RenderSystem.applyModelViewMatrix();
             modelView.popMatrix();

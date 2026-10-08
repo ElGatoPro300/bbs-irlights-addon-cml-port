@@ -77,8 +77,8 @@ public class UISpotlightFormPanel extends UIFormPanel<SpotlightForm>
         this.cookieScale = IrliteTrackpads.create((v) -> this.form.cookieScale.set(v.floatValue()), 0.1, 4);
         this.cookieInvert = new UIToggle(IKey.constant("Invert gobo"), (b) -> this.form.cookieInvert.set(b.getValue()));
 
-        // Collapsible sections need BBS's UISection. On older BBS without it,
-        // fall back to a flat option list — see IrliteBbsCompat.
+        // Collapsible sections need BBS's UISection (newer 2.3.x builds only). On older
+        // BBS the class is absent, so fall back to a flat option list — see IrliteBbsCompat.
         if (IrliteBbsCompat.SECTIONS)
         {
             this.options.add(

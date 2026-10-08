@@ -112,14 +112,12 @@ public final class BbsSilhouetteBridge
         boolean legacyLayout = ROTATE2 != null && ROTATION_MODE == null && QUAT == null && OFFSET == null && WELD_BINDINGS == null;
         boolean modernLayout = ROTATE2 == null && ROTATION_MODE != null && QUAT != null
             && OFFSET != null && OFFSET_SETTER != null && WELD_BINDINGS != null;
+        /* No 1.21.x BBS build has had a silhouette audit of its own — the vanilla renderers and
+         * the Iris path differ from the 1.20.x line the audit walked — so every caster here stays
+         * UNKNOWN and the shadow bake is always a full one. Auditing this line is its own task;
+         * until then a version must not be listed, whatever its members look like. */
         boolean layout27 = modernLayout && PROCEDURAL_BONES != null && ADDITIONAL_OVERLAYS != null;
-        String layout = switch (BBS_VERSION)
-        {
-            // This build targets the BBS 2.7 addon API; older releases cannot load it at all.
-            case "2.7-1.20.1", "2.7-1.20.4" -> layout27 ? null
-                : "2.7 layout (Transform.rotationMode/quat, ModelGroup.offset, ModelInstance.getWeldBindings/getProceduralBones, Form.additionalOverlays)";
-            default -> "unaudited BBS version";
-        };
+        String layout = layout27 ? "1.21.x silhouette audit not done" : "unaudited BBS version";
         if (layout != null) missing.add(layout);
         boolean audited = missing.isEmpty();
         System.out.println("[irlite] caster-revision bridge: bbs " + BBS_VERSION

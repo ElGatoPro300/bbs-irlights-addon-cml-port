@@ -3,10 +3,10 @@ package qualet.irlite.client.ui.forms.editors.panels;
 /**
  * Runtime capability probes for the host BBS build.
  *
- * <p>Some BBS UI classes only exist in newer builds. This addon is compiled
+ * <p>Some BBS UI classes only exist in newer 2.3.x builds. This addon is compiled
  * against a build that has them, but users may run an older BBS jar that carries the
- * same version string yet lacks the classes, so we must probe at runtime instead of
- * trusting the reported version.</p>
+ * same version string ({@code 2.3.1-1.20.1}) yet lacks the classes, so we must probe
+ * at runtime instead of trusting the reported version.</p>
  *
  * <p>This class deliberately holds no direct reference to the probed BBS types (only
  * their names, as strings), so it links and loads on any BBS build.</p>

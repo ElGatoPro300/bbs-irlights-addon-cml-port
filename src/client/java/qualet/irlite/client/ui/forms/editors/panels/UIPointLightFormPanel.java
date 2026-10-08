@@ -57,8 +57,8 @@ public class UIPointLightFormPanel extends UIFormPanel<PointLightForm>
         this.lightReplays = new LightReplayWidgets(this, "Light: selected replays only", "Choose lit replays...",
             () -> this.form.effects.selectedLightReplays, () -> this.form.effects.lightReplays);
 
-        // Collapsible sections need BBS's UISection. On older BBS without it,
-        // fall back to a flat option list — see IrliteBbsCompat.
+        // Collapsible sections need BBS's UISection (newer 2.3.x builds only). On older
+        // BBS the class is absent, so fall back to a flat option list — see IrliteBbsCompat.
         if (IrliteBbsCompat.SECTIONS)
         {
             this.options.add(
