@@ -36,6 +36,11 @@
       "environment": "client"
     }
   ],
+  "jars": [
+    {
+      "file": "META-INF/jars/${irl_core_jar}"
+    }
+  ],
   "depends": {
     "fabricloader": ">=0.19.5",
     "fabric-api": "*",
